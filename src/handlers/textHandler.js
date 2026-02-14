@@ -6,6 +6,7 @@ import {
   getStore,
   getStoresByUser,
   savePostHistory,
+  supabase,
 } from '../services/supabaseService.js';
 import { handleFeedback } from './feedbackHandler.js';
 import { buildStoreParsePrompt, buildTextPostPrompt } from '../utils/promptBuilder.js';
@@ -42,6 +43,17 @@ export async function handleTextMessage(user, text, replyToken) {
   // 店舗一覧
   if (trimmed === '店舗一覧') {
     return await handleStoreList(user, replyToken);
+  }
+
+  // 店舗更新
+  if (trimmed === '店舗更新') {
+    return await handleStoreUpdatePrompt(user, replyToken);
+  }
+
+  // 店舗更新の実行: 「更新: name: 新店名」など
+  if (trimmed.startsWith('更新:') || trimmed.startsWith('更新:')) {
+    const updateData = trimmed.replace(/^更新[:：]\s*/, '');
+    return await handleStoreUpdate(user, updateData, replyToken);
   }
 
   // それ以外 → テキストから投稿生成
@@ -160,6 +172,113 @@ async function handleTextPostGeneration(user, text, replyToken) {
   }
 }
 
+// ==================== 店舗更新プロンプト ====================
+
+async function handleStoreUpdatePrompt(user, replyToken) {
+  if (!user.current_store_id) {
+    return await replyText(replyToken, '店舗が選択されていません。先に店舗を登録してください。');
+  }
+
+  try {
+    const store = await getStore(user.current_store_id);
+    if (!store) {
+      return await replyText(replyToken, '選択中の店舗が見つかりません。');
+    }
+
+    const message = `📝 現在の店舗設定
+
+【店舗名】${store.name}
+【こだわり・強み】${store.strength}
+【口調】${store.tone}
+
+何を変更しますか？
+以下の形式で送信してください：
+
+更新: name: 新しい店名
+更新: strength: 新しいこだわり
+更新: tone: friendly
+
+または複数同時に：
+更新: name: 新店名, strength: 新しいこだわり, tone: casual`;
+
+    await replyText(replyToken, message);
+  } catch (err) {
+    console.error('[Store] 更新プロンプトエラー:', err.message);
+    await replyText(replyToken, 'エラーが発生しました。');
+  }
+}
+
+// ==================== 店舗更新実行 ====================
+
+async function handleStoreUpdate(user, updateData, replyToken) {
+  if (!user.current_store_id) {
+    return await replyText(replyToken, '店舗が選択されていません。');
+  }
+
+  try {
+    const store = await getStore(user.current_store_id);
+    if (!store) {
+      return await replyText(replyToken, '選択中の店舗が見つかりません。');
+    }
+
+    // Parse: "name: 新店名, strength: 新しいこだわり, tone: casual"
+    const pairs = updateData.split(',').map(p => p.trim());
+    const updates = {};
+
+    for (const pair of pairs) {
+      const colonIndex = pair.indexOf(':');
+      if (colonIndex === -1) continue;
+
+      const key = pair.slice(0, colonIndex).trim();
+      const value = pair.slice(colonIndex + 1).trim();
+
+      if (key === 'name') {
+        updates.name = value;
+      } else if (key === 'strength') {
+        updates.strength = value;
+      } else if (key === 'tone') {
+        const validTones = ['friendly', 'professional', 'casual', 'passionate', 'luxury'];
+        if (validTones.includes(value)) {
+          updates.tone = value;
+        } else {
+          return await replyText(replyToken,
+            `口調は以下のいずれかを指定してください:\nfriendly / professional / casual / passionate / luxury`
+          );
+        }
+      }
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return await replyText(replyToken,
+        '更新する内容を指定してください。\n\n例:\n更新: name: 新店名\n更新: strength: 新しいこだわり\n更新: tone: casual'
+      );
+    }
+
+    // データベース更新
+    const { error } = await supabase
+      .from('stores')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', store.id);
+
+    if (error) throw new Error(`更新失敗: ${error.message}`);
+
+    // 更新内容を確認
+    const summary = [];
+    if (updates.name) summary.push(`店舗名: ${updates.name}`);
+    if (updates.strength) summary.push(`こだわり: ${updates.strength}`);
+    if (updates.tone) summary.push(`口調: ${updates.tone}`);
+
+    console.log(`[Store] 更新完了: ${store.name} → ${summary.join(', ')}`);
+    await replyText(replyToken, `✅ 店舗情報を更新しました！\n\n${summary.join('\n')}`);
+  } catch (err) {
+    console.error('[Store] 更新エラー:', err.message);
+    await replyText(replyToken, `更新中にエラーが発生しました: ${err.message}`);
+  }
+}
+
 // ==================== ヘルプ ====================
 
 const HELP_TEXT = `📖 AI店舗秘書の使い方
@@ -183,4 +302,5 @@ friendly / professional / casual / passionate / luxury
 
 【その他】
 ・店舗一覧 → 登録済み店舗を表示
+・店舗更新 → 店舗情報を変更
 ・ヘルプ → この説明を表示`;
