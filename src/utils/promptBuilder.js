@@ -14,16 +14,26 @@ function getToneName(tone) {
  * 店舗登録テキストを解析するプロンプト
  */
 export function buildStoreParsePrompt(userInput) {
-  return `以下のテキストから店舗情報を抽出してJSON形式で返してください。
+  return `以下のテキストから店舗情報を抽出して、JSON形式で返してください。
 
-入力: ${userInput}
+入力テキスト: ${userInput}
 
-以下のJSON形式で出力してください（JSONのみ、他の文字は含めないでください）:
+必ず以下のJSON形式でのみ回答してください。説明文や追加のテキストは一切含めず、JSONのみを出力してください:
+
 {
   "name": "店舗名",
-  "strength": "こだわり・強み",
-  "tone": "口調（friendly/professional/casual/passionate/luxury のいずれか）"
-}`;
+  "strength": "こだわりや強み",
+  "tone": "friendly"
+}
+
+tone は必ず以下のいずれか1つを選んでください:
+- friendly (親しみやすい)
+- professional (プロフェッショナル)
+- casual (カジュアル)
+- passionate (情熱的)
+- luxury (高級感)
+
+重要: 必ずJSONのみを返し、他の文章を含めないでください。`;
 }
 
 /**
