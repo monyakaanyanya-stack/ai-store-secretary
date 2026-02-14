@@ -75,6 +75,17 @@ export async function handleTextMessage(user, text, replyToken) {
     return await handleShowSettings(user, replyToken);
   }
 
+  // テンプレート削除（対話開始）
+  if (trimmed === 'テンプレート削除') {
+    return await handleTemplateDeletePrompt(user, replyToken);
+  }
+
+  // テンプレート削除の実行: 「削除: address」など
+  if (trimmed.startsWith('削除:') || trimmed.startsWith('削除:')) {
+    const fieldToDelete = trimmed.replace(/^削除[:：]\s*/, '');
+    return await handleTemplateDelete(user, fieldToDelete, replyToken);
+  }
+
   // 個別文章量指定: 「短文で: 新商品のケーキ」
   const lengthMatch = trimmed.match(/^(短文|中文|長文)で[:：]\s*(.+)/);
   if (lengthMatch) {
@@ -447,6 +458,121 @@ async function handleTextPostGenerationWithLength(user, text, replyToken, length
   }
 }
 
+// ==================== テンプレート削除プロンプト ====================
+
+async function handleTemplateDeletePrompt(user, replyToken) {
+  if (!user.current_store_id) {
+    return await replyText(replyToken, '店舗が選択されていません。');
+  }
+
+  try {
+    const store = await getStore(user.current_store_id);
+    const templates = store.config?.templates || {};
+
+    // テンプレートがない場合
+    if (!templates.address && !templates.business_hours && !Object.keys(templates.custom_fields || {}).length) {
+      return await replyText(replyToken, '削除できるテンプレートがありません。');
+    }
+
+    // 削除可能なフィールドをリスト化
+    const fields = [];
+    if (templates.address) fields.push('address (住所)');
+    if (templates.business_hours) fields.push('business_hours (営業時間)');
+    if (templates.custom_fields) {
+      Object.keys(templates.custom_fields).forEach(key => {
+        fields.push(`${key}`);
+      });
+    }
+
+    const message = `🗑️ テンプレート削除
+
+削除したいフィールドを選んでください：
+
+【登録済みフィールド】
+${fields.map((f, i) => `${i + 1}. ${f}`).join('\n')}
+
+削除方法：
+削除: address
+削除: business_hours
+削除: カスタムフィールド名
+
+全削除する場合：
+削除: all`;
+
+    await replyText(replyToken, message);
+  } catch (err) {
+    console.error('[Template] 削除プロンプトエラー:', err.message);
+    await replyText(replyToken, `エラーが発生しました: ${err.message}`);
+  }
+}
+
+// ==================== テンプレート削除実行 ====================
+
+async function handleTemplateDelete(user, fieldToDelete, replyToken) {
+  if (!user.current_store_id) {
+    return await replyText(replyToken, '店舗が選択されていません。');
+  }
+
+  try {
+    const store = await getStore(user.current_store_id);
+    const templates = { ...(store.config?.templates || {}) };
+
+    // 全削除
+    if (fieldToDelete === 'all' || fieldToDelete === '全て') {
+      const newConfig = {
+        ...(store.config || {}),
+        templates: {}
+      };
+      await updateStoreConfig(store.id, newConfig);
+      return await replyText(replyToken, '✅ すべてのテンプレートを削除しました。');
+    }
+
+    // 個別削除
+    let deleted = false;
+    const deletedFields = [];
+
+    if (fieldToDelete === 'address' && templates.address) {
+      delete templates.address;
+      deleted = true;
+      deletedFields.push('住所');
+    }
+
+    if (fieldToDelete === 'business_hours' && templates.business_hours) {
+      delete templates.business_hours;
+      deleted = true;
+      deletedFields.push('営業時間');
+    }
+
+    // カスタムフィールド削除
+    if (templates.custom_fields && templates.custom_fields[fieldToDelete]) {
+      delete templates.custom_fields[fieldToDelete];
+      deleted = true;
+      deletedFields.push(fieldToDelete);
+
+      // custom_fields が空になったら削除
+      if (Object.keys(templates.custom_fields).length === 0) {
+        delete templates.custom_fields;
+      }
+    }
+
+    if (!deleted) {
+      return await replyText(replyToken, `「${fieldToDelete}」というフィールドは見つかりませんでした。\n\n設定確認 でテンプレートを確認してください。`);
+    }
+
+    // 更新を保存
+    const newConfig = {
+      ...(store.config || {}),
+      templates
+    };
+    await updateStoreConfig(store.id, newConfig);
+
+    await replyText(replyToken, `✅ テンプレートを削除しました:\n${deletedFields.join(', ')}`);
+  } catch (err) {
+    console.error('[Template] 削除エラー:', err.message);
+    await replyText(replyToken, `削除中にエラーが発生しました: ${err.message}`);
+  }
+}
+
 // ==================== ヘルプ ====================
 
 const HELP_TEXT = `📖 AI店舗秘書の使い方
@@ -470,6 +596,7 @@ friendly / professional / casual / passionate / luxury
 【設定】
 ・長さ: short / medium / long → デフォルトの投稿長を設定
 ・テンプレート: address:住所,business_hours:営業時間 → テンプレート登録
+・テンプレート削除 → テンプレート削除（対話形式）
 ・設定確認 → 現在の設定を表示
 
 【店舗管理】
