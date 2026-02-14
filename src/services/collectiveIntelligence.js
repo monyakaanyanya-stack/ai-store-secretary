@@ -1,5 +1,6 @@
 import { supabase } from './supabaseService.js';
 import { getCategoryGroup } from '../config/categoryGroups.js';
+import { validateEngagementMetrics, isStatisticalOutlier } from '../config/validationRules.js';
 
 /**
  * 同じカテゴリーの店舗から集合知を取得
@@ -170,38 +171,101 @@ function getDefaultInsights() {
 }
 
 /**
- * エンゲージメントメトリクスを保存
+ * エンゲージメントメトリクスを保存（バリデーション付き）
  * @param {string} storeId - 店舗ID
  * @param {string} category - カテゴリー
  * @param {Object} postData - 投稿データ
  * @param {Object} metrics - エンゲージメント指標
+ * @returns {Object} - { success: boolean, validation: Object }
  */
 export async function saveEngagementMetrics(storeId, category, postData, metrics = {}) {
   const categoryGroup = getCategoryGroup(category);
 
+  // データ準備
+  const metricsData = {
+    store_id: storeId,
+    post_id: postData.post_id || null,
+    category,
+    category_group: categoryGroup,
+    post_content: postData.content,
+    hashtags: extractHashtags(postData.content),
+    post_length: postData.content?.length || 0,
+    emoji_count: countEmojis(postData.content),
+    likes_count: metrics.likes_count || 0,
+    saves_count: metrics.saves_count || 0,
+    comments_count: metrics.comments_count || 0,
+    reach: metrics.reach || 0,
+    engagement_rate: metrics.engagement_rate || 0,
+    post_time: new Date().toISOString(),
+    day_of_week: new Date().getDay(),
+  };
+
+  // バリデーション実行
+  const validation = validateEngagementMetrics(metricsData, category);
+
+  if (!validation.isValid) {
+    console.warn('[CollectiveIntelligence] バリデーションエラー:', validation.errors);
+    console.warn('[CollectiveIntelligence] 異常データを保存しません:', metricsData);
+
+    return {
+      success: false,
+      validation,
+      message: '異常なデータが検出されたため保存されませんでした',
+    };
+  }
+
+  // 統計的外れ値チェック（同カテゴリーの過去データと比較）
+  if (category && metrics.likes_count > 0) {
+    const { data: categoryData } = await supabase
+      .from('engagement_metrics')
+      .select('likes_count, engagement_rate')
+      .eq('category', category)
+      .order('created_at', { ascending: false })
+      .limit(30);
+
+    if (categoryData && categoryData.length >= 3) {
+      const likesValues = categoryData.map(d => d.likes_count);
+      const isLikesOutlier = isStatisticalOutlier(likesValues, metrics.likes_count);
+
+      if (isLikesOutlier) {
+        console.warn('[CollectiveIntelligence] 統計的外れ値を検出（いいね数）:', {
+          value: metrics.likes_count,
+          category,
+          mean: likesValues.reduce((sum, v) => sum + v, 0) / likesValues.length,
+        });
+
+        return {
+          success: false,
+          validation: {
+            isValid: false,
+            errors: [`いいね数が統計的外れ値です: ${metrics.likes_count}（カテゴリー平均から3σ以上離れています）`],
+          },
+          message: '統計的に異常なデータが検出されたため保存されませんでした',
+        };
+      }
+    }
+  }
+
+  // バリデーション通過 → データベースに保存
   const { error } = await supabase
     .from('engagement_metrics')
-    .insert({
-      store_id: storeId,
-      post_id: postData.post_id || null,
-      category,
-      category_group: categoryGroup,
-      post_content: postData.content,
-      hashtags: extractHashtags(postData.content),
-      post_length: postData.content?.length || 0,
-      emoji_count: countEmojis(postData.content),
-      likes_count: metrics.likes_count || 0,
-      saves_count: metrics.saves_count || 0,
-      comments_count: metrics.comments_count || 0,
-      reach: metrics.reach || 0,
-      engagement_rate: metrics.engagement_rate || 0,
-      post_time: new Date().toISOString(),
-      day_of_week: new Date().getDay(),
-    });
+    .insert(metricsData);
 
   if (error) {
     console.error('[CollectiveIntelligence] メトリクス保存エラー:', error.message);
+    return {
+      success: false,
+      validation,
+      message: `保存エラー: ${error.message}`,
+    };
   }
+
+  console.log(`[CollectiveIntelligence] メトリクス保存成功: store=${storeId}, category=${category}`);
+  return {
+    success: true,
+    validation,
+    message: 'エンゲージメントデータを保存しました',
+  };
 }
 
 /**

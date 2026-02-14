@@ -82,6 +82,16 @@ export async function handleTextMessage(user, text, replyToken) {
     return await handleLearningStatus(user, replyToken);
   }
 
+  // 👍 良い評価
+  if (trimmed === '👍') {
+    return await handlePositiveFeedback(user, replyToken);
+  }
+
+  // 👎 イマイチ評価
+  if (trimmed === '👎') {
+    return await handleNegativeFeedback(user, replyToken);
+  }
+
   // テンプレート削除（対話開始）
   if (trimmed === 'テンプレート削除') {
     return await handleTemplateDeletePrompt(user, replyToken);
@@ -239,8 +249,12 @@ async function handleTextPostGeneration(user, text, replyToken) {
 ${postContent}
 ━━━━━━━━━━━
 
-👍 このまま使う
-✏️ 修正する（「直し: 〜」で指示してください）`;
+この投稿は良かったですか？
+👍 良い（「👍」と送信）
+👎 イマイチ（「👎」と送信）
+✏️ 修正する（「直し: 〜」で指示してください）
+
+※ 評価を送ると自動的に学習します！`;
 
     await replyText(replyToken, formattedReply);
   } catch (err) {
@@ -694,3 +708,69 @@ friendly / professional / casual / passionate / luxury
 
 【ヘルプ】
 ・ヘルプ → この説明を表示`;
+
+// ==================== 👍 良い評価のハンドラー ====================
+
+async function handlePositiveFeedback(user, replyToken) {
+  if (!user.current_store_id) {
+    return await replyText(replyToken, '店舗が選択されていません。');
+  }
+
+  try {
+    const store = await getStore(user.current_store_id);
+    const { data: latestPost } = await supabase
+      .from('post_history')
+      .select('*')
+      .eq('store_id', store.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (!latestPost) {
+      return await replyText(replyToken, 'まだ投稿がありません。');
+    }
+
+    // パーソナライゼーションエンジンに学習させる
+    const { applyFeedbackToProfile } = await import('../services/personalizationEngine.js');
+    await applyFeedbackToProfile(store.id, '👍 良い投稿として学習', latestPost.content);
+
+    console.log(`[Feedback] 👍 良い評価: store=${store.name}`);
+    await replyText(replyToken, '👍 ありがとうございます！\n\nこのスタイルを学習しました。次回からこの方向性で生成します！');
+  } catch (err) {
+    console.error('[Feedback] 👍 処理エラー:', err.message);
+    await replyText(replyToken, `エラーが発生しました: ${err.message}`);
+  }
+}
+
+// ==================== 👎 イマイチ評価のハンドラー ====================
+
+async function handleNegativeFeedback(user, replyToken) {
+  if (!user.current_store_id) {
+    return await replyText(replyToken, '店舗が選択されていません。');
+  }
+
+  try {
+    const store = await getStore(user.current_store_id);
+    const { data: latestPost } = await supabase
+      .from('post_history')
+      .select('*')
+      .eq('store_id', store.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (!latestPost) {
+      return await replyText(replyToken, 'まだ投稿がありません。');
+    }
+
+    // パーソナライゼーションエンジンに学習させる（逆方向）
+    const { applyFeedbackToProfile } = await import('../services/personalizationEngine.js');
+    await applyFeedbackToProfile(store.id, '👎 イマイチな投稿として学習', latestPost.content);
+
+    console.log(`[Feedback] 👎 イマイチ評価: store=${store.name}`);
+    await replyText(replyToken, '👎 フィードバックありがとうございます。\n\n「直し: 〜」で具体的に修正指示を送っていただけると、より精度が上がります！');
+  } catch (err) {
+    console.error('[Feedback] 👎 処理エラー:', err.message);
+    await replyText(replyToken, `エラーが発生しました: ${err.message}`);
+  }
+}

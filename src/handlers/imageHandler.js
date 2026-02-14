@@ -66,8 +66,12 @@ export async function handleImageMessage(user, messageId, replyToken) {
 ${postContent}
 ━━━━━━━━━━━
 
-👍 このまま使う
-✏️ 修正する（「直し: 〜」で指示してください）`;
+この投稿は良かったですか？
+👍 良い（「👍」と送信）
+👎 イマイチ（「👎」と送信）
+✏️ 修正する（「直し: 〜」で指示してください）
+
+※ 評価を送ると自動的に学習します！`;
 
     await replyText(replyToken, formattedReply);
   } catch (err) {
