@@ -6,8 +6,18 @@ const TONE_MAP = {
   luxury: '高級感のある',
 };
 
+export const POST_LENGTH_MAP = {
+  short: { range: '100-150文字', description: '短文' },
+  medium: { range: '200-300文字', description: '中文' },
+  long: { range: '400-500文字', description: '長文' },
+};
+
 function getToneName(tone) {
   return TONE_MAP[tone] || TONE_MAP.friendly;
+}
+
+function getPostLengthInfo(length = 'medium') {
+  return POST_LENGTH_MAP[length] || POST_LENGTH_MAP.medium;
 }
 
 /**
@@ -39,7 +49,20 @@ tone は必ず以下のいずれか1つを選んでください:
 /**
  * 画像から投稿を生成するプロンプト（Phase 1）
  */
-export function buildImagePostPrompt(store, learningData) {
+export function buildImagePostPrompt(store, learningData, lengthOverride = null) {
+  const postLength = lengthOverride || store.config?.post_length || 'medium';
+  const lengthInfo = getPostLengthInfo(postLength);
+
+  const templates = store.config?.templates || {};
+  const templateInfo = Object.keys(templates).length > 0
+    ? `\n【店舗テンプレート情報】
+${templates.address ? `住所: ${templates.address}` : ''}
+${templates.business_hours ? `営業時間: ${templates.business_hours}` : ''}
+${Object.entries(templates.custom_fields || {})
+  .map(([key, val]) => `${key}: ${val}`)
+  .join('\n')}`
+    : '';
+
   return `あなたは${store.name}のSNS投稿を作成するAI秘書です。
 
 【重要な指示】
@@ -49,7 +72,7 @@ export function buildImagePostPrompt(store, learningData) {
 【投稿作成時の基本方針】
 - 口調: ${getToneName(store.tone)}の語り口で書く
 - 店舗の雰囲気: ${store.name}は「${store.strength}」がテーマ（参考程度）
-- 学習データ: ${learningData.preferredWords?.join(', ') || 'なし'}
+- 学習データ: ${learningData.preferredWords?.join(', ') || 'なし'}${templateInfo}
 
 【画像分析と投稿作成の手順】
 1. この画像に何が写っているかを正確に特定
@@ -57,25 +80,39 @@ export function buildImagePostPrompt(store, learningData) {
 3. ${getToneName(store.tone)}な口調で、自然で魅力的な文章にする
 4. 関連性の高いハッシュタグを3-5個追加
 5. 絵文字を効果的に使用
+${templates.address || templates.business_hours ? '6. テンプレート情報を投稿の最後に自然に含める' : ''}
 
 【注意事項】
 - 画像に写っていないものを無理に結びつけない
 - 「${store.strength}」は店舗のベース情報として軽く触れる程度でOK
 - 画像の内容が店舗テーマと異なっても、画像内容を優先する
 
-Instagram用に最適化された投稿文のみを出力してください（200-300文字程度）。`;
+Instagram用に最適化された投稿文のみを出力してください（${lengthInfo.range}）。`;
 }
 
 /**
  * テキストから投稿を生成するプロンプト
  */
-export function buildTextPostPrompt(store, learningData, userText) {
+export function buildTextPostPrompt(store, learningData, userText, lengthOverride = null) {
+  const postLength = lengthOverride || store.config?.post_length || 'medium';
+  const lengthInfo = getPostLengthInfo(postLength);
+
+  const templates = store.config?.templates || {};
+  const templateInfo = Object.keys(templates).length > 0
+    ? `\n【店舗テンプレート情報】
+${templates.address ? `住所: ${templates.address}` : ''}
+${templates.business_hours ? `営業時間: ${templates.business_hours}` : ''}
+${Object.entries(templates.custom_fields || {})
+  .map(([key, val]) => `${key}: ${val}`)
+  .join('\n')}`
+    : '';
+
   return `あなたは${store.name}のSNS投稿を作成するAI秘書です。
 
 【店舗情報】
 - 店舗名: ${store.name}
 - こだわり・強み: ${store.strength}
-- 口調: ${getToneName(store.tone)}
+- 口調: ${getToneName(store.tone)}${templateInfo}
 
 【過去の学習データ】
 好まれる言葉: ${learningData.preferredWords?.join(', ') || 'なし'}
@@ -91,9 +128,10 @@ ${userText}
 【要件】
 1. 店舗の${getToneName(store.tone)}な口調で書く
 2. 過去の学習データを反映させる
-3. Instagram用に最適化（200-300文字程度）
+3. Instagram用に最適化（${lengthInfo.range}）
 4. 関連性の高いハッシュタグを3-5個追加
 5. 絵文字を効果的に使用
+${templates.address || templates.business_hours ? '6. テンプレート情報を投稿の最後に自然に含める' : ''}
 
 投稿文のみを出力してください。`;
 }

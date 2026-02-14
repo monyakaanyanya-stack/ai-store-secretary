@@ -7,9 +7,11 @@ import {
   getStoresByUser,
   savePostHistory,
   supabase,
+  updateStoreConfig,
+  updateStoreTemplates,
 } from '../services/supabaseService.js';
 import { handleFeedback } from './feedbackHandler.js';
-import { buildStoreParsePrompt, buildTextPostPrompt } from '../utils/promptBuilder.js';
+import { buildStoreParsePrompt, buildTextPostPrompt, POST_LENGTH_MAP } from '../utils/promptBuilder.js';
 import { aggregateLearningData } from '../utils/learningData.js';
 
 /**
@@ -54,6 +56,32 @@ export async function handleTextMessage(user, text, replyToken) {
   if (trimmed.startsWith('更新:') || trimmed.startsWith('更新:')) {
     const updateData = trimmed.replace(/^更新[:：]\s*/, '');
     return await handleStoreUpdate(user, updateData, replyToken);
+  }
+
+  // 文章量設定: 「長さ: short」など
+  if (trimmed.startsWith('長さ:') || trimmed.startsWith('長さ:')) {
+    const length = trimmed.replace(/^長さ[:：]\s*/, '');
+    return await handlePostLength(user, length, replyToken);
+  }
+
+  // テンプレート設定: 「テンプレート: address:住所」など
+  if (trimmed.startsWith('テンプレート:') || trimmed.startsWith('テンプレート:')) {
+    const templateData = trimmed.replace(/^テンプレート[:：]\s*/, '');
+    return await handleTemplate(user, templateData, replyToken);
+  }
+
+  // 設定確認
+  if (trimmed === 'テンプレート確認' || trimmed === '設定確認') {
+    return await handleShowSettings(user, replyToken);
+  }
+
+  // 個別文章量指定: 「短文で: 新商品のケーキ」
+  const lengthMatch = trimmed.match(/^(短文|中文|長文)で[:：]\s*(.+)/);
+  if (lengthMatch) {
+    const lengthMap = { '短文': 'short', '中文': 'medium', '長文': 'long' };
+    const length = lengthMap[lengthMatch[1]];
+    const content = lengthMatch[2];
+    return await handleTextPostGenerationWithLength(user, content, replyToken, length);
   }
 
   // それ以外 → テキストから投稿生成
@@ -279,6 +307,146 @@ async function handleStoreUpdate(user, updateData, replyToken) {
   }
 }
 
+// ==================== 文章量設定 ====================
+
+async function handlePostLength(user, lengthParam, replyToken) {
+  if (!user.current_store_id) {
+    return await replyText(replyToken, '店舗が選択されていません。');
+  }
+
+  try {
+    const store = await getStore(user.current_store_id);
+    const validLengths = Object.keys(POST_LENGTH_MAP);
+
+    if (!validLengths.includes(lengthParam)) {
+      return await replyText(replyToken,
+        `長さ指定は以下のいずれかで入力してください:\n\n長さ: short (100-150文字)\n長さ: medium (200-300文字)\n長さ: long (400-500文字)`
+      );
+    }
+
+    const newConfig = {
+      ...(store.config || {}),
+      post_length: lengthParam
+    };
+
+    await updateStoreConfig(store.id, newConfig);
+
+    const lengthInfo = POST_LENGTH_MAP[lengthParam];
+    await replyText(replyToken,
+      `✅ デフォルトの投稿長を「${lengthInfo.description} (${lengthInfo.range})」に設定しました。`
+    );
+  } catch (err) {
+    console.error('[Settings] 長さ設定エラー:', err.message);
+    await replyText(replyToken, `設定中にエラーが発生しました: ${err.message}`);
+  }
+}
+
+// ==================== テンプレート設定 ====================
+
+async function handleTemplate(user, templateData, replyToken) {
+  if (!user.current_store_id) {
+    return await replyText(replyToken, '店舗が選択されていません。');
+  }
+
+  try {
+    const store = await getStore(user.current_store_id);
+
+    // Parse: "address: 東京都渋谷区, business_hours: 10:00-20:00, website: https://..."
+    const pairs = templateData.split(',').map(p => p.trim());
+    const templates = { ...(store.config?.templates || {}) };
+
+    for (const pair of pairs) {
+      const colonIndex = pair.indexOf(':');
+      if (colonIndex === -1) continue;
+
+      const key = pair.slice(0, colonIndex).trim();
+      const value = pair.slice(colonIndex + 1).trim();
+
+      if (key === 'address') {
+        templates.address = value;
+      } else if (key === 'business_hours') {
+        templates.business_hours = value;
+      } else {
+        templates.custom_fields = templates.custom_fields || {};
+        templates.custom_fields[key] = value;
+      }
+    }
+
+    await updateStoreTemplates(store.id, templates);
+
+    const summary = [];
+    if (templates.address) summary.push(`住所: ${templates.address}`);
+    if (templates.business_hours) summary.push(`営業時間: ${templates.business_hours}`);
+    if (templates.custom_fields) {
+      Object.entries(templates.custom_fields).forEach(([k, v]) => {
+        summary.push(`${k}: ${v}`);
+      });
+    }
+
+    await replyText(replyToken,
+      `✅ テンプレート情報を更新しました:\n\n${summary.join('\n')}`
+    );
+  } catch (err) {
+    console.error('[Template] 更新エラー:', err.message);
+    await replyText(replyToken, `更新中にエラーが発生しました: ${err.message}`);
+  }
+}
+
+// ==================== 設定確認 ====================
+
+async function handleShowSettings(user, replyToken) {
+  if (!user.current_store_id) {
+    return await replyText(replyToken, '店舗が選択されていません。');
+  }
+
+  try {
+    const store = await getStore(user.current_store_id);
+    const config = store.config || {};
+    const lengthInfo = POST_LENGTH_MAP[config.post_length || 'medium'];
+
+    let message = `📋 現在の設定\n\n【店舗名】${store.name}\n【投稿長】${lengthInfo.description} (${lengthInfo.range})\n`;
+
+    const templates = config.templates || {};
+    if (templates.address || templates.business_hours || Object.keys(templates.custom_fields || {}).length > 0) {
+      message += '\n【テンプレート】\n';
+      if (templates.address) message += `住所: ${templates.address}\n`;
+      if (templates.business_hours) message += `営業時間: ${templates.business_hours}\n`;
+      Object.entries(templates.custom_fields || {}).forEach(([k, v]) => {
+        message += `${k}: ${v}\n`;
+      });
+    } else {
+      message += '\n【テンプレート】未設定';
+    }
+
+    await replyText(replyToken, message);
+  } catch (err) {
+    console.error('[Settings] 確認エラー:', err.message);
+    await replyText(replyToken, `エラーが発生しました: ${err.message}`);
+  }
+}
+
+// ==================== 個別文章量指定での投稿生成 ====================
+
+async function handleTextPostGenerationWithLength(user, text, replyToken, lengthOverride) {
+  if (!user.current_store_id) {
+    return await replyText(replyToken, '店舗が選択されていません。先に店舗を登録してください。');
+  }
+
+  try {
+    const store = await getStore(user.current_store_id);
+    const learningData = await aggregateLearningData(store.id);
+    const prompt = buildTextPostPrompt(store, learningData, text, lengthOverride);
+    const postContent = await askClaude(prompt);
+
+    await savePostHistory(user.id, store.id, postContent);
+    console.log(`[Post] テキスト投稿生成完了 (length=${lengthOverride}): store=${store.name}`);
+    await replyText(replyToken, `✨ 投稿案ができました！\n\n${postContent}`);
+  } catch (err) {
+    console.error('[Post] 生成エラー:', err.message);
+    await replyText(replyToken, `投稿生成中にエラーが発生しました: ${err.message}`);
+  }
+}
+
 // ==================== ヘルプ ====================
 
 const HELP_TEXT = `📖 AI店舗秘書の使い方
@@ -293,9 +461,16 @@ friendly / professional / casual / passionate / luxury
 【投稿生成】
 ・画像を送信 → 画像から投稿案を作成
 ・テキストを送信 → テキストから投稿案を作成
+・短文で: 〇〇 → 短い投稿を作成
+・長文で: 〇〇 → 長い投稿を作成
 
 【投稿修正】
 直し: もっとカジュアルに
+
+【設定】
+・長さ: short / medium / long → デフォルトの投稿長を設定
+・テンプレート: address:住所,business_hours:営業時間 → テンプレート登録
+・設定確認 → 現在の設定を表示
 
 【店舗管理】
 ・店舗一覧 → 登録済み店舗を表示

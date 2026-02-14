@@ -29,8 +29,8 @@ export async function handleImageMessage(user, messageId, replyToken) {
     // 学習データを集約
     const learningData = await aggregateLearningData(store.id);
 
-    // プロンプト構築 → Claude API で投稿生成
-    const prompt = buildImagePostPrompt(store, learningData);
+    // プロンプト構築 → Claude API で投稿生成（lengthOverride なし = デフォルト設定を使用）
+    const prompt = buildImagePostPrompt(store, learningData, null);
     const postContent = await askClaudeWithImage(prompt, imageBase64);
 
     // 投稿履歴に保存（画像のBase64は大きいのでURLのみ or 保存しない）

@@ -50,6 +50,11 @@ export async function createStore(userId, storeData) {
       tone: storeData.tone,
       category: storeData.category || null,
       profit_margin: storeData.profit_margin || 0,
+      config: storeData.config || {
+        post_length: 'medium',
+        templates: {},
+        customization: {}
+      },
     })
     .select()
     .single();
@@ -137,4 +142,42 @@ export async function getLearningDataByStore(storeId, limit = 20) {
 
   if (error) return [];
   return data || [];
+}
+
+// ==================== 設定管理 ====================
+
+/**
+ * 店舗設定を更新
+ */
+export async function updateStoreConfig(storeId, configUpdates) {
+  const { error } = await supabase
+    .from('stores')
+    .update({
+      config: configUpdates,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', storeId);
+
+  if (error) throw new Error(`設定更新失敗: ${error.message}`);
+}
+
+/**
+ * テンプレート情報を更新
+ */
+export async function updateStoreTemplates(storeId, templates) {
+  const { data: store } = await supabase
+    .from('stores')
+    .select('config')
+    .eq('id', storeId)
+    .single();
+
+  const newConfig = {
+    ...(store?.config || {}),
+    templates: {
+      ...(store?.config?.templates || {}),
+      ...templates
+    }
+  };
+
+  await updateStoreConfig(storeId, newConfig);
 }
