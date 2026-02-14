@@ -58,8 +58,13 @@ export async function handleImageMessage(user, messageId, replyToken) {
 
     console.log(`[Image] 画像投稿生成完了: store=${store.name}`);
 
+    // 学習プロファイルを取得して学習回数を確認
+    const { getOrCreateLearningProfile } = await import('../services/personalizationEngine.js');
+    const profile = await getOrCreateLearningProfile(store.id);
+    const learningBadge = profile && profile.interaction_count > 0 ? `（あなたの学習スタイルで生成 📚 学習回数: ${profile.interaction_count}回）` : '';
+
     // コピペしやすい形式でフォーマット
-    const formattedReply = `✨ 投稿案ができました！
+    const formattedReply = `✨ 投稿案ができました！${learningBadge}
 
 以下をコピーしてInstagramに貼り付けてください↓
 ━━━━━━━━━━━
@@ -71,7 +76,8 @@ ${postContent}
 👎 イマイチ（「👎」と送信）
 ✏️ 修正する（「直し: 〜」で指示してください）
 
-※ 評価を送ると自動的に学習します！`;
+※ 評価を送ると自動的に学習します！
+※ 「学習状況」と送ると学習内容を確認できます`;
 
     await replyText(replyToken, formattedReply);
   } catch (err) {

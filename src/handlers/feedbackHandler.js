@@ -53,7 +53,25 @@ export async function handleFeedback(user, feedback, replyToken) {
     await savePostHistory(user.id, store.id, revisedContent);
 
     console.log(`[Feedback] 修正完了: store=${store.name}`);
-    await replyText(replyToken, `✨ 修正しました！\n\n${revisedContent}`);
+
+    // 学習プロファイルを取得して学習回数を確認
+    const { getOrCreateLearningProfile } = await import('../services/personalizationEngine.js');
+    const profile = await getOrCreateLearningProfile(store.id);
+
+    const message = `✅ 学習しました！
+
+今回学習した内容:
+- ${feedback}
+
+【修正後の投稿】
+${revisedContent}
+
+📚 学習回数: ${profile.interaction_count}回
+次回の投稿から、この学習が反映されます！
+
+「学習状況」と送ると、学習内容を確認できます。`;
+
+    await replyText(replyToken, message);
   } catch (err) {
     console.error('[Feedback] 処理エラー:', err.message);
     await replyText(replyToken, `修正中にエラーが発生しました: ${err.message}`);
