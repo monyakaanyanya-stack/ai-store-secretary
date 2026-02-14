@@ -8,6 +8,7 @@ import {
 } from '../services/supabaseService.js';
 import { buildRevisionPrompt } from '../utils/promptBuilder.js';
 import { aggregateLearningData } from '../utils/learningData.js';
+import { applyFeedbackToProfile } from '../services/personalizationEngine.js';
 
 /**
  * フィードバック処理: 最新投稿を修正 + 学習データとして蓄積
@@ -37,6 +38,9 @@ export async function handleFeedback(user, feedback, replyToken) {
       feedback,
       extractLearningHints(feedback)
     );
+
+    // パーソナライゼーションプロファイルに反映
+    await applyFeedbackToProfile(store.id, feedback, latestPost.content);
 
     // 学習データを集約
     const learningData = await aggregateLearningData(store.id);

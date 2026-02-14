@@ -50,7 +50,7 @@ tone は必ず以下のいずれか1つを選んでください:
 /**
  * 画像から投稿を生成するプロンプト（Phase 1）
  */
-export function buildImagePostPrompt(store, learningData, lengthOverride = null) {
+export function buildImagePostPrompt(store, learningData, lengthOverride = null, blendedInsights = null, personalization = '') {
   const postLength = lengthOverride || store.config?.post_length || 'medium';
   const lengthInfo = getPostLengthInfo(postLength);
 
@@ -63,6 +63,26 @@ ${Object.entries(templates.custom_fields || {})
   .map(([key, val]) => `${key}: ${val}`)
   .join('\n')}`
     : '';
+
+  // 集合知情報の追加
+  let collectiveInsightsInfo = '';
+  if (blendedInsights) {
+    const { category, group } = blendedInsights;
+    const insights = [];
+
+    if (category && category.sampleSize > 0) {
+      insights.push(`・同業種で人気のハッシュタグ: ${category.topHashtags.slice(0, 5).join(', ')}`);
+      insights.push(`・同業種の平均投稿長: ${category.avgLength}文字`);
+    }
+
+    if (group && group.sampleSize > 0) {
+      insights.push(`・大カテゴリーのトレンド: ${group.topHashtags.slice(0, 3).join(', ')}`);
+    }
+
+    if (insights.length > 0) {
+      collectiveInsightsInfo = `\n【業界トレンド（参考情報）】\n${insights.join('\n')}`;
+    }
+  }
 
   return `あなたは${store.name}のSNS投稿を作成するAI秘書です。
 
@@ -73,13 +93,13 @@ ${Object.entries(templates.custom_fields || {})
 【投稿作成時の基本方針】
 - 口調: ${getToneName(store.tone)}の語り口で書く
 - 店舗の雰囲気: ${store.name}は「${store.strength}」がテーマ（参考程度）
-- 学習データ: ${learningData.preferredWords?.join(', ') || 'なし'}${templateInfo}
+- 学習データ: ${learningData.preferredWords?.join(', ') || 'なし'}${templateInfo}${collectiveInsightsInfo}${personalization}
 
 【画像分析と投稿作成の手順】
 1. この画像に何が写っているかを正確に特定
 2. 写っているもの（商品/アイテム/風景など）を主役にして投稿文を作成
 3. ${getToneName(store.tone)}な口調で、自然で魅力的な文章にする
-4. 関連性の高いハッシュタグを3-5個追加
+4. 関連性の高いハッシュタグを3-5個追加（業界トレンドを参考にしつつ、画像内容に合ったものを選ぶ）
 5. 絵文字を効果的に使用
 ${templates.address || templates.business_hours ? '6. テンプレート情報を投稿の最後に自然に含める' : ''}
 
@@ -87,6 +107,7 @@ ${templates.address || templates.business_hours ? '6. テンプレート情報�
 - 画像に写っていないものを無理に結びつけない
 - 「${store.strength}」は店舗のベース情報として軽く触れる程度でOK
 - 画像の内容が店舗テーマと異なっても、画像内容を優先する
+- 業界トレンドは参考程度に、この店舗らしさを最優先
 
 Instagram用に最適化された投稿文のみを出力してください（${lengthInfo.range}）。`;
 }
@@ -94,7 +115,7 @@ Instagram用に最適化された投稿文のみを出力してください（${
 /**
  * テキストから投稿を生成するプロンプト
  */
-export function buildTextPostPrompt(store, learningData, userText, lengthOverride = null) {
+export function buildTextPostPrompt(store, learningData, userText, lengthOverride = null, blendedInsights = null, personalization = '') {
   const postLength = lengthOverride || store.config?.post_length || 'medium';
   const lengthInfo = getPostLengthInfo(postLength);
 
@@ -107,6 +128,26 @@ ${Object.entries(templates.custom_fields || {})
   .map(([key, val]) => `${key}: ${val}`)
   .join('\n')}`
     : '';
+
+  // 集合知情報の追加
+  let collectiveInsightsInfo = '';
+  if (blendedInsights) {
+    const { category, group } = blendedInsights;
+    const insights = [];
+
+    if (category && category.sampleSize > 0) {
+      insights.push(`・同業種で人気のハッシュタグ: ${category.topHashtags.slice(0, 5).join(', ')}`);
+      insights.push(`・同業種の平均投稿長: ${category.avgLength}文字`);
+    }
+
+    if (group && group.sampleSize > 0) {
+      insights.push(`・大カテゴリーのトレンド: ${group.topHashtags.slice(0, 3).join(', ')}`);
+    }
+
+    if (insights.length > 0) {
+      collectiveInsightsInfo = `\n【業界トレンド（参考情報）】\n${insights.join('\n')}`;
+    }
+  }
 
   return `あなたは${store.name}のSNS投稿を作成するAI秘書です。
 
@@ -118,7 +159,7 @@ ${Object.entries(templates.custom_fields || {})
 【過去の学習データ】
 好まれる言葉: ${learningData.preferredWords?.join(', ') || 'なし'}
 避ける言葉: ${learningData.avoidWords?.join(', ') || 'なし'}
-よく使う絵文字: ${learningData.topEmojis?.join(' ') || 'なし'}
+よく使う絵文字: ${learningData.topEmojis?.join(' ') || 'なし'}${collectiveInsightsInfo}${personalization}
 
 【ユーザーからの情報】
 ${userText}
@@ -130,7 +171,7 @@ ${userText}
 1. 店舗の${getToneName(store.tone)}な口調で書く
 2. 過去の学習データを反映させる
 3. Instagram用に最適化（${lengthInfo.range}）
-4. 関連性の高いハッシュタグを3-5個追加
+4. 関連性の高いハッシュタグを3-5個追加（業界トレンドを参考にしつつ、投稿内容に合ったものを選ぶ）
 5. 絵文字を効果的に使用
 ${templates.address || templates.business_hours ? '6. テンプレート情報を投稿の最後に自然に含める' : ''}
 

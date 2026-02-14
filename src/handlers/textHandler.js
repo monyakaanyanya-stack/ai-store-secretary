@@ -13,6 +13,8 @@ import {
 import { handleFeedback } from './feedbackHandler.js';
 import { buildStoreParsePrompt, buildTextPostPrompt, POST_LENGTH_MAP } from '../utils/promptBuilder.js';
 import { aggregateLearningData } from '../utils/learningData.js';
+import { getBlendedInsights, saveEngagementMetrics } from '../services/collectiveIntelligence.js';
+import { getPersonalizationPromptAddition } from '../services/personalizationEngine.js';
 
 /**
  * テキストメッセージの振り分け処理
@@ -197,11 +199,30 @@ async function handleTextPostGeneration(user, text, replyToken) {
     }
 
     const learningData = await aggregateLearningData(store.id);
-    const prompt = buildTextPostPrompt(store, learningData, text);
+
+    // 集合知を取得（カテゴリーが設定されている場合のみ）
+    let blendedInsights = null;
+    if (store.category) {
+      blendedInsights = await getBlendedInsights(store.id, store.category);
+      console.log(`[Post] 集合知取得: category=${store.category}, group=${blendedInsights.categoryGroup}`);
+    }
+
+    // パーソナライゼーション情報を取得
+    const personalization = await getPersonalizationPromptAddition(store.id);
+
+    const prompt = buildTextPostPrompt(store, learningData, text, null, blendedInsights, personalization);
     const postContent = await askClaude(prompt);
 
     // 投稿履歴に保存
-    await savePostHistory(user.id, store.id, postContent);
+    const savedPost = await savePostHistory(user.id, store.id, postContent);
+
+    // エンゲージメントメトリクスを保存（初期値）
+    if (store.category) {
+      await saveEngagementMetrics(store.id, store.category, {
+        post_id: savedPost.id,
+        content: postContent,
+      });
+    }
 
     console.log(`[Post] テキスト投稿生成完了: store=${store.name}`);
     await replyText(replyToken, `✨ 投稿案ができました！\n\n${postContent}`);
@@ -446,10 +467,29 @@ async function handleTextPostGenerationWithLength(user, text, replyToken, length
   try {
     const store = await getStore(user.current_store_id);
     const learningData = await aggregateLearningData(store.id);
-    const prompt = buildTextPostPrompt(store, learningData, text, lengthOverride);
+
+    // 集合知を取得（カテゴリーが設定されている場合のみ）
+    let blendedInsights = null;
+    if (store.category) {
+      blendedInsights = await getBlendedInsights(store.id, store.category);
+    }
+
+    // パーソナライゼーション情報を取得
+    const personalization = await getPersonalizationPromptAddition(store.id);
+
+    const prompt = buildTextPostPrompt(store, learningData, text, lengthOverride, blendedInsights, personalization);
     const postContent = await askClaude(prompt);
 
-    await savePostHistory(user.id, store.id, postContent);
+    const savedPost = await savePostHistory(user.id, store.id, postContent);
+
+    // エンゲージメントメトリクスを保存（初期値）
+    if (store.category) {
+      await saveEngagementMetrics(store.id, store.category, {
+        post_id: savedPost.id,
+        content: postContent,
+      });
+    }
+
     console.log(`[Post] テキスト投稿生成完了 (length=${lengthOverride}): store=${store.name}`);
     await replyText(replyToken, `✨ 投稿案ができました！\n\n${postContent}`);
   } catch (err) {
