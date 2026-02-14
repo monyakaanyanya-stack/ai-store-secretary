@@ -86,10 +86,10 @@ export async function handleTextMessage(user, text, replyToken) {
     return await handleTemplateDelete(user, fieldToDelete, replyToken);
   }
 
-  // 個別文章量指定: 「短文で: 新商品のケーキ」
-  const lengthMatch = trimmed.match(/^(短文|中文|長文)で[:：]\s*(.+)/);
+  // 個別文章量指定: 「超短文で: 新商品のケーキ」
+  const lengthMatch = trimmed.match(/^(超短文|短文|中文|長文)で[:：]\s*(.+)/);
   if (lengthMatch) {
-    const lengthMap = { '短文': 'short', '中文': 'medium', '長文': 'long' };
+    const lengthMap = { '超短文': 'xshort', '短文': 'short', '中文': 'medium', '長文': 'long' };
     const length = lengthMap[lengthMatch[1]];
     const content = lengthMatch[2];
     return await handleTextPostGenerationWithLength(user, content, replyToken, length);
@@ -331,7 +331,7 @@ async function handlePostLength(user, lengthParam, replyToken) {
 
     if (!validLengths.includes(lengthParam)) {
       return await replyText(replyToken,
-        `長さ指定は以下のいずれかで入力してください:\n\n長さ: short (100-150文字)\n長さ: medium (200-300文字)\n長さ: long (400-500文字)`
+        `長さ指定は以下のいずれかで入力してください:\n\n長さ: xshort (50-80文字)\n長さ: short (100-150文字)\n長さ: medium (200-300文字)\n長さ: long (400-500文字)`
       );
     }
 
@@ -587,14 +587,15 @@ friendly / professional / casual / passionate / luxury
 【投稿生成】
 ・画像を送信 → 画像から投稿案を作成
 ・テキストを送信 → テキストから投稿案を作成
-・短文で: 〇〇 → 短い投稿を作成
-・長文で: 〇〇 → 長い投稿を作成
+・超短文で: 〇〇 → 超短い投稿を作成（50-80文字）
+・短文で: 〇〇 → 短い投稿を作成（100-150文字）
+・長文で: 〇〇 → 長い投稿を作成（400-500文字）
 
 【投稿修正】
 直し: もっとカジュアルに
 
 【設定】
-・長さ: short / medium / long → デフォルトの投稿長を設定
+・長さ: xshort / short / medium / long → デフォルトの投稿長を設定
 ・テンプレート: address:住所,business_hours:営業時間 → テンプレート登録
 ・テンプレート削除 → テンプレート削除（対話形式）
 ・設定確認 → 現在の設定を表示

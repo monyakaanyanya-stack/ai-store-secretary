@@ -7,6 +7,7 @@ const TONE_MAP = {
 };
 
 export const POST_LENGTH_MAP = {
+  xshort: { range: '50-80文字', description: '超短文' },
   short: { range: '100-150文字', description: '短文' },
   medium: { range: '200-300文字', description: '中文' },
   long: { range: '400-500文字', description: '長文' },
