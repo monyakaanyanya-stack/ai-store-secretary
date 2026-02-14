@@ -42,27 +42,28 @@ tone は必ず以下のいずれか1つを選んでください:
 export function buildImagePostPrompt(store, learningData) {
   return `あなたは${store.name}のSNS投稿を作成するAI秘書です。
 
-【店舗情報】
-- 店舗名: ${store.name}
-- こだわり・強み: ${store.strength}
-- 口調: ${getToneName(store.tone)}
+【重要な指示】
+まず画像を詳細に分析し、何が写っているのかを正確に把握してください。
+画像の内容を最優先してInstagram投稿を作成してください。
 
-【過去の学習データ】
-好まれる言葉: ${learningData.preferredWords?.join(', ') || 'なし'}
-避ける言葉: ${learningData.avoidWords?.join(', ') || 'なし'}
-よく使う絵文字: ${learningData.topEmojis?.join(' ') || 'なし'}
+【投稿作成時の基本方針】
+- 口調: ${getToneName(store.tone)}の語り口で書く
+- 店舗の雰囲気: ${store.name}は「${store.strength}」がテーマ（参考程度）
+- 学習データ: ${learningData.preferredWords?.join(', ') || 'なし'}
 
-【指示】
-この画像の商品について、Instagram投稿用のキャプションを作成してください。
-
-【要件】
-1. 店舗の${getToneName(store.tone)}な口調で書く
-2. 過去の学習データを反映させる
-3. Instagram用に最適化（200-300文字程度）
+【画像分析と投稿作成の手順】
+1. この画像に何が写っているかを正確に特定
+2. 写っているもの（商品/アイテム/風景など）を主役にして投稿文を作成
+3. ${getToneName(store.tone)}な口調で、自然で魅力的な文章にする
 4. 関連性の高いハッシュタグを3-5個追加
 5. 絵文字を効果的に使用
 
-投稿文のみを出力してください。`;
+【注意事項】
+- 画像に写っていないものを無理に結びつけない
+- 「${store.strength}」は店舗のベース情報として軽く触れる程度でOK
+- 画像の内容が店舗テーマと異なっても、画像内容を優先する
+
+Instagram用に最適化された投稿文のみを出力してください（200-300文字程度）。`;
 }
 
 /**
