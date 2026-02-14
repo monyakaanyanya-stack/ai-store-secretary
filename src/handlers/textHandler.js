@@ -698,7 +698,7 @@ const HELP_TEXT = `📖 AI店舗秘書の使い方
 例: 1: ベーカリー幸福堂,天然酵母の手作りパン,friendly
 
 口調は以下から選べます:
-friendly / professional / casual / passionate / luxury
+casual（タメ口） / friendly（親しみやすい） / professional（丁寧）
 
 【投稿生成】
 ・画像を送信 → 画像から投稿案を作成
