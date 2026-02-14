@@ -144,15 +144,15 @@ async function handleNegativeFeedback(user, replyToken) {
 
 ---
 
-### 3. 緊急通知システム（LINE Notify） ✅
+### 3. 緊急通知システム（LINE Messaging API） ✅
 
 **目的:** エラーや問題発生時に管理者に直接通知
 
 **実装内容:**
 
-#### a) LINE Notify サービス
+#### a) LINE Messaging API サービス
 
-**src/services/errorNotification.js** を新規作成
+**src/services/errorNotification.js** を新規作成（LINE Notify終了のため、LINE Messaging APIで実装）
 
 **主な機能:**
 1. `notifyCriticalError()` - 汎用的なエラー通知
@@ -203,17 +203,21 @@ export async function askClaude(prompt) {
 **.env.example** に追加：
 
 ```bash
-# Error Notification (LINE Notify)
-LINE_NOTIFY_TOKEN=your_line_notify_token
+# Error Notification (LINE Messaging API)
+ADMIN_LINE_USER_ID=your_admin_line_user_id
 ENABLE_ERROR_NOTIFICATIONS=false
 ```
 
-**LINE Notify トークンの取得方法:**
-1. https://notify-bot.line.me/ にアクセス
-2. 「マイページ」→「トークンを発行する」
-3. トークン名を入力（例: AI Store Secretary エラー通知）
-4. 通知を送信するトークルームを選択
-5. 発行されたトークンを環境変数に設定
+**管理者のLINE User IDの取得方法:**
+1. LINE Botにメッセージやスタンプなど何でも送信
+2. Railwayのログを確認
+3. `[Webhook] userId: U1234567890...` を探す
+4. このUser IDを `ADMIN_LINE_USER_ID` に設定
+
+**セキュリティ:**
+- User IDは内部IDなので個人情報は含まれない
+- Push通知はBot→管理者への一方通行
+- ユーザー側からは見えない・知られない
 
 ---
 
@@ -233,9 +237,11 @@ git push
 Railwayダッシュボード → Variables に追加：
 
 ```
-LINE_NOTIFY_TOKEN=（取得したトークン）
+ADMIN_LINE_USER_ID=U1234567890...（あなたのUser ID）
 ENABLE_ERROR_NOTIFICATIONS=true
 ```
+
+**注意:** `LINE_CHANNEL_ACCESS_TOKEN` は既に設定済みなので追加不要
 
 ### 3. 自動デプロイ完了を待つ（1-2分）
 
@@ -291,7 +297,7 @@ await saveEngagementMetrics(storeId, 'カフェ', postData, {
 **手順1: Claude API エラーをシミュレート**
 - ANTHROPIC_API_KEYを一時的に無効なキーに変更
 - 投稿生成を試みる
-- LINE Notifyに通知が来るか確認
+- あなたのLINEに通知が来るか確認
 
 **手順2: 通知内容の確認**
 ```

@@ -1,18 +1,19 @@
 /**
- * エラー通知サービス（LINE Notify）
+ * エラー通知サービス（LINE Messaging API）
  */
 
-const LINE_NOTIFY_TOKEN = process.env.LINE_NOTIFY_TOKEN || '';
+const LINE_CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN || '';
+const ADMIN_LINE_USER_ID = process.env.ADMIN_LINE_USER_ID || '';
 const ENABLE_NOTIFICATIONS = process.env.ENABLE_ERROR_NOTIFICATIONS === 'true';
 
 /**
- * 重大エラーをLINE Notifyで通知
+ * 重大エラーをLINE Messaging APIで管理者に通知
  * @param {string} errorType - エラーの種類
  * @param {string} errorMessage - エラーメッセージ
  * @param {Object} context - コンテキスト情報
  */
 export async function notifyCriticalError(errorType, errorMessage, context = {}) {
-  if (!ENABLE_NOTIFICATIONS || !LINE_NOTIFY_TOKEN) {
+  if (!ENABLE_NOTIFICATIONS || !ADMIN_LINE_USER_ID || !LINE_CHANNEL_ACCESS_TOKEN) {
     console.log('[ErrorNotification] 通知は無効化されています');
     return;
   }
@@ -23,30 +24,37 @@ export async function notifyCriticalError(errorType, errorMessage, context = {})
       .map(([key, value]) => `${key}: ${value}`)
       .join('\n');
 
-    const message = `
-🚨 AI Store Secretary エラー通知
+    const message = `🚨 AI Store Secretary エラー通知
 
 【エラー種別】${errorType}
 【発生時刻】${timestamp}
 【詳細】${errorMessage}
 
 【コンテキスト】
-${contextStr || 'なし'}
-`.trim();
+${contextStr || 'なし'}`;
 
-    const response = await fetch('https://notify-api.line.me/api/notify', {
+    const response = await fetch('https://api.line.me/v2/bot/message/push', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': `Bearer ${LINE_NOTIFY_TOKEN}`,
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${LINE_CHANNEL_ACCESS_TOKEN}`,
       },
-      body: `message=${encodeURIComponent(message)}`,
+      body: JSON.stringify({
+        to: ADMIN_LINE_USER_ID,
+        messages: [
+          {
+            type: 'text',
+            text: message,
+          },
+        ],
+      }),
     });
 
     if (response.ok) {
       console.log(`[ErrorNotification] 通知送信成功: ${errorType}`);
     } else {
-      console.error('[ErrorNotification] 通知送信失敗:', await response.text());
+      const errorText = await response.text();
+      console.error('[ErrorNotification] 通知送信失敗:', errorText);
     }
   } catch (err) {
     console.error('[ErrorNotification] 通知エラー:', err.message);
@@ -106,29 +114,35 @@ export async function notifyValidationFlood(category, count) {
  * @param {Object} summary - サマリーデータ
  */
 export async function notifyDailySummary(summary) {
-  if (!ENABLE_NOTIFICATIONS || !LINE_NOTIFY_TOKEN) {
+  if (!ENABLE_NOTIFICATIONS || !ADMIN_LINE_USER_ID || !LINE_CHANNEL_ACCESS_TOKEN) {
     return;
   }
 
-  const message = `
-📊 AI Store Secretary デイリーレポート
+  const message = `📊 AI Store Secretary デイリーレポート
 
 【投稿生成数】${summary.postsGenerated}件
 【フィードバック数】${summary.feedbackCount}件
 【エラー数】${summary.errorCount}件
 【新規店舗】${summary.newStores}店舗
 
-ステータス: ${summary.errorCount === 0 ? '✅ 正常' : '⚠️ 要確認'}
-`.trim();
+ステータス: ${summary.errorCount === 0 ? '✅ 正常' : '⚠️ 要確認'}`;
 
   try {
-    await fetch('https://notify-api.line.me/api/notify', {
+    await fetch('https://api.line.me/v2/bot/message/push', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': `Bearer ${LINE_NOTIFY_TOKEN}`,
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${LINE_CHANNEL_ACCESS_TOKEN}`,
       },
-      body: `message=${encodeURIComponent(message)}`,
+      body: JSON.stringify({
+        to: ADMIN_LINE_USER_ID,
+        messages: [
+          {
+            type: 'text',
+            text: message,
+          },
+        ],
+      }),
     });
 
     console.log('[ErrorNotification] デイリーサマリー送信完了');
