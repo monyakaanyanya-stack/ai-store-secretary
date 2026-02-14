@@ -14,7 +14,7 @@ import { handleFeedback } from './feedbackHandler.js';
 import { buildStoreParsePrompt, buildTextPostPrompt, POST_LENGTH_MAP } from '../utils/promptBuilder.js';
 import { aggregateLearningData } from '../utils/learningData.js';
 import { getBlendedInsights, saveEngagementMetrics } from '../services/collectiveIntelligence.js';
-import { getPersonalizationPromptAddition } from '../services/personalizationEngine.js';
+import { getPersonalizationPromptAddition, getLearningStatus } from '../services/personalizationEngine.js';
 
 /**
  * テキストメッセージの振り分け処理
@@ -75,6 +75,11 @@ export async function handleTextMessage(user, text, replyToken) {
   // 設定確認
   if (trimmed === 'テンプレート確認' || trimmed === '設定確認') {
     return await handleShowSettings(user, replyToken);
+  }
+
+  // 学習状況
+  if (trimmed === '学習状況' || trimmed === '学習') {
+    return await handleLearningStatus(user, replyToken);
   }
 
   // テンプレート削除（対話開始）
@@ -225,7 +230,19 @@ async function handleTextPostGeneration(user, text, replyToken) {
     }
 
     console.log(`[Post] テキスト投稿生成完了: store=${store.name}`);
-    await replyText(replyToken, `✨ 投稿案ができました！\n\n${postContent}`);
+
+    // コピペしやすい形式でフォーマット
+    const formattedReply = `✨ 投稿案ができました！
+
+以下をコピーしてInstagramに貼り付けてください↓
+━━━━━━━━━━━
+${postContent}
+━━━━━━━━━━━
+
+👍 このまま使う
+✏️ 修正する（「直し: 〜」で指示してください）`;
+
+    await replyText(replyToken, formattedReply);
   } catch (err) {
     console.error('[Post] テキスト投稿生成エラー:', err.message);
     await replyText(replyToken, `投稿生成中にエラーが発生しました: ${err.message}`);
@@ -491,7 +508,19 @@ async function handleTextPostGenerationWithLength(user, text, replyToken, length
     }
 
     console.log(`[Post] テキスト投稿生成完了 (length=${lengthOverride}): store=${store.name}`);
-    await replyText(replyToken, `✨ 投稿案ができました！\n\n${postContent}`);
+
+    // コピペしやすい形式でフォーマット
+    const formattedReply = `✨ 投稿案ができました！
+
+以下をコピーしてInstagramに貼り付けてください↓
+━━━━━━━━━━━
+${postContent}
+━━━━━━━━━━━
+
+👍 このまま使う
+✏️ 修正する（「直し: 〜」で指示してください）`;
+
+    await replyText(replyToken, formattedReply);
   } catch (err) {
     console.error('[Post] 生成エラー:', err.message);
     await replyText(replyToken, `投稿生成中にエラーが発生しました: ${err.message}`);
@@ -613,6 +642,23 @@ async function handleTemplateDelete(user, fieldToDelete, replyToken) {
   }
 }
 
+// ==================== 学習状況表示 ====================
+
+async function handleLearningStatus(user, replyToken) {
+  if (!user.current_store_id) {
+    return await replyText(replyToken, '店舗が選択されていません。');
+  }
+
+  try {
+    const store = await getStore(user.current_store_id);
+    const status = await getLearningStatus(store.id, store.category);
+    await replyText(replyToken, status);
+  } catch (err) {
+    console.error('[Learning] 学習状況取得エラー:', err.message);
+    await replyText(replyToken, `学習状況の取得中にエラーが発生しました: ${err.message}`);
+  }
+}
+
 // ==================== ヘルプ ====================
 
 const HELP_TEXT = `📖 AI店舗秘書の使い方
@@ -639,6 +685,7 @@ friendly / professional / casual / passionate / luxury
 ・テンプレート: address:住所,business_hours:営業時間 → テンプレート登録
 ・テンプレート削除 → テンプレート削除（対話形式）
 ・設定確認 → 現在の設定を表示
+・学習状況 → AI学習の進捗を確認
 
 【店舗管理】
 ・店舗一覧 → 登録済み店舗を表示

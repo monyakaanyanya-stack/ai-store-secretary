@@ -57,7 +57,19 @@ export async function handleImageMessage(user, messageId, replyToken) {
     }
 
     console.log(`[Image] 画像投稿生成完了: store=${store.name}`);
-    await replyText(replyToken, `✨ 投稿案ができました！\n\n${postContent}`);
+
+    // コピペしやすい形式でフォーマット
+    const formattedReply = `✨ 投稿案ができました！
+
+以下をコピーしてInstagramに貼り付けてください↓
+━━━━━━━━━━━
+${postContent}
+━━━━━━━━━━━
+
+👍 このまま使う
+✏️ 修正する（「直し: 〜」で指示してください）`;
+
+    await replyText(replyToken, formattedReply);
   } catch (err) {
     console.error('[Image] 画像投稿生成エラー:', err.message);
     await replyText(replyToken, `投稿生成中にエラーが発生しました: ${err.message}`);

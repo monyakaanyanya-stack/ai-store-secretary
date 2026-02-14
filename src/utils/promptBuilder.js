@@ -1,9 +1,29 @@
 const TONE_MAP = {
-  friendly: '親しみやすい',
-  professional: 'プロフェッショナルな',
-  casual: 'カジュアルな',
-  passionate: '情熱的な',
-  luxury: '高級感のある',
+  friendly: {
+    name: '親しみやすい',
+    style: 'フレンドリーで親しみやすい語り口',
+    instructions: '「〜だよ」「〜ね」「一緒に」などの親しげな語尾を使い、まるで友達に話しかけるような温かみのある表現にしてください。絵文字を適度に使い、読み手との距離を縮めるような文章にします。',
+  },
+  professional: {
+    name: 'プロフェッショナルな',
+    style: 'ビジネスライクで洗練された口調',
+    instructions: '「ございます」「いたします」「させていただきます」など丁寧な敬語を徹底し、格調高く品のある表現にしてください。フォーマルな語彙を選び、信頼感と専門性を感じさせる文章にします。',
+  },
+  casual: {
+    name: 'カジュアルな',
+    style: '気軽で読みやすい口調',
+    instructions: '「〜です」「〜ます」の丁寧語のみを使い、堅苦しくない軽快な文章にしてください。絵文字を多めに使い、SNSらしいポップで親しみやすい雰囲気にします。',
+  },
+  passionate: {
+    name: '情熱的な',
+    style: '熱量の高い感情豊かな口調',
+    instructions: '「！」を多用し、「本当に」「すごく」「めちゃくちゃ」などの感嘆詞や強調表現を使って、熱意と情熱が伝わる文章にしてください。エネルギッシュで感情が前面に出る表現を心がけます。',
+  },
+  luxury: {
+    name: '高級感のある',
+    style: '上品で洗練された格調高い口調',
+    instructions: '「上質な」「洗練された」「厳選された」など高級感を感じさせる語彙を選び、エレガントで品格のある表現にしてください。控えめな絵文字使用で、落ち着いた大人の雰囲気を演出します。',
+  },
 };
 
 export const POST_LENGTH_MAP = {
@@ -14,7 +34,13 @@ export const POST_LENGTH_MAP = {
 };
 
 function getToneName(tone) {
-  return TONE_MAP[tone] || TONE_MAP.friendly;
+  const toneData = TONE_MAP[tone] || TONE_MAP.friendly;
+  return toneData.name;
+}
+
+function getToneInstructions(tone) {
+  const toneData = TONE_MAP[tone] || TONE_MAP.friendly;
+  return toneData.instructions;
 }
 
 function getPostLengthInfo(length = 'medium') {
@@ -86,30 +112,42 @@ ${Object.entries(templates.custom_fields || {})
 
   return `あなたは${store.name}のSNS投稿を作成するAI秘書です。
 
-【重要な指示】
-まず画像を詳細に分析し、何が写っているのかを正確に把握してください。
-画像の内容を最優先してInstagram投稿を作成してください。
+【STEP 1: 画像の詳細分析】
+まず、この画像を以下の視点で丁寧に分析してください：
 
-【投稿作成時の基本方針】
-- 口調: ${getToneName(store.tone)}の語り口で書く
-- 店舗の雰囲気: ${store.name}は「${store.strength}」がテーマ（参考程度）
-- 学習データ: ${learningData.preferredWords?.join(', ') || 'なし'}${templateInfo}${collectiveInsightsInfo}${personalization}
+1. **構図**: どのような構図か？（三分割法、対角線構図、中央配置など）
+2. **光**: 光の使い方の特徴は？（自然光、逆光、サイドライト、ハイキー、ローキーなど）
+3. **色彩**: 色の印象は？（暖色系/寒色系、彩度、コントラスト、トーンなど）
+4. **被写体**: 何が主役で、どのように表現されているか？
+5. **雰囲気**: この写真が伝える感情や雰囲気は？（温かい、爽やか、力強い、静謐など）
 
-【画像分析と投稿作成の手順】
-1. この画像に何が写っているかを正確に特定
-2. 写っているもの（商品/アイテム/風景など）を主役にして投稿文を作成
-3. ${getToneName(store.tone)}な口調で、自然で魅力的な文章にする
-4. 関連性の高いハッシュタグを3-5個追加（業界トレンドを参考にしつつ、画像内容に合ったものを選ぶ）
-5. 絵文字を効果的に使用
+【STEP 2: 投稿文の作成】
+
+**店舗情報:**
+- 店舗名: ${store.name}
+- こだわり: ${store.strength}（画像内容と自然に結びつく場合のみ軽く触れる）
+- 口調: ${getToneName(store.tone)}${templateInfo}${collectiveInsightsInfo}${personalization}
+
+**過去の学習データ:**
+- 好まれる言葉: ${learningData.preferredWords?.join(', ') || 'なし'}
+- 避ける言葉: ${learningData.avoidWords?.join(', ') || 'なし'}
+- よく使う絵文字: ${learningData.topEmojis?.join(' ') || 'なし'}
+
+**投稿作成の要件:**
+1. STEP 1で分析した画像の魅力を言語化して投稿文に盛り込む
+2. **口調は必ず守ること**: ${getToneInstructions(store.tone)}
+3. Instagram用に最適化（${lengthInfo.range}）
+4. 関連性の高いハッシュタグを3-5個追加
+5. 絵文字を効果的に使用（口調に合わせて調整）
 ${templates.address || templates.business_hours ? '6. テンプレート情報を投稿の最後に自然に含める' : ''}
 
-【注意事項】
-- 画像に写っていないものを無理に結びつけない
-- 「${store.strength}」は店舗のベース情報として軽く触れる程度でOK
-- 画像の内容が店舗テーマと異なっても、画像内容を優先する
+**注意事項:**
+- 画像に写っているものを最優先で表現する
+- 写真の「何が良いのか」を具体的に言語化する（構図・光・色など）
+- 店舗テーマと画像が異なる場合も、画像内容を優先
 - 業界トレンドは参考程度に、この店舗らしさを最優先
 
-Instagram用に最適化された投稿文のみを出力してください（${lengthInfo.range}）。`;
+投稿文のみを出力してください。`;
 }
 
 /**
@@ -154,12 +192,12 @@ ${Object.entries(templates.custom_fields || {})
 【店舗情報】
 - 店舗名: ${store.name}
 - こだわり・強み: ${store.strength}
-- 口調: ${getToneName(store.tone)}${templateInfo}
+- 口調: ${getToneName(store.tone)}${templateInfo}${collectiveInsightsInfo}${personalization}
 
 【過去の学習データ】
-好まれる言葉: ${learningData.preferredWords?.join(', ') || 'なし'}
-避ける言葉: ${learningData.avoidWords?.join(', ') || 'なし'}
-よく使う絵文字: ${learningData.topEmojis?.join(' ') || 'なし'}${collectiveInsightsInfo}${personalization}
+- 好まれる言葉: ${learningData.preferredWords?.join(', ') || 'なし'}
+- 避ける言葉: ${learningData.avoidWords?.join(', ') || 'なし'}
+- よく使う絵文字: ${learningData.topEmojis?.join(' ') || 'なし'}
 
 【ユーザーからの情報】
 ${userText}
@@ -168,11 +206,11 @@ ${userText}
 上記の情報をもとに、Instagram投稿用のキャプションを作成してください。
 
 【要件】
-1. 店舗の${getToneName(store.tone)}な口調で書く
+1. **口調は必ず守ること**: ${getToneInstructions(store.tone)}
 2. 過去の学習データを反映させる
 3. Instagram用に最適化（${lengthInfo.range}）
 4. 関連性の高いハッシュタグを3-5個追加（業界トレンドを参考にしつつ、投稿内容に合ったものを選ぶ）
-5. 絵文字を効果的に使用
+5. 絵文字を効果的に使用（口調に合わせて調整）
 ${templates.address || templates.business_hours ? '6. テンプレート情報を投稿の最後に自然に含める' : ''}
 
 投稿文のみを出力してください。`;

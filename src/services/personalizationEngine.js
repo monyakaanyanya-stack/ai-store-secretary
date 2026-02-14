@@ -198,3 +198,117 @@ export async function markLearningApplied(postId, appliedLearning) {
     })
     .eq('id', postId);
 }
+
+/**
+ * 学習状況を可視化用に整形して取得
+ * @param {string} storeId - 店舗ID
+ * @param {string} category - 店舗カテゴリー
+ * @returns {string} - フォーマットされた学習状況
+ */
+export async function getLearningStatus(storeId, category) {
+  const profile = await getOrCreateLearningProfile(storeId);
+
+  if (!profile || profile.interaction_count === 0) {
+    return `📊 学習状況
+
+【パーソナライゼーション】
+まだ学習データがありません。
+
+フィードバックを送ると、あなたの好みに合わせた投稿を生成できるようになります！
+
+使い方:
+「直し: もっとカジュアルに」
+「直し: 絵文字を少なめに」
+など、投稿後にフィードバックを送ってください。`;
+  }
+
+  const profileData = profile.profile_data || {};
+  const level = getPersonalizationLevel(profile.interaction_count);
+
+  // レベル表示
+  const levelNames = ['初心者', '初級', '中級', '上級', 'エキスパート', 'マスター'];
+  const levelStars = '⭐'.repeat(level);
+  const nextLevel = level < 5 ? `\n次のレベルまで: あと${(level + 1) * 10 - profile.interaction_count}回のフィードバック` : '';
+
+  // パーソナライゼーション情報
+  let personalizationInfo = `【パーソナライゼーション】\n・学習回数: ${profile.interaction_count}回\n・学習レベル: Lv.${level} ${levelNames[level]} ${levelStars}${nextLevel}\n`;
+
+  // 口調の好み
+  const toneAdj = profileData.tone_adjustments || {};
+  if (toneAdj.casual > 0) {
+    personalizationInfo += `・カジュアル好み: ${'⭐'.repeat(Math.min(toneAdj.casual, 5))}\n`;
+  }
+  if (toneAdj.formal > 0) {
+    personalizationInfo += `・フォーマル好み: ${'⭐'.repeat(Math.min(toneAdj.formal, 5))}\n`;
+  }
+
+  // 絵文字スタイル
+  if (profileData.emoji_style === 'minimal') {
+    personalizationInfo += '・絵文字: 控えめ 🔇\n';
+  } else if (profileData.emoji_style === 'rich') {
+    personalizationInfo += '・絵文字: 豊富 🎉\n';
+  }
+
+  // 文章長の好み
+  const lengthPrefs = profileData.length_preferences || {};
+  if (lengthPrefs.prefer_short > 0) {
+    personalizationInfo += '・文章: 簡潔派 📝\n';
+  }
+  if (lengthPrefs.prefer_long > 0) {
+    personalizationInfo += '・文章: 詳細派 📖\n';
+  }
+
+  // 好まれる表現
+  const wordPrefs = profileData.word_preferences || {};
+  const topWords = Object.entries(wordPrefs)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([word]) => word);
+
+  if (topWords.length > 0) {
+    personalizationInfo += `・好まれる表現: ${topWords.join(', ')}\n`;
+  }
+
+  // 集合知データ
+  let collectiveInfo = '';
+  if (category) {
+    const { data: metrics } = await supabase
+      .from('engagement_metrics')
+      .select('*')
+      .eq('category', category)
+      .limit(100);
+
+    if (metrics && metrics.length > 0) {
+      collectiveInfo = `\n【集合知データ】\n・同業種データ数: ${metrics.length}件\n`;
+
+      // 人気ハッシュタグ
+      const allHashtags = {};
+      metrics.forEach(m => {
+        if (m.hashtags) {
+          m.hashtags.forEach(tag => {
+            allHashtags[tag] = (allHashtags[tag] || 0) + 1;
+          });
+        }
+      });
+
+      const topHashtags = Object.entries(allHashtags)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([tag]) => tag);
+
+      if (topHashtags.length > 0) {
+        collectiveInfo += `・人気ハッシュタグ: ${topHashtags.join(', ')}\n`;
+      }
+    } else {
+      collectiveInfo = `\n【集合知データ】\nまだ同業種のデータがありません。\n投稿を重ねることで、業界のトレンドを学習していきます。\n`;
+    }
+  }
+
+  return `📊 学習状況
+
+${personalizationInfo}${collectiveInfo}
+
+💡 ヒント:
+・フィードバックを送るほど、あなた好みの投稿になります
+・「直し: 〜」で投稿を修正すると自動で学習します`;
+}
