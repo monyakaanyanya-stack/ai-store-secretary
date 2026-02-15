@@ -180,6 +180,7 @@ export function buildStoreParsePrompt(userInput) {
 必ず以下のJSON形式でのみ回答してください。説明文や追加のテキストは一切含めず、JSONのみを出力してください:
 
 {
+  "category": "業種（例: ネイルサロン、カフェ、ベーカリーなど）",
   "name": "店舗名",
   "strength": "こだわりや強み",
   "tone": "friendly"
@@ -189,6 +190,8 @@ tone は必ず以下のいずれか1つを選んでください:
 - friendly (親しみやすい)
 - professional (丁寧)
 - casual (タメ口)
+
+category は入力された業種をそのまま使用してください。
 
 重要: 必ずJSONのみを返し、他の文章を含めないでください。`;
 }

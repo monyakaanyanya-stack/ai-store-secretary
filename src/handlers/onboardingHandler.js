@@ -15,18 +15,24 @@ export async function handleOnboardingStart(user, replyToken) {
 以下の形式で送信してください：
 
 ━━━━━━━━━━━━━━━
-1: 店名,こだわり,口調
+1: 業種,店名,こだわり,口調
 ━━━━━━━━━━━━━━━
 
 【例】
-1: ベーカリー幸福堂,天然酵母の手作りパン,friendly
+1: ベーカリー,幸福堂,天然酵母の手作りパン,friendly
+
+【業種の例】
+・美容系: ネイルサロン、美容室、エステサロン
+・飲食系: カフェ、レストラン、ベーカリー、パン屋
+・小売系: アパレル、雑貨店、セレクトショップ
+・サービス系: ヨガスタジオ、フィットネスジム
 
 【口調の選択肢】
 ・casual（タメ口・親しみやすい）
 ・friendly（フレンドリー・明るい）
 ・professional（丁寧・ビジネス的）
 
-この3つの情報を入力するだけで、すぐに投稿生成が始められます！`;
+この4つの情報を入力するだけで、すぐに投稿生成が始められます！`;
 
   await replyText(replyToken, message);
 }
@@ -67,9 +73,9 @@ export async function handleHelpStoreRegistration(user, replyToken) {
   const message = `🏪 店舗登録ヘルプ
 
 【新規登録】
-1: 店名,こだわり,口調
+1: 業種,店名,こだわり,口調
 
-例: 1: カフェ花,自家焙煎コーヒー,friendly
+例: 1: カフェ,花,自家焙煎コーヒー,friendly
 
 【店舗切替】
 切替: 店舗名

@@ -165,7 +165,7 @@ async function handleStoreRegistration(user, text, replyToken) {
       storeData = JSON.parse(jsonStr);
     } catch {
       return await replyText(replyToken,
-        '入力の解析に失敗しました。\n\n以下の形式で送ってください:\n1: 店名,こだわり,口調\n\n例: 1: ベーカリー幸福堂,天然酵母の手作りパン,friendly'
+        '入力の解析に失敗しました。\n\n以下の形式で送ってください:\n1: 業種,店名,こだわり,口調\n\n例: 1: ベーカリー,幸福堂,天然酵母の手作りパン,friendly'
       );
     }
 
@@ -173,9 +173,9 @@ async function handleStoreRegistration(user, text, replyToken) {
     const store = await createStore(user.id, storeData);
     await updateCurrentStore(user.id, store.id);
 
-    console.log(`[Store] 登録完了: ${store.name} (${store.id})`);
+    console.log(`[Store] 登録完了: ${store.category} - ${store.name} (${store.id})`);
     await replyText(replyToken,
-      `✅ 店舗「${store.name}」を登録しました！\n\nこだわり: ${store.strength}\n口調: ${store.tone}\n\nこの店舗が選択中です。画像やテキストを送ると投稿案を作成します。`
+      `✅ 店舗「${store.name}」を登録しました！\n\n業種: ${store.category || '未設定'}\nこだわり: ${store.strength}\n口調: ${store.tone}\n\nこの店舗が選択中です。画像やテキストを送ると投稿案を作成します。`
     );
   } catch (err) {
     console.error('[Store] 登録エラー:', err.message);
@@ -190,7 +190,7 @@ async function handleStoreSwitch(user, storeName, replyToken) {
     const stores = await getStoresByUser(user.id);
 
     if (stores.length === 0) {
-      return await replyText(replyToken, '店舗がまだ登録されていません。\n\n1: 店名,こだわり,口調\n\nの形式で登録してください。');
+      return await replyText(replyToken, '店舗がまだ登録されていません。\n\n1: 業種,店名,こだわり,口調\n\nの形式で登録してください。');
     }
 
     const target = stores.find(s =>
@@ -217,7 +217,7 @@ async function handleStoreList(user, replyToken) {
     const stores = await getStoresByUser(user.id);
 
     if (stores.length === 0) {
-      return await replyText(replyToken, '店舗がまだ登録されていません。\n\n1: 店名,こだわり,口調\n\nの形式で登録してください。');
+      return await replyText(replyToken, '店舗がまだ登録されていません。\n\n1: 業種,店名,こだわり,口調\n\nの形式で登録してください。');
     }
 
     const list = stores.map((s, i) => {
