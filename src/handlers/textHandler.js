@@ -11,7 +11,7 @@ import {
   updateStoreTemplates,
 } from '../services/supabaseService.js';
 import { handleFeedback } from './feedbackHandler.js';
-import { handleEngagementReport } from './reportHandler.js';
+import { handleEngagementReport, handlePostSelection } from './reportHandler.js';
 import { buildStoreParsePrompt, buildTextPostPrompt, POST_LENGTH_MAP } from '../utils/promptBuilder.js';
 import { aggregateLearningData } from '../utils/learningData.js';
 import { getBlendedInsights, saveEngagementMetrics } from '../services/collectiveIntelligence.js';
@@ -116,6 +116,12 @@ export async function handleTextMessage(user, text, replyToken) {
     const length = lengthMap[lengthMatch[1]];
     const content = lengthMatch[2];
     return await handleTextPostGenerationWithLength(user, content, replyToken, length);
+  }
+
+  // 投稿番号選択（pending_reportがある場合）
+  const postSelectionHandled = await handlePostSelection(user, trimmed, replyToken);
+  if (postSelectionHandled) {
+    return; // 処理完了
   }
 
   // それ以外 → テキストから投稿生成
