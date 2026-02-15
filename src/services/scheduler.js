@@ -2,6 +2,7 @@ import cron from 'node-cron';
 import { sendDailyReminders } from './dailyReminderService.js';
 import { collectDailySummary } from './dailySummaryService.js';
 import { notifyDailySummary } from './errorNotification.js';
+import { sendMonthlyFollowerRequests } from './monthlyFollowerService.js';
 
 /**
  * スケジューラー起動
@@ -36,7 +37,21 @@ export function startScheduler() {
     timezone: 'UTC'
   });
 
+  // 毎月1日の朝10時（日本時間）にフォロワー数収集
+  // JST 10:00 = UTC 1:00
+  cron.schedule('0 1 1 * *', async () => {
+    console.log('[Scheduler] 月次フォロワー数収集実行開始');
+    try {
+      await sendMonthlyFollowerRequests();
+    } catch (error) {
+      console.error('[Scheduler] フォロワー数収集エラー:', error);
+    }
+  }, {
+    timezone: 'UTC'
+  });
+
   console.log('[Scheduler] スケジューラー起動完了');
   console.log('  - デイリーリマインダー: 毎日 UTC 1:00 (JST 10:00)');
   console.log('  - デイリーサマリー: 毎日 UTC 14:59 (JST 23:59)');
+  console.log('  - 月次フォロワー数収集: 毎月1日 UTC 1:00 (JST 10:00)');
 }

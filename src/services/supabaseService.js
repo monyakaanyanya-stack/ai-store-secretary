@@ -181,3 +181,52 @@ export async function updateStoreTemplates(storeId, templates) {
 
   await updateStoreConfig(storeId, newConfig);
 }
+
+// ==================== フォロワー数管理 ====================
+
+/**
+ * フォロワー数を更新
+ */
+export async function updateFollowerCount(storeId, followerCount) {
+  const { error } = await supabase
+    .from('stores')
+    .update({
+      follower_count: followerCount,
+      follower_count_updated_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', storeId);
+
+  if (error) throw new Error(`フォロワー数更新失敗: ${error.message}`);
+}
+
+/**
+ * フォロワー履歴を保存
+ */
+export async function saveFollowerHistory(storeId, followerCount, source = 'manual') {
+  const { error } = await supabase
+    .from('follower_history')
+    .insert({
+      store_id: storeId,
+      follower_count: followerCount,
+      source: source,
+      recorded_at: new Date().toISOString()
+    });
+
+  if (error) throw new Error(`フォロワー履歴保存失敗: ${error.message}`);
+}
+
+/**
+ * 最新のフォロワー数履歴を取得
+ */
+export async function getLatestFollowerHistory(storeId, limit = 12) {
+  const { data, error } = await supabase
+    .from('follower_history')
+    .select('*')
+    .eq('store_id', storeId)
+    .order('recorded_at', { ascending: false })
+    .limit(limit);
+
+  if (error) return [];
+  return data || [];
+}

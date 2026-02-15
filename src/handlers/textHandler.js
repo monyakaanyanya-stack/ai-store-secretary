@@ -15,6 +15,7 @@ import { handleEngagementReport, handlePostSelection } from './reportHandler.js'
 import { handleOnboardingStart, handleHelpMenu, handleHelpCategory } from './onboardingHandler.js';
 import { handleDataStats } from './dataStatsHandler.js';
 import { handleAdminMenu, handleAdminTestData, handleAdminClearData, handleAdminClearTestData } from './adminHandler.js';
+import { handleFollowerCountResponse, getPendingFollowerRequest } from '../services/monthlyFollowerService.js';
 import { buildStoreParsePrompt, buildTextPostPrompt, POST_LENGTH_MAP } from '../utils/promptBuilder.js';
 import { aggregateLearningData } from '../utils/learningData.js';
 import { getBlendedInsights, saveEngagementMetrics } from '../services/collectiveIntelligence.js';
@@ -54,6 +55,15 @@ export async function handleTextMessage(user, text, replyToken) {
   // 店舗登録: 「1:」で始まる
   if (trimmed.startsWith('1:') || trimmed.startsWith('1:')) {
     return await handleStoreRegistration(user, trimmed, replyToken);
+  }
+
+  // フォロワー数の報告: 「フォロワー:」で始まる
+  if (trimmed.startsWith('フォロワー:') || trimmed.startsWith('フォロワー:')) {
+    const followerCountMatch = trimmed.match(/フォロワー[:：]\s*(\d+)/);
+    if (followerCountMatch) {
+      const followerCount = parseInt(followerCountMatch[1], 10);
+      return await handleFollowerCountResponse(user, followerCount, replyToken);
+    }
   }
 
   // フィードバック: 「直し:」で始まる
@@ -151,6 +161,16 @@ export async function handleTextMessage(user, text, replyToken) {
   // リマインダー停止
   if (trimmed === 'リマインダー停止' || trimmed === 'リマインダー無効') {
     return await handleDisableReminder(user, replyToken);
+  }
+
+  // pending_follower_request がある場合、数字のみの入力もフォロワー数として処理
+  const numericMatch = trimmed.match(/^(\d+)$/);
+  if (numericMatch) {
+    const pendingRequest = await getPendingFollowerRequest(user.id, user.current_store_id);
+    if (pendingRequest) {
+      const followerCount = parseInt(numericMatch[1], 10);
+      return await handleFollowerCountResponse(user, followerCount, replyToken);
+    }
   }
 
   // リマインダー再開

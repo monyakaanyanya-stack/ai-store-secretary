@@ -195,6 +195,19 @@ export async function handlePostSelection(user, postNumber, replyToken) {
     // 今月の報告回数を取得
     const reportCount = await getMonthlyReportCount(user.id, store.id);
 
+    // フォロワー数を基準にした分析
+    let followerAnalysis = '';
+    if (store.follower_count && store.follower_count > 0) {
+      const likesPerFollower = ((metrics.likes / store.follower_count) * 100).toFixed(2);
+      const savesPerFollower = ((metrics.saves / store.follower_count) * 100).toFixed(2);
+
+      followerAnalysis = `
+📊 フォロワー比分析 (基準: ${store.follower_count.toLocaleString()}人)
+❤️ いいね率: ${likesPerFollower}%
+💾 保存率: ${savesPerFollower}%
+`;
+    }
+
     // フィードバックメッセージ
     const feedbackMessage = `✅ 報告完了！
 
@@ -203,7 +216,7 @@ export async function handlePostSelection(user, postNumber, replyToken) {
 💾 保存: ${metrics.saves}
 💬 コメント: ${metrics.comments}
 📈 エンゲージメント率: ${engagementRate}%
-
+${followerAnalysis}
 📝 選択した投稿:
 ${postContent}...
 
