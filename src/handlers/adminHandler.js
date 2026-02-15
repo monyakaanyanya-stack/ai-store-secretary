@@ -7,7 +7,10 @@ import { saveEngagementMetrics } from '../services/collectiveIntelligence.js';
  * 管理者かどうかをチェック
  */
 function isAdmin(lineUserId) {
-  const ADMIN_LINE_IDS = (process.env.ADMIN_LINE_IDS || '').split(',');
+  const ADMIN_LINE_IDS = (process.env.ADMIN_LINE_IDS || '')
+    .split(',')
+    .map(id => id.trim())
+    .filter(id => id.length > 0);
   return ADMIN_LINE_IDS.includes(lineUserId);
 }
 
