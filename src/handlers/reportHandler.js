@@ -197,6 +197,7 @@ export async function handlePostSelection(user, postNumber, replyToken) {
 
     // フォロワー数を基準にした分析
     let followerAnalysis = '';
+    console.log(`[Report] フォロワー数確認: store.follower_count=${store.follower_count}, type=${typeof store.follower_count}`);
     if (store.follower_count && store.follower_count > 0) {
       const likesPerFollower = ((metrics.likes / store.follower_count) * 100).toFixed(2);
       const savesPerFollower = ((metrics.saves / store.follower_count) * 100).toFixed(2);
