@@ -69,7 +69,7 @@ export async function handleAdminTestData(user, args, replyToken) {
 }
 
 /**
- * 管理者用: データベースクリア
+ * 管理者用: データベースクリア（全データ）
  * コマンド: /admin clear-data
  */
 export async function handleAdminClearData(user, replyToken) {
@@ -95,6 +95,32 @@ export async function handleAdminClearData(user, replyToken) {
 }
 
 /**
+ * 管理者用: テストデータのみクリア
+ * コマンド: /admin clear-test-data
+ */
+export async function handleAdminClearTestData(user, replyToken) {
+  if (!isAdmin(user.line_user_id)) {
+    return false;
+  }
+
+  try {
+    const { error, count } = await supabase
+      .from('engagement_metrics')
+      .delete()
+      .is('store_id', null); // store_id が null のデータ（テストデータ）のみ削除
+
+    if (error) throw error;
+
+    await replyText(replyToken, `✅ テストデータクリア完了\n\n削除件数: ${count || 0}件`);
+    return true;
+  } catch (err) {
+    console.error('[Admin] テストデータクリアエラー:', err.message);
+    await replyText(replyToken, `❌ エラー: ${err.message}`);
+    return true;
+  }
+}
+
+/**
  * 管理者用メニュー
  */
 export async function handleAdminMenu(user, replyToken) {
@@ -108,9 +134,13 @@ export async function handleAdminMenu(user, replyToken) {
 /admin test-data カフェ 5
 → カフェのテストデータを5件投入
 
-【データベースクリア】
+【テストデータのみ削除】
+/admin clear-test-data
+→ 管理者が投入したテストデータのみ削除
+
+【全データ削除】
 /admin clear-data
-→ 全データを削除
+→ 全データを削除（ユーザーデータも含む）
 
 【データ確認】
 データ確認
