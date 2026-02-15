@@ -13,6 +13,7 @@ import {
 import { handleFeedback } from './feedbackHandler.js';
 import { handleEngagementReport, handlePostSelection } from './reportHandler.js';
 import { handleOnboardingStart, handleHelpMenu, handleHelpCategory } from './onboardingHandler.js';
+import { handleDataStats } from './dataStatsHandler.js';
 import { buildStoreParsePrompt, buildTextPostPrompt, POST_LENGTH_MAP } from '../utils/promptBuilder.js';
 import { aggregateLearningData } from '../utils/learningData.js';
 import { getBlendedInsights, saveEngagementMetrics } from '../services/collectiveIntelligence.js';
@@ -98,6 +99,11 @@ export async function handleTextMessage(user, text, replyToken) {
   // 学習状況
   if (trimmed === '学習状況' || trimmed === '学習') {
     return await handleLearningStatus(user, replyToken);
+  }
+
+  // データ確認
+  if (trimmed === 'データ確認' || trimmed === '集合知' || trimmed === 'データ') {
+    return await handleDataStats(user, replyToken);
   }
 
   // 👍 良い評価
