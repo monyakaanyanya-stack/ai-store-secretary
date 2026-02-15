@@ -14,6 +14,7 @@ import { handleFeedback } from './feedbackHandler.js';
 import { handleEngagementReport, handlePostSelection } from './reportHandler.js';
 import { handleOnboardingStart, handleHelpMenu, handleHelpCategory } from './onboardingHandler.js';
 import { handleDataStats } from './dataStatsHandler.js';
+import { handleAdminMenu, handleAdminTestData, handleAdminClearData } from './adminHandler.js';
 import { buildStoreParsePrompt, buildTextPostPrompt, POST_LENGTH_MAP } from '../utils/promptBuilder.js';
 import { aggregateLearningData } from '../utils/learningData.js';
 import { getBlendedInsights, saveEngagementMetrics } from '../services/collectiveIntelligence.js';
@@ -24,6 +25,23 @@ import { getPersonalizationPromptAddition, getLearningStatus } from '../services
  */
 export async function handleTextMessage(user, text, replyToken) {
   const trimmed = text.trim();
+
+  // 管理者コマンド（最優先で処理）
+  if (trimmed.startsWith('/admin')) {
+    const args = trimmed.replace(/^\/admin\s*/, '');
+
+    if (args === '') {
+      const handled = await handleAdminMenu(user, replyToken);
+      if (handled) return;
+    } else if (args.startsWith('test-data')) {
+      const testArgs = args.replace(/^test-data\s*/, '');
+      const handled = await handleAdminTestData(user, testArgs, replyToken);
+      if (handled) return;
+    } else if (args === 'clear-data') {
+      const handled = await handleAdminClearData(user, replyToken);
+      if (handled) return;
+    }
+  }
 
   // オンボーディング: 「登録」コマンド
   if (trimmed === '登録') {
