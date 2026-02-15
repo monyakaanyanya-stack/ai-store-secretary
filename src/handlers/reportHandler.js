@@ -125,12 +125,6 @@ ${postList}
   }
 }
 
-  } catch (err) {
-    console.error('[Report] エンゲージメント報告エラー:', err.message);
-    await replyText(replyToken, `エラーが発生しました: ${err.message}`);
-  }
-}
-
 /**
  * 投稿番号選択のハンドラー
  */
