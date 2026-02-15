@@ -156,7 +156,7 @@ export async function handlePostSelection(user, postNumber, replyToken) {
 
     const selectedPost = recentPosts[selectedIndex];
 
-    // 店舗情報を取得
+    // 店舗情報を取得（フォロワー数を含む）
     const store = await getStore(user.current_store_id);
 
     // 投稿内容からハッシュタグを抽出
