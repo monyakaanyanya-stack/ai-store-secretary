@@ -109,6 +109,16 @@ export async function handleTextMessage(user, text, replyToken) {
     return await handleTemplateDelete(user, fieldToDelete, replyToken);
   }
 
+  // リマインダー停止
+  if (trimmed === 'リマインダー停止' || trimmed === 'リマインダー無効') {
+    return await handleDisableReminder(user, replyToken);
+  }
+
+  // リマインダー再開
+  if (trimmed === 'リマインダー再開' || trimmed === 'リマインダー有効') {
+    return await handleEnableReminder(user, replyToken);
+  }
+
   // 個別文章量指定: 「超短文で: 新商品のケーキ」
   const lengthMatch = trimmed.match(/^(超短文|短文|中文|長文)で[:：]\s*(.+)/);
   if (lengthMatch) {
@@ -799,6 +809,44 @@ async function handleNegativeFeedback(user, replyToken) {
     await replyText(replyToken, '👎 フィードバックありがとうございます。\n\n「直し: 〜」で具体的に修正指示を送っていただけると、より精度が上がります！');
   } catch (err) {
     console.error('[Feedback] 👎 処理エラー:', err.message);
+    await replyText(replyToken, `エラーが発生しました: ${err.message}`);
+  }
+}
+
+// ==================== リマインダー停止 ====================
+
+async function handleDisableReminder(user, replyToken) {
+  try {
+    const { error } = await supabase
+      .from('users')
+      .update({ reminder_enabled: false })
+      .eq('id', user.id);
+
+    if (error) throw error;
+
+    console.log(`[Reminder] リマインダー停止: user=${user.line_user_id}`);
+    await replyText(replyToken, '✅ デイリーリマインダーを停止しました。\n\n再開したい場合は「リマインダー再開」と送信してください。');
+  } catch (err) {
+    console.error('[Reminder] 停止エラー:', err.message);
+    await replyText(replyToken, `エラーが発生しました: ${err.message}`);
+  }
+}
+
+// ==================== リマインダー再開 ====================
+
+async function handleEnableReminder(user, replyToken) {
+  try {
+    const { error } = await supabase
+      .from('users')
+      .update({ reminder_enabled: true })
+      .eq('id', user.id);
+
+    if (error) throw error;
+
+    console.log(`[Reminder] リマインダー再開: user=${user.line_user_id}`);
+    await replyText(replyToken, '✅ デイリーリマインダーを再開しました。\n\n毎朝10時に報告のリマインドをお送りします！');
+  } catch (err) {
+    console.error('[Reminder] 再開エラー:', err.message);
     await replyText(replyToken, `エラーが発生しました: ${err.message}`);
   }
 }

@@ -4,6 +4,7 @@ import { validateSignature } from '@line/bot-sdk';
 import { handleTextMessage } from './src/handlers/textHandler.js';
 import { handleImageMessage } from './src/handlers/imageHandler.js';
 import { getOrCreateUser } from './src/services/supabaseService.js';
+import { startScheduler } from './src/services/scheduler.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -71,4 +72,7 @@ app.get('/', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`[Server] AI Store Secretary が起動しました (port: ${PORT})`);
+
+  // スケジューラー起動
+  startScheduler();
 });
