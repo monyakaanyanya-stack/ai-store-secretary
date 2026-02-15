@@ -197,15 +197,22 @@ export async function handlePostSelection(user, postNumber, replyToken) {
 
     // フォロワー数を基準にした分析
     let followerAnalysis = '';
-    if (store.follower_count && store.follower_count > 0) {
-      const likesPerFollower = ((metrics.likes / store.follower_count) * 100).toFixed(2);
-      const savesPerFollower = ((metrics.saves / store.follower_count) * 100).toFixed(2);
+    console.log(`[Report] store.follower_count = ${store.follower_count} (type: ${typeof store.follower_count})`);
+
+    const followerCount = parseInt(store.follower_count, 10);
+    console.log(`[Report] parsed followerCount = ${followerCount} (isNaN: ${isNaN(followerCount)})`);
+
+    if (followerCount && followerCount > 0) {
+      const likesPerFollower = ((metrics.likes / followerCount) * 100).toFixed(2);
+      const savesPerFollower = ((metrics.saves / followerCount) * 100).toFixed(2);
 
       followerAnalysis = `
-📊 フォロワー比分析 (基準: ${store.follower_count.toLocaleString()}人)
+📊 フォロワー比分析 (基準: ${followerCount.toLocaleString()}人)
 ❤️ いいね率: ${likesPerFollower}%
 💾 保存率: ${savesPerFollower}%
 `;
+    } else {
+      console.log(`[Report] フォロワー比分析をスキップ: followerCount=${followerCount}`);
     }
 
     // フィードバックメッセージ
