@@ -38,20 +38,19 @@ export async function handleAdminTestData(user, args, replyToken) {
 
     let inserted = 0;
     for (const post of testPosts) {
+      const postData = {
+        content: post.content,
+      };
+
       const metricsData = {
-        category: category,
-        post_content: post.content,
-        hashtags: post.hashtags,
         likes_count: post.likes,
         saves_count: post.saves,
         comments_count: post.comments,
         reach: post.likes * 10,
         engagement_rate: post.engagementRate,
-        post_time: post.postTime,
-        day_of_week: post.dayOfWeek,
       };
 
-      await saveEngagementMetrics(null, category, metricsData);
+      await saveEngagementMetrics(null, category, postData, metricsData);
       inserted++;
     }
 
