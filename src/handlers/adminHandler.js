@@ -38,6 +38,8 @@ export async function handleAdminTestData(user, args, replyToken) {
 
     let inserted = 0;
     for (const post of testPosts) {
+      console.log('[Admin] テスト投稿データ:', post);
+
       const postData = {
         content: post.content,
       };
@@ -49,6 +51,9 @@ export async function handleAdminTestData(user, args, replyToken) {
         reach: post.likes * 10,
         engagement_rate: post.engagementRate,
       };
+
+      console.log('[Admin] postData:', postData);
+      console.log('[Admin] metricsData:', metricsData);
 
       await saveEngagementMetrics(null, category, postData, metricsData);
       inserted++;
