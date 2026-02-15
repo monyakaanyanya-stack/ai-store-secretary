@@ -537,7 +537,7 @@ async function handleShowSettings(user, replyToken) {
     const config = store.config || {};
     const lengthInfo = POST_LENGTH_MAP[config.post_length || 'medium'];
 
-    let message = `📋 現在の設定\n\n【店舗名】${store.name}\n【投稿長】${lengthInfo.description} (${lengthInfo.range})\n`;
+    let message = `📋 現在の設定\n\n【店舗名】${store.name}\n【業種】${store.category || '未設定'}\n【こだわり】${store.strength || '未設定'}\n【口調】${store.tone || '未設定'}\n【投稿長】${lengthInfo.description} (${lengthInfo.range})\n`;
 
     const templates = config.templates || {};
     if (templates.住所 || templates.営業時間 || Object.keys(templates.custom_fields || {}).length > 0) {
