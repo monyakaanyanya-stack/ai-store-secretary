@@ -196,7 +196,7 @@ export async function saveEngagementMetrics(storeId, category, postData, metrics
     comments_count: metrics.comments_count || 0,
     reach: metrics.reach || 0,
     engagement_rate: metrics.engagement_rate || 0,
-    post_time: new Date().toISOString(),
+    post_time: new Date().toTimeString().slice(0, 8),
     day_of_week: new Date().getDay(),
   };
 
