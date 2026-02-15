@@ -28,6 +28,28 @@ export async function replyText(replyToken, text) {
 }
 
 /**
+ * LINE にプッシュメッセージを送信
+ */
+export async function pushMessage(lineUserId, messages) {
+  const res = await fetch(`${LINE_API_BASE}/message/push`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${CHANNEL_ACCESS_TOKEN}`,
+    },
+    body: JSON.stringify({
+      to: lineUserId,
+      messages: messages,
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`LINEプッシュメッセージ送信失敗: ${res.status} ${body}`);
+  }
+}
+
+/**
  * LINE Content API から画像バイナリを取得し Base64 文字列で返す
  */
 export async function getImageAsBase64(messageId) {
