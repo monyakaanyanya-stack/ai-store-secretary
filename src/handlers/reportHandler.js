@@ -136,8 +136,10 @@ export async function handlePostSelection(user, postNumber, replyToken) {
   try {
     // pending_reportを取得
     const pendingReport = await getPendingReport(user.id, user.current_store_id);
+    console.log(`[Report] handlePostSelection - pendingReport:`, pendingReport ? 'あり' : 'なし');
 
     if (!pendingReport) {
+      console.log(`[Report] pending_reportがないため投稿選択をスキップ`);
       return null; // pending_reportがない場合はこのハンドラーをスキップ
     }
 
