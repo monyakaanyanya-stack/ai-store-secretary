@@ -189,7 +189,7 @@ async function handleStoreRegistration(user, text, replyToken) {
       storeData = JSON.parse(jsonStr);
     } catch {
       return await replyText(replyToken,
-        '入力の解析に失敗しました。\n\n以下の形式で送ってください:\n1: 業種,店名,こだわり,口調\n\n例: 1: ベーカリー,幸福堂,天然酵母の手作りパン,friendly'
+        '入力の解析に失敗しました。\n\n以下の形式で送ってください:\n1: 業種,店名,こだわり,口調\n\n例: 1: ベーカリー,幸福堂,天然酵母の手作りパン,フレンドリー'
       );
     }
 
@@ -261,7 +261,7 @@ async function handleStoreList(user, replyToken) {
 async function handleTextPostGeneration(user, text, replyToken) {
   if (!user.current_store_id) {
     return await replyText(replyToken,
-      '店舗が選択されていません。\n\nまず店舗を登録してください:\n1: 店名,こだわり,口調\n\n例: 1: ベーカリー幸福堂,天然酵母の手作りパン,friendly'
+      '店舗が選択されていません。\n\nまず店舗を登録してください:\n1: 店名,こだわり,口調\n\n例: 1: ベーカリー幸福堂,天然酵母の手作りパン,フレンドリー'
     );
   }
 
@@ -343,6 +343,7 @@ async function handleStoreUpdatePrompt(user, replyToken) {
     const message = `📝 現在の店舗設定
 
 【店舗名】${store.name}
+【業種】${store.category || '未設定'}
 【こだわり・強み】${store.strength}
 【口調】${store.tone}
 
@@ -350,11 +351,12 @@ async function handleStoreUpdatePrompt(user, replyToken) {
 以下の形式で送信してください：
 
 更新: name: 新しい店名
+更新: category: カフェ
 更新: strength: 新しいこだわり
-更新: tone: friendly
+更新: tone: フレンドリー
 
 または複数同時に：
-更新: name: 新店名, strength: 新しいこだわり, tone: casual`;
+更新: name: 新店名, category: ネイルサロン, tone: カジュアル`;
 
     await replyText(replyToken, message);
   } catch (err) {
@@ -376,7 +378,7 @@ async function handleStoreUpdate(user, updateData, replyToken) {
       return await replyText(replyToken, '選択中の店舗が見つかりません。');
     }
 
-    // Parse: "name: 新店名, strength: 新しいこだわり, tone: casual"
+    // Parse: "name: 新店名, strength: 新しいこだわり, tone: カジュアル"
     const pairs = updateData.split(',').map(p => p.trim());
     const updates = {};
 
@@ -391,13 +393,15 @@ async function handleStoreUpdate(user, updateData, replyToken) {
         updates.name = value;
       } else if (key === 'strength') {
         updates.strength = value;
+      } else if (key === 'category') {
+        updates.category = value;
       } else if (key === 'tone') {
-        const validTones = ['friendly', 'professional', 'casual', 'passionate', 'luxury'];
+        const validTones = ['カジュアル', 'フレンドリー', '丁寧', 'フレンドリー', '丁寧', 'カジュアル'];
         if (validTones.includes(value)) {
           updates.tone = value;
         } else {
           return await replyText(replyToken,
-            `口調は以下のいずれかを指定してください:\nfriendly / professional / casual / passionate / luxury`
+            `口調は以下のいずれかを指定してください:\nカジュアル / フレンドリー / 丁寧`
           );
         }
       }
@@ -405,7 +409,7 @@ async function handleStoreUpdate(user, updateData, replyToken) {
 
     if (Object.keys(updates).length === 0) {
       return await replyText(replyToken,
-        '更新する内容を指定してください。\n\n例:\n更新: name: 新店名\n更新: strength: 新しいこだわり\n更新: tone: casual'
+        '更新する内容を指定してください。\n\n例:\n更新: name: 新店名\n更新: category: カフェ\n更新: strength: 新しいこだわり\n更新: tone: カジュアル'
       );
     }
 
@@ -423,6 +427,7 @@ async function handleStoreUpdate(user, updateData, replyToken) {
     // 更新内容を確認
     const summary = [];
     if (updates.name) summary.push(`店舗名: ${updates.name}`);
+    if (updates.category) summary.push(`業種: ${updates.category}`);
     if (updates.strength) summary.push(`こだわり: ${updates.strength}`);
     if (updates.tone) summary.push(`口調: ${updates.tone}`);
 
@@ -447,7 +452,7 @@ async function handlePostLength(user, lengthParam, replyToken) {
 
     if (!validLengths.includes(lengthParam)) {
       return await replyText(replyToken,
-        `長さ指定は以下のいずれかで入力してください:\n\n長さ: xshort (50-80文字)\n長さ: short (100-150文字)\n長さ: medium (200-300文字)\n長さ: long (400-500文字)`
+        `長さ指定は以下のいずれかで入力してください:\n\n長さ: 超短文 (30文字以内)\n長さ: 短文 (100-150文字)\n長さ: 中文 (200-300文字)\n長さ: 長文 (400-500文字)`
       );
     }
 
@@ -753,10 +758,10 @@ const HELP_TEXT = `📖 AI店舗秘書の使い方
 
 【店舗登録】
 1: 店名,こだわり,口調
-例: 1: ベーカリー幸福堂,天然酵母の手作りパン,friendly
+例: 1: ベーカリー幸福堂,天然酵母の手作りパン,フレンドリー
 
 口調は以下から選べます:
-casual（タメ口） / friendly（親しみやすい） / professional（丁寧）
+カジュアル（タメ口） / フレンドリー（親しみやすい） / 丁寧（丁寧）
 
 【投稿生成】
 ・画像を送信 → 画像から投稿案を作成
@@ -769,7 +774,7 @@ casual（タメ口） / friendly（親しみやすい） / professional（丁寧
 直し: もっとカジュアルに
 
 【設定】
-・長さ: xshort / short / medium / long → デフォルトの投稿長を設定
+・長さ: 超短文 / 短文 / 中文 / 長文 → デフォルトの投稿長を設定
 ・テンプレート: address:住所,business_hours:営業時間 → テンプレート登録
 ・テンプレート削除 → テンプレート削除（対話形式）
 ・設定確認 → 現在の設定を表示

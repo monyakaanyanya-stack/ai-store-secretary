@@ -51,7 +51,7 @@ export async function createStore(userId, storeData) {
       category: storeData.category || null,
       profit_margin: storeData.profit_margin || 0,
       config: storeData.config || {
-        post_length: 'medium',
+        post_length: '中文',
         templates: {},
         customization: {}
       },
