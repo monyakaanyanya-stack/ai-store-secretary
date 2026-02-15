@@ -12,6 +12,7 @@ import {
 } from '../services/supabaseService.js';
 import { handleFeedback } from './feedbackHandler.js';
 import { handleEngagementReport, handlePostSelection } from './reportHandler.js';
+import { handleOnboardingStart, handleHelpMenu, handleHelpCategory } from './onboardingHandler.js';
 import { buildStoreParsePrompt, buildTextPostPrompt, POST_LENGTH_MAP } from '../utils/promptBuilder.js';
 import { aggregateLearningData } from '../utils/learningData.js';
 import { getBlendedInsights, saveEngagementMetrics } from '../services/collectiveIntelligence.js';
@@ -22,6 +23,11 @@ import { getPersonalizationPromptAddition, getLearningStatus } from '../services
  */
 export async function handleTextMessage(user, text, replyToken) {
   const trimmed = text.trim();
+
+  // オンボーディング: 「登録」コマンド
+  if (trimmed === '登録') {
+    return await handleOnboardingStart(user, replyToken);
+  }
 
   // 店舗登録: 「1:」で始まる
   if (trimmed.startsWith('1:') || trimmed.startsWith('1:')) {
@@ -45,9 +51,15 @@ export async function handleTextMessage(user, text, replyToken) {
     return await handleStoreSwitch(user, storeName, replyToken);
   }
 
-  // ヘルプ
+  // ヘルプ: 階層型メニュー
   if (trimmed === 'ヘルプ' || trimmed === 'help') {
-    return await replyText(replyToken, HELP_TEXT);
+    return await handleHelpMenu(user, replyToken);
+  }
+
+  // ヘルプカテゴリー選択: 数字またはカテゴリー名
+  const helpHandled = await handleHelpCategory(user, trimmed, replyToken);
+  if (helpHandled !== null) {
+    return;
   }
 
   // 店舗一覧
