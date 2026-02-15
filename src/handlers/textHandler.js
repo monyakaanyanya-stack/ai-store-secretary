@@ -350,13 +350,13 @@ async function handleStoreUpdatePrompt(user, replyToken) {
 何を変更しますか？
 以下の形式で送信してください：
 
-更新: name: 新しい店名
-更新: category: カフェ
-更新: strength: 新しいこだわり
-更新: tone: フレンドリー
+更新: 店名: 新しい店名
+更新: 業種: カフェ
+更新: こだわり: 新しいこだわり
+更新: 口調: フレンドリー
 
 または複数同時に：
-更新: name: 新店名, category: ネイルサロン, tone: カジュアル`;
+更新: 店名: 新店名, 業種: ネイルサロン, 口調: カジュアル`;
 
     await replyText(replyToken, message);
   } catch (err) {
@@ -378,7 +378,7 @@ async function handleStoreUpdate(user, updateData, replyToken) {
       return await replyText(replyToken, '選択中の店舗が見つかりません。');
     }
 
-    // Parse: "name: 新店名, strength: 新しいこだわり, tone: カジュアル"
+    // Parse: "店名: 新店名, こだわり: 新しいこだわり, 口調: カジュアル"
     const pairs = updateData.split(',').map(p => p.trim());
     const updates = {};
 
@@ -389,14 +389,15 @@ async function handleStoreUpdate(user, updateData, replyToken) {
       const key = pair.slice(0, colonIndex).trim();
       const value = pair.slice(colonIndex + 1).trim();
 
-      if (key === 'name') {
+      // 日本語キーと英語キー両方に対応
+      if (key === '店名' || key === 'name') {
         updates.name = value;
-      } else if (key === 'strength') {
+      } else if (key === 'こだわり' || key === 'strength') {
         updates.strength = value;
-      } else if (key === 'category') {
+      } else if (key === '業種' || key === 'category') {
         updates.category = value;
-      } else if (key === 'tone') {
-        const validTones = ['カジュアル', 'フレンドリー', '丁寧', 'フレンドリー', '丁寧', 'カジュアル'];
+      } else if (key === '口調' || key === 'tone') {
+        const validTones = ['カジュアル', 'フレンドリー', '丁寧', 'friendly', 'professional', 'casual'];
         if (validTones.includes(value)) {
           updates.tone = value;
         } else {
@@ -409,7 +410,7 @@ async function handleStoreUpdate(user, updateData, replyToken) {
 
     if (Object.keys(updates).length === 0) {
       return await replyText(replyToken,
-        '更新する内容を指定してください。\n\n例:\n更新: name: 新店名\n更新: category: カフェ\n更新: strength: 新しいこだわり\n更新: tone: カジュアル'
+        '更新する内容を指定してください。\n\n例:\n更新: 店名: 新店名\n更新: 業種: カフェ\n更新: こだわり: 新しいこだわり\n更新: 口調: カジュアル'
       );
     }
 
