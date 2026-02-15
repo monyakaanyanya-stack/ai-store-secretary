@@ -85,6 +85,77 @@ export const POST_LENGTH_MAP = {
   long: { range: '400-500文字', description: '長文' },
 };
 
+// カテゴリー別人気ハッシュタグ（参考情報）
+const POPULAR_HASHTAGS_BY_CATEGORY = {
+  nail_salon: [
+    '#ネイル', '#ネイルデザイン', '#ジェルネイル', '#ネイルアート',
+    '#ネイルサロン', '#nails', '#naildesign', '#gelnails', '#nailart',
+    '#ネイル好きな人と繋がりたい', '#セルフネイル', '#春ネイル', '#秋ネイル',
+    '#冬ネイル', '#夏ネイル', '#ワンカラーネイル', '#フレンチネイル'
+  ],
+  cafe: [
+    '#カフェ', '#カフェ巡り', '#おしゃれカフェ', '#カフェスタグラム',
+    '#cafe', '#cafestagram', '#カフェ好きな人と繋がりたい',
+    '#コーヒー', '#スイーツ', '#ランチ', '#coffee', '#sweets',
+    '#カフェタイム', '#カフェ好き', '#おうちカフェ'
+  ],
+  beauty_salon: [
+    '#美容室', '#ヘアスタイル', '#ヘアアレンジ', '#hair', '#hairstyle',
+    '#ヘアカラー', '#haircolor', '#ショートヘア', '#ボブ', '#ロングヘア',
+    '#美容師', '#hairstylist', '#ヘアケア', '#ヘアセット', '#トリートメント'
+  ],
+  restaurant: [
+    '#レストラン', '#グルメ', '#ランチ', '#ディナー', '#foodstagram',
+    '#instafood', '#food', '#料理', '#美味しい', '#foodie',
+    '#食べスタグラム', '#グルメ好きな人と繋がりたい', '#お店', '#飲食店'
+  ],
+  fashion: [
+    '#ファッション', '#コーデ', '#今日のコーデ', '#ootd', '#fashion',
+    '#coordinate', '#おしゃれさんと繋がりたい', '#お洒落',
+    '#春コーデ', '#秋コーデ', '#プチプラコーデ', '#カジュアルコーデ'
+  ],
+  bakery: [
+    '#パン', '#ベーカリー', '#パン屋', '#bakery', '#bread', '#パン好き',
+    '#パン屋さん', '#手作りパン', '#天然酵母', '#パン屋さん巡り',
+    '#パンスタグラム', '#パン好きな人と繋がりたい'
+  ],
+  general: [
+    '#instagood', '#photooftheday', '#instagram', '#いいね',
+    '#フォロー', '#follow', '#like', '#japan', '#japanese',
+    '#日本', '#おすすめ', '#新作', '#お知らせ'
+  ]
+};
+
+/**
+ * 日本語カテゴリー名を英語キーに変換
+ */
+function mapCategoryToHashtagKey(category) {
+  const mapping = {
+    'ネイルサロン': 'nail_salon',
+    'カフェ': 'cafe',
+    '美容室': 'beauty_salon',
+    'ヘアサロン': 'beauty_salon',
+    'レストラン': 'restaurant',
+    'ベーカリー': 'bakery',
+    'パン屋': 'bakery',
+    'アパレル': 'fashion',
+    '雑貨店': 'fashion',
+    'セレクトショップ': 'fashion',
+  };
+
+  return mapping[category] || 'general';
+}
+
+/**
+ * カテゴリーに基づいて人気ハッシュタグを取得
+ */
+function getPopularHashtagsByCategory(category) {
+  if (!category) return POPULAR_HASHTAGS_BY_CATEGORY.general;
+
+  const key = mapCategoryToHashtagKey(category);
+  return POPULAR_HASHTAGS_BY_CATEGORY[key] || POPULAR_HASHTAGS_BY_CATEGORY.general;
+}
+
 function getToneName(tone) {
   const toneData = TONE_MAP[tone] || TONE_MAP.casual;
   return toneData.name;
@@ -140,22 +211,36 @@ ${Object.entries(templates.custom_fields || {})
   .join('\n')}`
     : '';
 
-  // 集合知情報の追加
+  // ハッシュタグ情報の構築（優先順位: 集合知DB > ハードコード済みリスト）
   let hashtagSuggestions = '';
+  const hashtagSources = [];
+
+  // 1. 集合知データベースからのハッシュタグ（優先）
   if (blendedInsights) {
     const { category, group } = blendedInsights;
-    const tags = [];
+    const dbTags = [];
 
     if (category && category.sampleSize > 0) {
-      tags.push(...category.topHashtags.slice(0, 3));
+      dbTags.push(...category.topHashtags.slice(0, 3));
     }
     if (group && group.sampleSize > 0) {
-      tags.push(...group.topHashtags.slice(0, 2));
+      dbTags.push(...group.topHashtags.slice(0, 2));
     }
 
-    if (tags.length > 0) {
-      hashtagSuggestions = `\n【人気ハッシュタグ（参考）】\n${tags.join(', ')}`;
+    if (dbTags.length > 0) {
+      hashtagSources.push(`実績データから: ${dbTags.join(', ')}`);
     }
+  }
+
+  // 2. カテゴリー別人気ハッシュタグ（参考情報として常に追加）
+  if (store.category) {
+    const popularTags = getPopularHashtagsByCategory(store.category);
+    hashtagSources.push(`人気ハッシュタグ: ${popularTags.slice(0, 8).join(', ')}`);
+  }
+
+  // 3. プロンプトに追加
+  if (hashtagSources.length > 0) {
+    hashtagSuggestions = `\n【ハッシュタグの参考情報】\n${hashtagSources.join('\n')}\n※ この画像の内容に合ったものを優先して選んでください`;
   }
 
   return `あなたは${store.name}の中の人です。今、Instagramに投稿を書いています。
@@ -179,7 +264,10 @@ ${templateInfo}${hashtagSuggestions}
 【今回の投稿】
 - この画像について、上記のスタイルで自然に投稿を書いてください
 - 文字数: ${lengthInfo.range}（目安、厳密でなくてOK）
-- ハッシュタグ: 3-5個（画像に関連するもの）
+- ハッシュタグ: 3-5個
+  - まず画像の内容に合ったハッシュタグを考える
+  - 上記の「ハッシュタグの参考情報」も活用する
+  - 画像の特徴（色、季節、雰囲気など）を反映したものを優先
 - 画像に写っているものを素直に表現する
 - 分析や説明ではなく、あなたが感じたことを書く
 
@@ -204,22 +292,36 @@ ${Object.entries(templates.custom_fields || {})
   .join('\n')}`
     : '';
 
-  // 集合知情報の追加
+  // ハッシュタグ情報の構築（優先順位: 集合知DB > ハードコード済みリスト）
   let hashtagSuggestions = '';
+  const hashtagSources = [];
+
+  // 1. 集合知データベースからのハッシュタグ（優先）
   if (blendedInsights) {
     const { category, group } = blendedInsights;
-    const tags = [];
+    const dbTags = [];
 
     if (category && category.sampleSize > 0) {
-      tags.push(...category.topHashtags.slice(0, 3));
+      dbTags.push(...category.topHashtags.slice(0, 3));
     }
     if (group && group.sampleSize > 0) {
-      tags.push(...group.topHashtags.slice(0, 2));
+      dbTags.push(...group.topHashtags.slice(0, 2));
     }
 
-    if (tags.length > 0) {
-      hashtagSuggestions = `\n【人気ハッシュタグ（参考）】\n${tags.join(', ')}`;
+    if (dbTags.length > 0) {
+      hashtagSources.push(`実績データから: ${dbTags.join(', ')}`);
     }
+  }
+
+  // 2. カテゴリー別人気ハッシュタグ（参考情報として常に追加）
+  if (store.category) {
+    const popularTags = getPopularHashtagsByCategory(store.category);
+    hashtagSources.push(`人気ハッシュタグ: ${popularTags.slice(0, 8).join(', ')}`);
+  }
+
+  // 3. プロンプトに追加
+  if (hashtagSources.length > 0) {
+    hashtagSuggestions = `\n【ハッシュタグの参考情報】\n${hashtagSources.join('\n')}\n※ この内容に合ったものを優先して選んでください`;
   }
 
   return `あなたは${store.name}の中の人です。今、Instagramに投稿を書いています。
@@ -246,7 +348,10 @@ ${userText}
 【今回の投稿】
 - 上記の内容について、あなたのスタイルで自然に投稿を書いてください
 - 文字数: ${lengthInfo.range}（目安、厳密でなくてOK）
-- ハッシュタグ: 3-5個（内容に関連するもの）
+- ハッシュタグ: 3-5個
+  - まず内容に合ったハッシュタグを考える
+  - 上記の「ハッシュタグの参考情報」も活用する
+  - 内容の特徴を反映したものを優先
 - 分析や説明ではなく、あなたが感じたことを書く
 
 投稿文のみを出力してください。説明や補足は一切不要です。`;
