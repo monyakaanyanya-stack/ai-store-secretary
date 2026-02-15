@@ -11,6 +11,7 @@ import {
   updateStoreTemplates,
 } from '../services/supabaseService.js';
 import { handleFeedback } from './feedbackHandler.js';
+import { handleEngagementReport } from './reportHandler.js';
 import { buildStoreParsePrompt, buildTextPostPrompt, POST_LENGTH_MAP } from '../utils/promptBuilder.js';
 import { aggregateLearningData } from '../utils/learningData.js';
 import { getBlendedInsights, saveEngagementMetrics } from '../services/collectiveIntelligence.js';
@@ -31,6 +32,11 @@ export async function handleTextMessage(user, text, replyToken) {
   if (trimmed.startsWith('直し:') || trimmed.startsWith('直し:')) {
     const feedback = trimmed.replace(/^直し[:：]\s*/, '');
     return await handleFeedback(user, feedback, replyToken);
+  }
+
+  // エンゲージメント報告: 「報告:」で始まる
+  if (trimmed.startsWith('報告:') || trimmed.startsWith('報告:')) {
+    return await handleEngagementReport(user, trimmed, replyToken);
   }
 
   // 店舗切替: 「切替:」で始まる
