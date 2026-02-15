@@ -1,5 +1,7 @@
 import cron from 'node-cron';
 import { sendDailyReminders } from './dailyReminderService.js';
+import { collectDailySummary } from './dailySummaryService.js';
+import { notifyDailySummary } from './errorNotification.js';
 
 /**
  * スケジューラー起動
@@ -19,5 +21,22 @@ export function startScheduler() {
     timezone: 'UTC'
   });
 
-  console.log('[Scheduler] スケジューラー起動完了（毎日 UTC 1:00 = JST 10:00）');
+  // 毎日23:59（日本時間）にデイリーサマリー送信
+  // JST 23:59 = UTC 14:59
+  cron.schedule('59 14 * * *', async () => {
+    console.log('[Scheduler] デイリーサマリー実行開始');
+    try {
+      const summary = await collectDailySummary();
+      await notifyDailySummary(summary);
+      console.log('[Scheduler] デイリーサマリー送信完了:', summary);
+    } catch (error) {
+      console.error('[Scheduler] デイリーサマリー実行エラー:', error);
+    }
+  }, {
+    timezone: 'UTC'
+  });
+
+  console.log('[Scheduler] スケジューラー起動完了');
+  console.log('  - デイリーリマインダー: 毎日 UTC 1:00 (JST 10:00)');
+  console.log('  - デイリーサマリー: 毎日 UTC 14:59 (JST 23:59)');
 }
