@@ -294,8 +294,8 @@ export function buildImagePostPrompt(store, learningData, lengthOverride = null,
   const templates = store.config?.templates || {};
   const templateInfo = Object.keys(templates).length > 0
     ? `\n【必要な情報（投稿の最後に自然に含める）】
-${templates.address ? `住所: ${templates.address}` : ''}
-${templates.business_hours ? `営業時間: ${templates.business_hours}` : ''}
+${templates.住所 ? `住所: ${templates.住所}` : ''}
+${templates.営業時間 ? `営業時間: ${templates.営業時間}` : ''}
 ${Object.entries(templates.custom_fields || {})
   .map(([key, val]) => `${key}: ${val}`)
   .join('\n')}`
@@ -375,8 +375,8 @@ export function buildTextPostPrompt(store, learningData, userText, lengthOverrid
   const templates = store.config?.templates || {};
   const templateInfo = Object.keys(templates).length > 0
     ? `\n【必要な情報（投稿の最後に自然に含める）】
-${templates.address ? `住所: ${templates.address}` : ''}
-${templates.business_hours ? `営業時間: ${templates.business_hours}` : ''}
+${templates.住所 ? `住所: ${templates.住所}` : ''}
+${templates.営業時間 ? `営業時間: ${templates.営業時間}` : ''}
 ${Object.entries(templates.custom_fields || {})
   .map(([key, val]) => `${key}: ${val}`)
   .join('\n')}`

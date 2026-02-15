@@ -483,7 +483,7 @@ async function handleTemplate(user, templateData, replyToken) {
   try {
     const store = await getStore(user.current_store_id);
 
-    // Parse: "address: 東京都渋谷区, business_hours: 10:00-20:00, website: https://..."
+    // Parse: "住所: 東京都渋谷区, 営業時間: 10:00-20:00, website: https://..."
     const pairs = templateData.split(',').map(p => p.trim());
     const templates = { ...(store.config?.templates || {}) };
 
@@ -494,10 +494,10 @@ async function handleTemplate(user, templateData, replyToken) {
       const key = pair.slice(0, colonIndex).trim();
       const value = pair.slice(colonIndex + 1).trim();
 
-      if (key === 'address') {
-        templates.address = value;
-      } else if (key === 'business_hours') {
-        templates.business_hours = value;
+      if (key === '住所') {
+        templates.住所 = value;
+      } else if (key === '営業時間') {
+        templates.営業時間 = value;
       } else {
         templates.custom_fields = templates.custom_fields || {};
         templates.custom_fields[key] = value;
@@ -507,8 +507,8 @@ async function handleTemplate(user, templateData, replyToken) {
     await updateStoreTemplates(store.id, templates);
 
     const summary = [];
-    if (templates.address) summary.push(`住所: ${templates.address}`);
-    if (templates.business_hours) summary.push(`営業時間: ${templates.business_hours}`);
+    if (templates.住所) summary.push(`住所: ${templates.住所}`);
+    if (templates.営業時間) summary.push(`営業時間: ${templates.営業時間}`);
     if (templates.custom_fields) {
       Object.entries(templates.custom_fields).forEach(([k, v]) => {
         summary.push(`${k}: ${v}`);
@@ -539,10 +539,10 @@ async function handleShowSettings(user, replyToken) {
     let message = `📋 現在の設定\n\n【店舗名】${store.name}\n【投稿長】${lengthInfo.description} (${lengthInfo.range})\n`;
 
     const templates = config.templates || {};
-    if (templates.address || templates.business_hours || Object.keys(templates.custom_fields || {}).length > 0) {
+    if (templates.住所 || templates.営業時間 || Object.keys(templates.custom_fields || {}).length > 0) {
       message += '\n【テンプレート】\n';
-      if (templates.address) message += `住所: ${templates.address}\n`;
-      if (templates.business_hours) message += `営業時間: ${templates.business_hours}\n`;
+      if (templates.住所) message += `住所: ${templates.住所}\n`;
+      if (templates.営業時間) message += `営業時間: ${templates.営業時間}\n`;
       Object.entries(templates.custom_fields || {}).forEach(([k, v]) => {
         message += `${k}: ${v}\n`;
       });
@@ -632,14 +632,14 @@ async function handleTemplateDeletePrompt(user, replyToken) {
     const templates = store.config?.templates || {};
 
     // テンプレートがない場合
-    if (!templates.address && !templates.business_hours && !Object.keys(templates.custom_fields || {}).length) {
+    if (!templates.住所 && !templates.営業時間 && !Object.keys(templates.custom_fields || {}).length) {
       return await replyText(replyToken, '削除できるテンプレートがありません。');
     }
 
     // 削除可能なフィールドをリスト化
     const fields = [];
-    if (templates.address) fields.push('address (住所)');
-    if (templates.business_hours) fields.push('business_hours (営業時間)');
+    if (templates.住所) fields.push('住所');
+    if (templates.営業時間) fields.push('営業時間');
     if (templates.custom_fields) {
       Object.keys(templates.custom_fields).forEach(key => {
         fields.push(`${key}`);
@@ -654,8 +654,8 @@ async function handleTemplateDeletePrompt(user, replyToken) {
 ${fields.map((f, i) => `${i + 1}. ${f}`).join('\n')}
 
 削除方法：
-削除: address
-削除: business_hours
+削除: 住所
+削除: 営業時間
 削除: カスタムフィールド名
 
 全削除する場合：
@@ -693,14 +693,14 @@ async function handleTemplateDelete(user, fieldToDelete, replyToken) {
     let deleted = false;
     const deletedFields = [];
 
-    if (fieldToDelete === 'address' && templates.address) {
-      delete templates.address;
+    if (fieldToDelete === '住所' && templates.住所) {
+      delete templates.住所;
       deleted = true;
       deletedFields.push('住所');
     }
 
-    if (fieldToDelete === 'business_hours' && templates.business_hours) {
-      delete templates.business_hours;
+    if (fieldToDelete === '営業時間' && templates.営業時間) {
+      delete templates.営業時間;
       deleted = true;
       deletedFields.push('営業時間');
     }
@@ -775,7 +775,7 @@ const HELP_TEXT = `📖 AI店舗秘書の使い方
 
 【設定】
 ・長さ: 超短文 / 短文 / 中文 / 長文 → デフォルトの投稿長を設定
-・テンプレート: address:住所,business_hours:営業時間 → テンプレート登録
+・テンプレート: 住所:東京都渋谷区,営業時間:10:00-20:00 → テンプレート登録
 ・テンプレート削除 → テンプレート削除（対話形式）
 ・設定確認 → 現在の設定を表示
 ・学習状況 → AI学習の進捗を確認
