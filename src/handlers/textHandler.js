@@ -227,25 +227,16 @@ export async function handleTextMessage(user, text, replyToken) {
   }
 
   // ========== 自然な会話機能 ==========
+  // テキストメッセージは全て会話として処理
+  // 投稿生成は画像送信のみで行う
+
   // ユーザーメッセージを会話履歴に保存
   await saveConversation(user.id, 'user', trimmed);
 
   // 古い会話履歴をクリーンアップ（最新20件を保持）
   await cleanOldConversations(user.id, 20);
 
-  // 意図判定（会話機能） - Claude APIで自然な会話を理解
-  const intent = await detectUserIntent(trimmed);
-  console.log(`[TextHandler] Detected intent: ${intent}`);
-
-  // 投稿生成リクエストの場合
-  if (intent === 'post_generation') {
-    const aiResponse = '投稿を作成しますね！✨';
-    await saveConversation(user.id, 'assistant', aiResponse);
-    // 実際の投稿生成処理へ
-    return await handleTextPostGeneration(user, trimmed, replyToken);
-  }
-
-  // それ以外は自然な会話で応答
+  // 自然な会話で応答
   const store = user.current_store_id ? await getStore(user.current_store_id) : null;
   const conversationHistory = await getRecentConversations(user.id, 10);
 

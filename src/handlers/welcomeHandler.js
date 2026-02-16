@@ -1,4 +1,5 @@
-import { LINE_API_BASE, CHANNEL_ACCESS_TOKEN } from '../config/env.js';
+const LINE_API_BASE = 'https://api.line.me/v2/bot';
+const CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN;
 
 /**
  * ウェルカムメッセージを送信（友だち追加時）
@@ -13,22 +14,26 @@ export async function sendWelcomeMessage(lineUserId) {
 【こんなことができます】
 ━━━━━━━━━━━━━━━
 
-📝 InstagramやX用の投稿文を自動生成
-例: 「新商品のケーキ」→ 魅力的な投稿文に変換
+📸 画像から投稿文を自動生成
+商品やイベントの写真を送るだけで、
+InstagramやX用の魅力的な投稿文に！
 
 🧠 使うほど賢くなるAI
-あなたの好みを学習して、よりピッタリな文章に
+あなたの好みを学習して、
+よりピッタリな文章を提案
 
-📊 集合知で成功パターンを共有
-同業種の成功データから最適な投稿を提案
+💬 自然な会話でサポート
+分からないことがあれば、
+普通に話しかけてください！
 
 ━━━━━━━━━━━━━━━
 【使い方はとても簡単】
 ━━━━━━━━━━━━━━━
 
 1️⃣ 「登録」と送信してお店を登録
-2️⃣ 商品やイベントを教える
+2️⃣ 📸 商品の画像を送信
 3️⃣ 投稿文が自動生成される
+4️⃣ 「直し:〜」で調整可能
 
 ━━━━━━━━━━━━━━━
 
@@ -36,7 +41,7 @@ export async function sendWelcomeMessage(lineUserId) {
 お店を登録してみましょう！
 
 分からないことがあれば
-「ヘルプ」と送ってくださいね😊`
+気軽に質問してくださいね😊`
   };
 
   try {
