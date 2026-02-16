@@ -144,8 +144,11 @@ export async function handleTextMessage(user, text, replyToken) {
     return await handleDataStats(user, replyToken);
   }
 
+  console.log(`[TextHandler] Checking data reset: trimmed="${trimmed}"`);
+
   // データリセット（確認）
   if (trimmed === 'データリセット' || trimmed === 'リセット') {
+    console.log(`[TextHandler] Data reset matched! Calling handleDataResetPrompt`);
     return await handleDataResetPrompt(user, replyToken);
   }
 
