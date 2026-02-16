@@ -301,15 +301,15 @@ ${Object.entries(templates.custom_fields || {})
   .join('\n')}`
     : '';
 
-  // ハッシュタグ情報の構築（優先順位: 集合知DB > ハードコード済みリスト）
-  let hashtagSuggestions = '';
-  const hashtagSources = [];
+  // 集合知データの構築（同業種の成功パターンを反映）
+  let collectiveIntelligenceSection = '';
 
-  // 1. 集合知データベースからのハッシュタグ（優先）
   if (blendedInsights) {
-    const { category, group } = blendedInsights;
-    const dbTags = [];
+    const { category, group, own } = blendedInsights;
+    const insights = [];
 
+    // ハッシュタグ（優先度1）
+    const dbTags = [];
     if (category && category.sampleSize > 0) {
       dbTags.push(...category.topHashtags.slice(0, 3));
     }
@@ -318,19 +318,38 @@ ${Object.entries(templates.custom_fields || {})
     }
 
     if (dbTags.length > 0) {
-      hashtagSources.push(`実績データから: ${dbTags.join(', ')}`);
+      insights.push(`【ハッシュタグ（必須）】\n以下から3-5個を必ず使用:\n${dbTags.join(', ')}`);
+    }
+
+    // 文字数（優先度2）
+    const avgLength = category?.avgLength || group?.avgLength;
+    const topPostsLength = category?.topPostsAvgLength || group?.topPostsAvgLength;
+    if (avgLength && topPostsLength) {
+      insights.push(`【文字数（必須）】\n同業種の高エンゲージメント投稿の平均文字数: ${topPostsLength}文字\n※ この文字数を目安に作成してください`);
+    }
+
+    // 絵文字（優先度3）
+    const avgEmojiCount = category?.avgEmojiCount || group?.avgEmojiCount;
+    if (avgEmojiCount !== undefined) {
+      insights.push(`【絵文字（必須）】\n同業種の平均絵文字数: ${Math.round(avgEmojiCount)}個\n※ この数を目安に使用してください`);
+    }
+
+    // 投稿時間帯（参考情報）
+    const bestHours = category?.bestPostingHours || group?.bestPostingHours;
+    if (bestHours && bestHours.length > 0) {
+      insights.push(`【参考】最適投稿時間帯: ${bestHours.join('時, ')}時`);
+    }
+
+    if (insights.length > 0) {
+      collectiveIntelligenceSection = `\n━━━━━━━━━━━━━━━━━━━━━━━━\n📊 集合知データ（同業種${category?.sampleSize || 0}件の成功パターン）\n━━━━━━━━━━━━━━━━━━━━━━━━\n${insights.join('\n\n')}\n━━━━━━━━━━━━━━━━━━━━━━━━\n`;
     }
   }
 
-  // 2. カテゴリー別人気ハッシュタグ（参考情報として常に追加）
-  if (store.category) {
+  // カテゴリー別人気ハッシュタグ（集合知データがない場合のフォールバック）
+  let fallbackHashtags = '';
+  if (!collectiveIntelligenceSection && store.category) {
     const popularTags = getPopularHashtagsByCategory(store.category);
-    hashtagSources.push(`人気ハッシュタグ: ${popularTags.slice(0, 8).join(', ')}`);
-  }
-
-  // 3. プロンプトに追加
-  if (hashtagSources.length > 0) {
-    hashtagSuggestions = `\n【ハッシュタグの参考情報】\n${hashtagSources.join('\n')}\n※ この画像の内容に合ったものを優先して選んでください`;
+    fallbackHashtags = `\n【ハッシュタグ】\n以下から3-5個を選択:\n${popularTags.slice(0, 8).join(', ')}`;
   }
 
   return `あなたは${store.name}の中の人です。今、Instagramに投稿を書いています。
@@ -349,15 +368,12 @@ ${toneData.good_examples.join('\n\n')}
 
 【悪い投稿の例（絶対避ける）】
 ${toneData.bad_examples.join('\n\n')}
-${templateInfo}${hashtagSuggestions}
+${templateInfo}${collectiveIntelligenceSection}${fallbackHashtags}
 
 【今回の投稿】
 - この画像について、上記のスタイルで自然に投稿を書いてください
 - 文字数: ${lengthInfo.range}（目安、厳密でなくてOK）
-- ハッシュタグ: 3-5個
-  - まず画像の内容に合ったハッシュタグを考える
-  - 上記の「ハッシュタグの参考情報」も活用する
-  - 画像の特徴（色、季節、雰囲気など）を反映したものを優先
+${collectiveIntelligenceSection ? '  ※ 上記の集合知データ（文字数・絵文字数・ハッシュタグ）を必ず反映してください' : ''}
 - 画像に写っているものを素直に表現する
 - 分析や説明ではなく、あなたが感じたことを書く
 
@@ -382,15 +398,15 @@ ${Object.entries(templates.custom_fields || {})
   .join('\n')}`
     : '';
 
-  // ハッシュタグ情報の構築（優先順位: 集合知DB > ハードコード済みリスト）
-  let hashtagSuggestions = '';
-  const hashtagSources = [];
+  // 集合知データの構築（同業種の成功パターンを反映）
+  let collectiveIntelligenceSection = '';
 
-  // 1. 集合知データベースからのハッシュタグ（優先）
   if (blendedInsights) {
-    const { category, group } = blendedInsights;
-    const dbTags = [];
+    const { category, group, own } = blendedInsights;
+    const insights = [];
 
+    // ハッシュタグ（優先度1）
+    const dbTags = [];
     if (category && category.sampleSize > 0) {
       dbTags.push(...category.topHashtags.slice(0, 3));
     }
@@ -399,19 +415,38 @@ ${Object.entries(templates.custom_fields || {})
     }
 
     if (dbTags.length > 0) {
-      hashtagSources.push(`実績データから: ${dbTags.join(', ')}`);
+      insights.push(`【ハッシュタグ（必須）】\n以下から3-5個を必ず使用:\n${dbTags.join(', ')}`);
+    }
+
+    // 文字数（優先度2）
+    const avgLength = category?.avgLength || group?.avgLength;
+    const topPostsLength = category?.topPostsAvgLength || group?.topPostsAvgLength;
+    if (avgLength && topPostsLength) {
+      insights.push(`【文字数（必須）】\n同業種の高エンゲージメント投稿の平均文字数: ${topPostsLength}文字\n※ この文字数を目安に作成してください`);
+    }
+
+    // 絵文字（優先度3）
+    const avgEmojiCount = category?.avgEmojiCount || group?.avgEmojiCount;
+    if (avgEmojiCount !== undefined) {
+      insights.push(`【絵文字（必須）】\n同業種の平均絵文字数: ${Math.round(avgEmojiCount)}個\n※ この数を目安に使用してください`);
+    }
+
+    // 投稿時間帯（参考情報）
+    const bestHours = category?.bestPostingHours || group?.bestPostingHours;
+    if (bestHours && bestHours.length > 0) {
+      insights.push(`【参考】最適投稿時間帯: ${bestHours.join('時, ')}時`);
+    }
+
+    if (insights.length > 0) {
+      collectiveIntelligenceSection = `\n━━━━━━━━━━━━━━━━━━━━━━━━\n📊 集合知データ（同業種${category?.sampleSize || 0}件の成功パターン）\n━━━━━━━━━━━━━━━━━━━━━━━━\n${insights.join('\n\n')}\n━━━━━━━━━━━━━━━━━━━━━━━━\n`;
     }
   }
 
-  // 2. カテゴリー別人気ハッシュタグ（参考情報として常に追加）
-  if (store.category) {
+  // カテゴリー別人気ハッシュタグ（集合知データがない場合のフォールバック）
+  let fallbackHashtags = '';
+  if (!collectiveIntelligenceSection && store.category) {
     const popularTags = getPopularHashtagsByCategory(store.category);
-    hashtagSources.push(`人気ハッシュタグ: ${popularTags.slice(0, 8).join(', ')}`);
-  }
-
-  // 3. プロンプトに追加
-  if (hashtagSources.length > 0) {
-    hashtagSuggestions = `\n【ハッシュタグの参考情報】\n${hashtagSources.join('\n')}\n※ この内容に合ったものを優先して選んでください`;
+    fallbackHashtags = `\n【ハッシュタグ】\n以下から3-5個を選択:\n${popularTags.slice(0, 8).join(', ')}`;
   }
 
   return `あなたは${store.name}の中の人です。今、Instagramに投稿を書いています。
@@ -430,7 +465,7 @@ ${toneData.good_examples.join('\n\n')}
 
 【悪い投稿の例（絶対避ける）】
 ${toneData.bad_examples.join('\n\n')}
-${templateInfo}${hashtagSuggestions}
+${templateInfo}${collectiveIntelligenceSection}${fallbackHashtags}
 
 【今回の投稿内容】
 ${userText}
@@ -438,10 +473,7 @@ ${userText}
 【今回の投稿】
 - 上記の内容について、あなたのスタイルで自然に投稿を書いてください
 - 文字数: ${lengthInfo.range}（目安、厳密でなくてOK）
-- ハッシュタグ: 3-5個
-  - まず内容に合ったハッシュタグを考える
-  - 上記の「ハッシュタグの参考情報」も活用する
-  - 内容の特徴を反映したものを優先
+${collectiveIntelligenceSection ? '  ※ 上記の集合知データ（文字数・絵文字数・ハッシュタグ）を必ず反映してください' : ''}
 - 分析や説明ではなく、あなたが感じたことを書く
 
 投稿文のみを出力してください。説明や補足は一切不要です。`;
