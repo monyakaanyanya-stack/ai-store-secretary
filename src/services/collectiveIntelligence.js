@@ -247,9 +247,41 @@ export async function saveEngagementMetrics(storeId, category, postData, metrics
   }
 
   // バリデーション通過 → データベースに保存
-  const { error } = await supabase
-    .from('engagement_metrics')
-    .insert(metricsData);
+  // post_idがある場合は既存レコードを更新、なければ新規作成
+  let error;
+
+  if (metricsData.post_id) {
+    // post_idで既存レコードを検索
+    const { data: existing } = await supabase
+      .from('engagement_metrics')
+      .select('id')
+      .eq('post_id', metricsData.post_id)
+      .single();
+
+    if (existing) {
+      // 既存レコードを更新（UPSERT）
+      const { error: updateError } = await supabase
+        .from('engagement_metrics')
+        .update(metricsData)
+        .eq('id', existing.id);
+      error = updateError;
+      console.log(`[CollectiveIntelligence] メトリクス更新: post_id=${metricsData.post_id}`);
+    } else {
+      // 新規作成
+      const { error: insertError } = await supabase
+        .from('engagement_metrics')
+        .insert(metricsData);
+      error = insertError;
+      console.log(`[CollectiveIntelligence] メトリクス新規作成: post_id=${metricsData.post_id}`);
+    }
+  } else {
+    // post_idがない場合は常に新規作成
+    const { error: insertError } = await supabase
+      .from('engagement_metrics')
+      .insert(metricsData);
+    error = insertError;
+    console.log(`[CollectiveIntelligence] メトリクス新規作成（post_idなし）`);
+  }
 
   if (error) {
     console.error('[CollectiveIntelligence] メトリクス保存エラー:', error.message);

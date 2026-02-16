@@ -172,20 +172,20 @@ export async function handlePostSelection(user, postNumber, replyToken) {
     const engagementRate = calculateEngagementRate(metrics);
 
     // 集合知データベースに保存
+    const postData = {
+      post_id: selectedPost.id,
+      content: selectedPost.content,
+    };
+
     const metricsData = {
-      category: store.category || 'その他',
-      post_content: postContent,
-      hashtags: hashtags,
       likes_count: metrics.likes,
       saves_count: metrics.saves,
       comments_count: metrics.comments,
       reach: metrics.likes * 10, // 仮の推定値
       engagement_rate: parseFloat(engagementRate),
-      post_time: new Date(selectedPost.created_at).toTimeString().slice(0, 5),
-      day_of_week: new Date(selectedPost.created_at).getDay()
     };
 
-    await saveEngagementMetrics(store.id, store.category || 'その他', metricsData);
+    await saveEngagementMetrics(store.id, store.category || 'その他', postData, metricsData);
 
     // pending_reportを完了にする
     await completePendingReport(pendingReport.id);
