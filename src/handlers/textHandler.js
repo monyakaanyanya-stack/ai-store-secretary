@@ -17,7 +17,7 @@ import { handleDataStats } from './dataStatsHandler.js';
 import { handleAdminMenu, handleAdminTestData, handleAdminClearData, handleAdminClearTestData } from './adminHandler.js';
 import { handleFollowerCountResponse, getPendingFollowerRequest } from '../services/monthlyFollowerService.js';
 import { handleDataResetPrompt, handleDataResetExecution } from './dataResetHandler.js';
-import { detectIntentByRules } from '../services/intentDetection.js';
+import { detectUserIntent } from '../services/intentDetection.js';
 import { handleHelpRequest, handleGreeting, handleConfusion } from './conversationHandler.js';
 import { buildStoreParsePrompt, buildTextPostPrompt, POST_LENGTH_MAP } from '../utils/promptBuilder.js';
 import { aggregateLearningData } from '../utils/learningData.js';
@@ -220,8 +220,8 @@ export async function handleTextMessage(user, text, replyToken) {
     return; // 処理完了
   }
 
-  // 意図判定（会話機能）
-  const intent = detectIntentByRules(trimmed);
+  // 意図判定（会話機能） - Claude APIで自然な会話を理解
+  const intent = await detectUserIntent(trimmed);
   console.log(`[TextHandler] Detected intent: ${intent}`);
 
   if (intent === 'help_request') {
