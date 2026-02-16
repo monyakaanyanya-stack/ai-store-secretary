@@ -5,6 +5,7 @@ import { handleTextMessage } from './src/handlers/textHandler.js';
 import { handleImageMessage } from './src/handlers/imageHandler.js';
 import { getOrCreateUser } from './src/services/supabaseService.js';
 import { startScheduler } from './src/services/scheduler.js';
+import { sendWelcomeMessage } from './src/handlers/welcomeHandler.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -15,6 +16,12 @@ const lineConfig = {
 
 // LINE Webhook は raw body が必要（署名検証用）
 app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  // メンテナンスモードチェック
+  if (process.env.MAINTENANCE_MODE === 'true') {
+    console.log('[Webhook] メンテナンスモード中');
+    return res.status(503).json({ error: 'Service under maintenance' });
+  }
+
   // 署名検証
   const signature = req.headers['x-line-signature'];
   if (!validateSignature(req.body, lineConfig.channelSecret, signature)) {
@@ -43,9 +50,17 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
 });
 
 async function processEvent(event) {
+  const lineUserId = event.source.userId;
+
+  // フォローイベント（友だち追加）
+  if (event.type === 'follow') {
+    console.log(`[Event] follow event: user=${lineUserId}`);
+    await sendWelcomeMessage(lineUserId);
+    return;
+  }
+
   if (event.type !== 'message') return;
 
-  const lineUserId = event.source.userId;
   const replyToken = event.replyToken;
 
   // ユーザー取得 or 新規作成

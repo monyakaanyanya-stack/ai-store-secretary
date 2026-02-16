@@ -17,6 +17,8 @@ import { handleDataStats } from './dataStatsHandler.js';
 import { handleAdminMenu, handleAdminTestData, handleAdminClearData, handleAdminClearTestData } from './adminHandler.js';
 import { handleFollowerCountResponse, getPendingFollowerRequest } from '../services/monthlyFollowerService.js';
 import { handleDataResetPrompt, handleDataResetExecution } from './dataResetHandler.js';
+import { detectIntentByRules } from '../services/intentDetection.js';
+import { handleHelpRequest, handleGreeting, handleConfusion } from './conversationHandler.js';
 import { buildStoreParsePrompt, buildTextPostPrompt, POST_LENGTH_MAP } from '../utils/promptBuilder.js';
 import { aggregateLearningData } from '../utils/learningData.js';
 import { getBlendedInsights, saveEngagementMetrics } from '../services/collectiveIntelligence.js';
@@ -216,6 +218,22 @@ export async function handleTextMessage(user, text, replyToken) {
   const postSelectionHandled = await handlePostSelection(user, trimmed, replyToken);
   if (postSelectionHandled) {
     return; // 処理完了
+  }
+
+  // 意図判定（会話機能）
+  const intent = detectIntentByRules(trimmed);
+  console.log(`[TextHandler] Detected intent: ${intent}`);
+
+  if (intent === 'help_request') {
+    return await handleHelpRequest(user, replyToken);
+  }
+
+  if (intent === 'greeting') {
+    return await handleGreeting(user, replyToken);
+  }
+
+  if (intent === 'confusion') {
+    return await handleConfusion(user, replyToken);
   }
 
   // それ以外 → テキストから投稿生成
