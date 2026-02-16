@@ -223,15 +223,9 @@ export async function getLearningStatus(storeId, category) {
   }
 
   const profileData = profile.profile_data || {};
-  const level = getPersonalizationLevel(profile.interaction_count);
 
-  // レベル表示
-  const levelNames = ['初心者', '初級', '中級', '上級', 'エキスパート', 'マスター'];
-  const levelStars = '⭐'.repeat(level);
-  const nextLevel = level < 5 ? `\n次のレベルまで: あと${(level + 1) * 10 - profile.interaction_count}回のフィードバック` : '';
-
-  // パーソナライゼーション情報
-  let personalizationInfo = `【パーソナライゼーション】\n・学習回数: ${profile.interaction_count}回\n・学習レベル: Lv.${level} ${levelNames[level]} ${levelStars}${nextLevel}\n`;
+  // パーソナライゼーション情報（レベル表示を削除し、学習回数のみ表示）
+  let personalizationInfo = `【パーソナライゼーション】\n・学習回数: ${profile.interaction_count}回\n・フィードバックを重ねるほど精度が向上します\n`;
 
   // 口調の好み
   const toneAdj = profileData.tone_adjustments || {};

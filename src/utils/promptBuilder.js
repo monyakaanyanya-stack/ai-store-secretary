@@ -368,7 +368,7 @@ ${toneData.good_examples.join('\n\n')}
 
 【悪い投稿の例（絶対避ける）】
 ${toneData.bad_examples.join('\n\n')}
-${templateInfo}${collectiveIntelligenceSection}${fallbackHashtags}
+${templateInfo}${collectiveIntelligenceSection}${fallbackHashtags}${personalization}
 
 【今回の投稿】
 - この画像について、上記のスタイルで自然に投稿を書いてください
@@ -465,7 +465,7 @@ ${toneData.good_examples.join('\n\n')}
 
 【悪い投稿の例（絶対避ける）】
 ${toneData.bad_examples.join('\n\n')}
-${templateInfo}${collectiveIntelligenceSection}${fallbackHashtags}
+${templateInfo}${collectiveIntelligenceSection}${fallbackHashtags}${personalization}
 
 【今回の投稿内容】
 ${userText}

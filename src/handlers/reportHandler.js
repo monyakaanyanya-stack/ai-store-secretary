@@ -54,7 +54,7 @@ function calculateEngagementRate(metrics, reach = null) {
 }
 
 /**
- * 報告ハンドラー（投稿選択式）
+ * 報告ハンドラー（最新投稿に自動適用）
  */
 export async function handleEngagementReport(user, text, replyToken) {
   // 店舗が未設定の場合
@@ -87,11 +87,8 @@ export async function handleEngagementReport(user, text, replyToken) {
       return await replyText(replyToken, '選択中の店舗が見つかりません。');
     }
 
-    // pending_reportsに保存
-    await savePendingReport(user.id, store.id, metrics);
-
-    // 最近の投稿一覧を取得（5件）
-    const recentPosts = await getRecentPostHistory(user.id, store.id, 5);
+    // 最新の投稿を取得
+    const recentPosts = await getRecentPostHistory(user.id, store.id, 1);
 
     if (!recentPosts || recentPosts.length === 0) {
       return await replyText(replyToken,
@@ -99,26 +96,68 @@ export async function handleEngagementReport(user, text, replyToken) {
       );
     }
 
-    // 投稿一覧をフォーマット
-    const postList = recentPosts.map((post, index) => {
-      const preview = post.content.split('\n')[0].slice(0, 30) + '...';
-      const date = new Date(post.created_at).toLocaleDateString('ja-JP', { month: '2-digit', day: '2-digit' });
-      return `${index + 1}. ${preview}（${date}）`;
-    }).join('\n');
+    const latestPost = recentPosts[0];
 
-    const message = `📊 報告を受け付けました！
+    // 投稿内容のプレビュー
+    let postContent = latestPost.content.split('#')[0].trim().slice(0, 50);
+
+    // エンゲージメント率を計算
+    const engagementRate = calculateEngagementRate(metrics);
+
+    // 集合知データベースに保存
+    const postData = {
+      post_id: latestPost.id,
+      content: latestPost.content,
+    };
+
+    const metricsData = {
+      likes_count: metrics.likes,
+      saves_count: metrics.saves,
+      comments_count: metrics.comments,
+      reach: metrics.likes * 10, // 仮の推定値
+      engagement_rate: parseFloat(engagementRate),
+    };
+
+    await saveEngagementMetrics(store.id, store.category || 'その他', postData, metricsData);
+
+    console.log(`[Report] エンゲージメント報告完了: store=${store.name}, likes=${metrics.likes}`);
+
+    // 今月の報告回数を取得
+    const reportCount = await getMonthlyReportCount(user.id, store.id);
+
+    // フォロワー数を基準にした分析
+    let followerAnalysis = '';
+    const followerCount = parseInt(store.follower_count, 10);
+
+    if (followerCount && followerCount > 0) {
+      const likesPerFollower = ((metrics.likes / followerCount) * 100).toFixed(2);
+      const savesPerFollower = ((metrics.saves / followerCount) * 100).toFixed(2);
+
+      followerAnalysis = `
+📊 フォロワー比分析 (基準: ${followerCount.toLocaleString()}人)
+❤️ いいね率: ${likesPerFollower}%
+💾 保存率: ${savesPerFollower}%
+`;
+    }
+
+    // フィードバックメッセージ
+    const feedbackMessage = `✅ 報告完了！（最新の投稿に適用されました）
+
+【報告内容】
 ❤️ いいね: ${metrics.likes}
 💾 保存: ${metrics.saves}
 💬 コメント: ${metrics.comments}
+📈 エンゲージメント率: ${engagementRate}%
+${followerAnalysis}
+📝 対象の投稿:
+${postContent}...
 
-どの投稿の報告ですか？
-番号を送ってください↓
+🌱 集合知データベースに追加されました！
 
-${postList}
+今月の報告回数: ${reportCount}回
+みんなで育てる集合知が成長しています✨`;
 
-※ 10分以内に番号を選択してください`;
-
-    await replyText(replyToken, message);
+    await replyText(replyToken, feedbackMessage);
   } catch (err) {
     console.error('[Report] エンゲージメント報告エラー:', err.message);
     await replyText(replyToken, `エラーが発生しました: ${err.message}`);
