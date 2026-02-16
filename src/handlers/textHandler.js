@@ -29,6 +29,7 @@ import { buildStoreParsePrompt, buildTextPostPrompt, POST_LENGTH_MAP } from '../
 import { aggregateLearningData } from '../utils/learningData.js';
 import { getBlendedInsights, saveEngagementMetrics } from '../services/collectiveIntelligence.js';
 import { getPersonalizationPromptAddition, getLearningStatus } from '../services/personalizationEngine.js';
+import { getAdvancedPersonalizationPrompt } from '../services/advancedPersonalization.js';
 
 /**
  * テキストメッセージの振り分け処理
@@ -354,8 +355,10 @@ async function handleTextPostGeneration(user, text, replyToken) {
       console.log(`[Post] 集合知取得: category=${store.category}, group=${blendedInsights.categoryGroup}`);
     }
 
-    // パーソナライゼーション情報を取得
-    const personalization = await getPersonalizationPromptAddition(store.id);
+    // パーソナライゼーション情報を取得（基本 + 高度）
+    const basicPersonalization = await getPersonalizationPromptAddition(store.id);
+    const advancedPersonalization = await getAdvancedPersonalizationPrompt(store.id);
+    const personalization = basicPersonalization + advancedPersonalization;
 
     const prompt = buildTextPostPrompt(store, learningData, text, null, blendedInsights, personalization);
     const postContent = await askClaude(prompt);
@@ -649,8 +652,10 @@ async function handleTextPostGenerationWithLength(user, text, replyToken, length
       blendedInsights = await getBlendedInsights(store.id, store.category);
     }
 
-    // パーソナライゼーション情報を取得
-    const personalization = await getPersonalizationPromptAddition(store.id);
+    // パーソナライゼーション情報を取得（基本 + 高度）
+    const basicPersonalization = await getPersonalizationPromptAddition(store.id);
+    const advancedPersonalization = await getAdvancedPersonalizationPrompt(store.id);
+    const personalization = basicPersonalization + advancedPersonalization;
 
     const prompt = buildTextPostPrompt(store, learningData, text, lengthOverride, blendedInsights, personalization);
     const postContent = await askClaude(prompt);

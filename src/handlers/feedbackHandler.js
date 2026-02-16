@@ -9,6 +9,10 @@ import {
 import { buildRevisionPrompt } from '../utils/promptBuilder.js';
 import { aggregateLearningData } from '../utils/learningData.js';
 import { applyFeedbackToProfile } from '../services/personalizationEngine.js';
+import {
+  analyzeFeedbackWithClaude,
+  updateAdvancedProfile,
+} from '../services/advancedPersonalization.js';
 
 /**
  * フィードバック処理: 最新投稿を修正 + 学習データとして蓄積
@@ -30,35 +34,78 @@ export async function handleFeedback(user, feedback, replyToken) {
       return await replyText(replyToken, 'まだ投稿がありません。先に画像やテキストを送って投稿案を作成してください。');
     }
 
-    // フィードバックを学習データとして保存
-    await saveLearningData(
-      store.id,
-      'feedback',
-      latestPost.content,
-      feedback,
-      extractLearningHints(feedback)
-    );
+    // ========== ハイブリッド学習方式 ==========
+    // 「直し:」の詳細フィードバック → Claude API分析（高精度）
+    // それ以外（👍👎など） → キーワードマッチ（無料）
 
-    // パーソナライゼーションプロファイルに反映
-    await applyFeedbackToProfile(store.id, feedback, latestPost.content);
+    let revisedContent;
+    let learningMethod = 'basic'; // 'basic' or 'advanced'
 
-    // 学習データを集約
-    const learningData = await aggregateLearningData(store.id);
+    // フィードバックが詳細な場合は高度な分析を使用
+    if (feedback.length > 10) {
+      // 詳細なフィードバック（10文字以上）→ Claude API分析
+      console.log(`[Feedback] 高度な学習を使用: "${feedback}"`);
+      learningMethod = 'advanced';
 
-    // 修正版を生成
-    const prompt = buildRevisionPrompt(store, learningData, latestPost.content, feedback);
-    const revisedContent = await askClaude(prompt);
+      // Claude APIでフィードバックを分析
+      const analysis = await analyzeFeedbackWithClaude(feedback, latestPost.content);
 
-    // 修正版を投稿履歴に保存
-    await savePostHistory(user.id, store.id, revisedContent);
+      if (analysis) {
+        // 高度なプロファイルを更新
+        await updateAdvancedProfile(store.id, analysis);
+        console.log(`[Feedback] 高度な学習完了: ${analysis.summary}`);
+      }
 
-    console.log(`[Feedback] 修正完了: store=${store.name}`);
+      // フィードバックを学習データとして保存
+      await saveLearningData(
+        store.id,
+        'feedback',
+        latestPost.content,
+        feedback,
+        analysis || extractLearningHints(feedback)
+      );
+
+      // 学習データを集約
+      const learningData = await aggregateLearningData(store.id);
+
+      // 修正版を生成
+      const prompt = buildRevisionPrompt(store, learningData, latestPost.content, feedback);
+      revisedContent = await askClaude(prompt);
+
+      // 修正版を投稿履歴に保存
+      await savePostHistory(user.id, store.id, revisedContent);
+    } else {
+      // 簡易フィードバック（👍👎など）→ キーワードマッチ
+      console.log(`[Feedback] 基本学習を使用: "${feedback}"`);
+      learningMethod = 'basic';
+
+      // 基本的なパーソナライゼーション（キーワードマッチ）
+      await applyFeedbackToProfile(store.id, feedback, latestPost.content);
+
+      // フィードバックを学習データとして保存
+      await saveLearningData(
+        store.id,
+        'feedback',
+        latestPost.content,
+        feedback,
+        extractLearningHints(feedback)
+      );
+
+      // 簡易フィードバックの場合は修正版を生成しない
+      revisedContent = null;
+    }
+
+    console.log(`[Feedback] 修正完了: store=${store.name}, method=${learningMethod}`);
 
     // 学習プロファイルを取得して学習回数を確認
     const { getOrCreateLearningProfile } = await import('../services/personalizationEngine.js');
     const profile = await getOrCreateLearningProfile(store.id);
 
-    const message = `✅ 学習しました！
+    // 応答メッセージ
+    let message;
+    if (revisedContent) {
+      // 詳細フィードバックの場合（修正版あり）
+      message = `✅ 学習しました！🧠
 
 今回学習した内容:
 - ${feedback}
@@ -67,9 +114,24 @@ export async function handleFeedback(user, feedback, replyToken) {
 ${revisedContent}
 
 📚 学習回数: ${profile.interaction_count}回
+🎯 高度な学習を適用しました
 次回の投稿から、この学習が反映されます！
 
 「学習状況」と送ると、学習内容を確認できます。`;
+    } else {
+      // 簡易フィードバックの場合（修正版なし）
+      message = `✅ 学習しました！
+
+今回学習した内容:
+- ${feedback}
+
+📚 学習回数: ${profile.interaction_count}回
+次回の投稿から、この学習が反映されます！
+
+より詳しいフィードバック（例: 「直し: もっとカジュアルに、絵文字を減らして」）を送ると、さらに精度が向上します。
+
+「学習状況」と送ると、学習内容を確認できます。`;
+    }
 
     await replyText(replyToken, message);
   } catch (err) {

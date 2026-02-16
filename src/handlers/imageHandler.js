@@ -5,6 +5,7 @@ import { buildImagePostPrompt } from '../utils/promptBuilder.js';
 import { aggregateLearningData } from '../utils/learningData.js';
 import { getBlendedInsights, saveEngagementMetrics } from '../services/collectiveIntelligence.js';
 import { getPersonalizationPromptAddition, getPersonalizationLevel } from '../services/personalizationEngine.js';
+import { getAdvancedPersonalizationPrompt } from '../services/advancedPersonalization.js';
 
 /**
  * 画像メッセージ処理: 画像取得 → 投稿生成 → 返信 → 履歴保存
@@ -38,8 +39,10 @@ export async function handleImageMessage(user, messageId, replyToken) {
       console.log(`[Image] 集合知取得: category=${store.category}, group=${blendedInsights.categoryGroup}`);
     }
 
-    // パーソナライゼーション情報を取得
-    const personalization = await getPersonalizationPromptAddition(store.id);
+    // パーソナライゼーション情報を取得（基本 + 高度）
+    const basicPersonalization = await getPersonalizationPromptAddition(store.id);
+    const advancedPersonalization = await getAdvancedPersonalizationPrompt(store.id);
+    const personalization = basicPersonalization + advancedPersonalization;
 
     // プロンプト構築 → Claude API で投稿生成（lengthOverride なし = デフォルト設定を使用）
     const prompt = buildImagePostPrompt(store, learningData, null, blendedInsights, personalization);
