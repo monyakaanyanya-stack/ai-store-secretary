@@ -1,40 +1,236 @@
 import { replyText } from '../services/lineService.js';
-import { supabase } from '../services/supabaseService.js';
+import { supabase, createStore } from '../services/supabaseService.js';
+import {
+  getCategoryGroupByNumber,
+  getCategoryByNumber,
+  generateGroupSelectionMessage,
+  generateDetailCategoryMessage
+} from '../config/categoryGroups.js';
 
 /**
  * オンボーディングステップの管理
  */
 
 /**
- * 「登録」コマンドのハンドラー - ステップバイステップガイド開始
+ * 「登録」コマンドのハンドラー - 2段階選択開始
  */
 export async function handleOnboardingStart(user, replyToken) {
+  // オンボーディング状態を初期化
+  await supabase
+    .from('onboarding_state')
+    .upsert({
+      user_id: user.id,
+      step: 'category_group',
+      selected_group: null,
+      selected_category: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }, {
+      onConflict: 'user_id'
+    });
+
+  // 大カテゴリー選択メニューを表示
   const message = `✨ AI店舗秘書へようこそ！
 
 まず、あなたのお店を登録しましょう。
-以下の形式で送信してください：
+
+${generateGroupSelectionMessage()}`;
+
+  await replyText(replyToken, message);
+}
+
+/**
+ * オンボーディング中のユーザー入力を処理
+ */
+export async function handleOnboardingResponse(user, message, replyToken) {
+  // オンボーディング状態を取得
+  const { data: state } = await supabase
+    .from('onboarding_state')
+    .select('*')
+    .eq('user_id', user.id)
+    .single();
+
+  if (!state) {
+    return null; // オンボーディング中でない
+  }
+
+  const trimmed = message.trim();
+
+  // キャンセル処理
+  if (trimmed === 'キャンセル' || trimmed === 'cancel') {
+    await supabase
+      .from('onboarding_state')
+      .delete()
+      .eq('user_id', user.id);
+
+    return await replyText(replyToken, '登録をキャンセルしました。\n\n「登録」でいつでも再開できます。');
+  }
+
+  // ステップごとの処理
+  if (state.step === 'category_group') {
+    return await handleCategoryGroupSelection(user, trimmed, replyToken);
+  }
+
+  if (state.step === 'category_detail') {
+    return await handleCategoryDetailSelection(user, state, trimmed, replyToken);
+  }
+
+  if (state.step === 'store_info') {
+    return await handleStoreInfoInput(user, state, trimmed, replyToken);
+  }
+
+  return null;
+}
+
+/**
+ * 大カテゴリー選択処理
+ */
+async function handleCategoryGroupSelection(user, input, replyToken) {
+  const groupNumber = parseInt(input, 10);
+
+  if (isNaN(groupNumber) || groupNumber < 1 || groupNumber > 6) {
+    return await replyText(replyToken, '番号が正しくありません。\n\n1〜6の番号を送ってください。\n\nキャンセルする場合は「キャンセル」と送信してください。');
+  }
+
+  const selectedGroup = getCategoryGroupByNumber(groupNumber);
+
+  // 状態を更新
+  await supabase
+    .from('onboarding_state')
+    .update({
+      step: 'category_detail',
+      selected_group: selectedGroup,
+      updated_at: new Date().toISOString()
+    })
+    .eq('user_id', user.id);
+
+  // 詳細カテゴリー選択メニューを表示
+  const message = generateDetailCategoryMessage(selectedGroup);
+  await replyText(replyToken, message);
+
+  return true;
+}
+
+/**
+ * 詳細カテゴリー選択処理
+ */
+async function handleCategoryDetailSelection(user, state, input, replyToken) {
+  const categoryNumber = parseInt(input, 10);
+  const selectedCategory = getCategoryByNumber(state.selected_group, categoryNumber);
+
+  if (!selectedCategory) {
+    // 範囲外の番号
+    const message = generateDetailCategoryMessage(state.selected_group);
+    return await replyText(replyToken, `番号が範囲外です。\n\n${message}`);
+  }
+
+  // 状態を更新
+  await supabase
+    .from('onboarding_state')
+    .update({
+      step: 'store_info',
+      selected_category: selectedCategory,
+      updated_at: new Date().toISOString()
+    })
+    .eq('user_id', user.id);
+
+  // 店舗情報入力案内を表示
+  const message = `業種: ${selectedCategory} ✅
+
+次に、以下の情報を入力してください：
 
 ━━━━━━━━━━━━━━━
-1: 業種,店名,こだわり,口調
+店名,こだわり,口調
 ━━━━━━━━━━━━━━━
 
 【例】
-1: ベーカリー,幸福堂,天然酵母の手作りパン,フレンドリー
+幸福堂,天然酵母の手作りパン,フレンドリー
 
-【業種の例】
-・美容系: ネイルサロン、美容室、エステサロン
-・飲食系: カフェ、レストラン、ベーカリー、パン屋
-・小売系: アパレル、雑貨店、セレクトショップ
-・サービス系: ヨガスタジオ、フィットネスジム
+【こだわりの例】
+・シンプルで美味しいパン
+・国産小麦100%使用
+・毎朝焼きたて提供
 
-【口調の選択肢】
-・カジュアル（タメ口・親しみやすい）
+【口調の例】
 ・フレンドリー（明るい・親しみやすい）
+・カジュアル（タメ口・親しみやすい）
 ・丁寧（ビジネス的・プロフェッショナル）
+・元気（ハイテンション）
+・落ち着いた（穏やか）
 
-この4つの情報を入力するだけで、すぐに投稿生成が始められます！`;
+カンマ区切りで入力してください。`;
 
   await replyText(replyToken, message);
+
+  return true;
+}
+
+/**
+ * 店舗情報入力処理
+ */
+async function handleStoreInfoInput(user, state, input, replyToken) {
+  const parts = input.split(',').map(s => s.trim());
+
+  if (parts.length !== 3) {
+    return await replyText(replyToken, '入力形式が正しくありません。\n\n「店名,こだわり,口調」の形式で入力してください。\n\n例: 幸福堂,天然酵母の手作りパン,フレンドリー');
+  }
+
+  const [storeName, strength, tone] = parts;
+
+  if (!storeName || !strength || !tone) {
+    return await replyText(replyToken, 'すべての項目を入力してください。\n\n「店名,こだわり,口調」の形式で入力してください。');
+  }
+
+  try {
+    // 店舗を作成
+    const store = await createStore(user.id, {
+      name: storeName,
+      category: state.selected_category,
+      strength: strength,
+      tone: tone
+    });
+
+    // ユーザーの current_store_id を更新
+    await supabase
+      .from('users')
+      .update({
+        current_store_id: store.id,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', user.id);
+
+    // オンボーディング状態を削除
+    await supabase
+      .from('onboarding_state')
+      .delete()
+      .eq('user_id', user.id);
+
+    const successMessage = `✅ 店舗「${storeName}」を登録しました！
+
+【登録内容】
+業種: ${state.selected_category}
+店名: ${storeName}
+こだわり: ${strength}
+口調: ${tone}
+
+さっそく投稿を生成してみましょう！
+
+📸 画像を送信
+または
+✏️ テキストで内容を送信
+
+例: 新作のパンができました`;
+
+    await replyText(replyToken, successMessage);
+
+    console.log(`[Onboarding] 店舗登録完了: user=${user.line_user_id}, store=${storeName}, category=${state.selected_category}`);
+
+    return true;
+  } catch (error) {
+    console.error('[Onboarding] 店舗登録エラー:', error);
+    await replyText(replyToken, `エラーが発生しました: ${error.message}\n\n「登録」でもう一度やり直してください。`);
+    return true;
+  }
 }
 
 /**

@@ -12,7 +12,7 @@ import {
 } from '../services/supabaseService.js';
 import { handleFeedback } from './feedbackHandler.js';
 import { handleEngagementReport, handlePostSelection } from './reportHandler.js';
-import { handleOnboardingStart, handleHelpMenu, handleHelpCategory } from './onboardingHandler.js';
+import { handleOnboardingStart, handleOnboardingResponse, handleHelpMenu, handleHelpCategory } from './onboardingHandler.js';
 import { handleDataStats } from './dataStatsHandler.js';
 import { handleAdminMenu, handleAdminTestData, handleAdminClearData, handleAdminClearTestData } from './adminHandler.js';
 import { handleFollowerCountResponse, getPendingFollowerRequest } from '../services/monthlyFollowerService.js';
@@ -47,12 +47,18 @@ export async function handleTextMessage(user, text, replyToken) {
     }
   }
 
+  // オンボーディング中の入力を処理（最優先）
+  const onboardingHandled = await handleOnboardingResponse(user, trimmed, replyToken);
+  if (onboardingHandled) {
+    return;
+  }
+
   // オンボーディング: 「登録」コマンド
   if (trimmed === '登録') {
     return await handleOnboardingStart(user, replyToken);
   }
 
-  // 店舗登録: 「1:」で始まる
+  // 店舗登録: 「1:」で始まる（旧形式、後方互換性のため残す）
   if (trimmed.startsWith('1:') || trimmed.startsWith('1:')) {
     return await handleStoreRegistration(user, trimmed, replyToken);
   }
