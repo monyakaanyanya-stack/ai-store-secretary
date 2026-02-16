@@ -16,6 +16,7 @@ import { handleOnboardingStart, handleOnboardingResponse, handleHelpMenu, handle
 import { handleDataStats } from './dataStatsHandler.js';
 import { handleAdminMenu, handleAdminTestData, handleAdminClearData, handleAdminClearTestData } from './adminHandler.js';
 import { handleFollowerCountResponse, getPendingFollowerRequest } from '../services/monthlyFollowerService.js';
+import { handleDataResetPrompt, handleDataResetExecution } from './dataResetHandler.js';
 import { buildStoreParsePrompt, buildTextPostPrompt, POST_LENGTH_MAP } from '../utils/promptBuilder.js';
 import { aggregateLearningData } from '../utils/learningData.js';
 import { getBlendedInsights, saveEngagementMetrics } from '../services/collectiveIntelligence.js';
@@ -141,6 +142,21 @@ export async function handleTextMessage(user, text, replyToken) {
   // データ確認
   if (trimmed === 'データ確認' || trimmed === '集合知' || trimmed === 'データ') {
     return await handleDataStats(user, replyToken);
+  }
+
+  // データリセット（確認）
+  if (trimmed === 'データリセット' || trimmed === 'リセット') {
+    return await handleDataResetPrompt(user, replyToken);
+  }
+
+  // データリセット実行
+  if (trimmed === 'リセット実行') {
+    return await handleDataResetExecution(user, replyToken);
+  }
+
+  // データリセットキャンセル
+  if (trimmed === 'キャンセル' || trimmed === 'cancel') {
+    return await replyText(replyToken, '✅ データリセットをキャンセルしました。');
   }
 
   // 👍 良い評価

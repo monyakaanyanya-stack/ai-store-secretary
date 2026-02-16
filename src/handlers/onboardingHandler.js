@@ -43,6 +43,8 @@ ${generateGroupSelectionMessage()}`;
  * オンボーディング中のユーザー入力を処理
  */
 export async function handleOnboardingResponse(user, message, replyToken) {
+  console.log(`[Onboarding] handleOnboardingResponse called: user=${user.id}, message="${message}"`);
+
   // オンボーディング状態を取得
   const { data: state } = await supabase
     .from('onboarding_state')
@@ -50,9 +52,14 @@ export async function handleOnboardingResponse(user, message, replyToken) {
     .eq('user_id', user.id)
     .single();
 
+  console.log(`[Onboarding] state:`, state);
+
   if (!state) {
+    console.log(`[Onboarding] No state found, returning null`);
     return null; // オンボーディング中でない
   }
+
+  console.log(`[Onboarding] State exists, step=${state.step}`);
 
   const trimmed = message.trim();
 
@@ -373,6 +380,11 @@ export async function handleHelpSettings(user, replyToken) {
 【リマインダー設定】
 リマインダー停止
 リマインダー再開
+
+【データリセット】
+データリセット
+→ 投稿履歴・報告データ・学習データをすべて削除
+→ テスト終了後、本番運用に切り替える際に使用
 
 その他のヘルプは「ヘルプ」と送信してください。`;
 

@@ -8,11 +8,11 @@ export async function sendDailyReminders() {
   console.log('[DailyReminder] リマインダー送信開始');
 
   try {
-    // リマインダー有効なユーザーを取得（デフォルトはすべて有効）
+    // リマインダー有効なユーザーを取得（reminder_enabled が null または true のユーザー）
     const { data: users, error } = await supabase
       .from('users')
       .select('*')
-      .eq('reminder_enabled', true); // デフォルト true
+      .or('reminder_enabled.is.null,reminder_enabled.eq.true');
 
     if (error) {
       console.error('[DailyReminder] ユーザー取得エラー:', error.message);
@@ -26,8 +26,16 @@ export async function sendDailyReminders() {
 
     let sentCount = 0;
     let skipCount = 0;
+    const sentLineUserIds = new Set(); // 重複防止用
 
     for (const user of users) {
+      // 同じLINE IDに複数回送信しないようにチェック
+      if (sentLineUserIds.has(user.line_user_id)) {
+        console.log(`[DailyReminder] スキップ（重複）: ${user.line_user_id}`);
+        skipCount++;
+        continue;
+      }
+
       try {
         // 最後に投稿を生成してから24時間以上経過しているかチェック
         const { data: recentPost } = await supabase
@@ -41,6 +49,7 @@ export async function sendDailyReminders() {
         // 投稿履歴がない、または24時間以上経過している場合のみ送信
         if (!recentPost || isMoreThan24HoursAgo(recentPost.created_at)) {
           await sendReminderToUser(user.line_user_id);
+          sentLineUserIds.add(user.line_user_id); // 送信済みとして記録
           sentCount++;
 
           // レート制限対策: 各送信間に100ms待機
