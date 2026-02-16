@@ -19,6 +19,12 @@ import { handleFollowerCountResponse, getPendingFollowerRequest } from '../servi
 import { handleDataResetPrompt, handleDataResetExecution } from './dataResetHandler.js';
 import { detectUserIntent } from '../services/intentDetection.js';
 import { handleHelpRequest, handleGreeting, handleConfusion } from './conversationHandler.js';
+import {
+  generateConversationalResponse,
+  saveConversation,
+  getRecentConversations,
+  cleanOldConversations
+} from '../services/conversationService.js';
 import { buildStoreParsePrompt, buildTextPostPrompt, POST_LENGTH_MAP } from '../utils/promptBuilder.js';
 import { aggregateLearningData } from '../utils/learningData.js';
 import { getBlendedInsights, saveEngagementMetrics } from '../services/collectiveIntelligence.js';
@@ -220,24 +226,35 @@ export async function handleTextMessage(user, text, replyToken) {
     return; // 処理完了
   }
 
+  // ========== 自然な会話機能 ==========
+  // ユーザーメッセージを会話履歴に保存
+  await saveConversation(user.id, 'user', trimmed);
+
+  // 古い会話履歴をクリーンアップ（最新20件を保持）
+  await cleanOldConversations(user.id, 20);
+
   // 意図判定（会話機能） - Claude APIで自然な会話を理解
   const intent = await detectUserIntent(trimmed);
   console.log(`[TextHandler] Detected intent: ${intent}`);
 
-  if (intent === 'help_request') {
-    return await handleHelpRequest(user, replyToken);
+  // 投稿生成リクエストの場合
+  if (intent === 'post_generation') {
+    const aiResponse = '投稿を作成しますね！✨';
+    await saveConversation(user.id, 'assistant', aiResponse);
+    // 実際の投稿生成処理へ
+    return await handleTextPostGeneration(user, trimmed, replyToken);
   }
 
-  if (intent === 'greeting') {
-    return await handleGreeting(user, replyToken);
-  }
+  // それ以外は自然な会話で応答
+  const store = user.current_store_id ? await getStore(user.current_store_id) : null;
+  const conversationHistory = await getRecentConversations(user.id, 10);
 
-  if (intent === 'confusion') {
-    return await handleConfusion(user, replyToken);
-  }
+  const aiResponse = await generateConversationalResponse(user, store, trimmed, conversationHistory);
 
-  // それ以外 → テキストから投稿生成
-  return await handleTextPostGeneration(user, trimmed, replyToken);
+  // AI応答を会話履歴に保存
+  await saveConversation(user.id, 'assistant', aiResponse);
+
+  return await replyText(replyToken, aiResponse);
 }
 
 // ==================== 店舗登録 ====================
