@@ -17,13 +17,12 @@ const TONE_MAP = {
       'いたします', 'させていただきます', 'でしょう', 'なのです',
     ],
     good_examples: [
-      '今日のランチ🍽️\nパスタ美味しすぎた',
-      '夜の散歩\nこの時間の空が好き',
-      '今日はグレーのパーカーで\nシンプルだけどお気に入り',
+      '// 口調の参考（内容は写真・投稿に合わせて変える）\n新しいの届いた🙌\nずっと欲しかったやつ\nテンション上がりすぎてる',
+      '今日めちゃくちゃよかった\nまた行きたい',
+      'これ本当にやばい\nみんなにも試してほしい',
     ],
     bad_examples: [
       '今日は少しカジュアルなスタイルです', // ← です使ってる
-      'グレーのパーカーがお気に入りです', // ← です使ってる
       '皆様はどんなコーデがお好みですか', // ← 皆様が硬い
       '本日のランチをご紹介させていただきます',
       '幻想的な雰囲気に包まれたひととき',
@@ -45,9 +44,9 @@ const TONE_MAP = {
       '幻想的', '魅了', '洗練', '本質的',
     ],
     good_examples: [
-      '今日は少しカジュアルなスタイルで📸\nグレーのパーカーがお気に入りです\nみんなはどんなコーデが好き？',
-      '夜の街に灯る提灯が本当に美しいです✨\n着物を着て歩くと特別な気分になりますね',
-      '今日は新メニュー試してみたよ🍰\n想像以上に美味しくてびっくり\nみんなもぜひ食べてみてね',
+      '// 口調の参考（内容は写真・投稿に合わせて変える）\n新しいのが入荷しました📦\n想像以上にいい感じで嬉しい\nみんなはもう見てくれた？',
+      '久しぶりにこれ使ってみたよ✨\nやっぱり好きだなって思った',
+      '今日はこれをご紹介します🎉\nぜひ一度試してみてね',
     ],
     bad_examples: [
       '本日は新メニューをご紹介させていただきます',
@@ -69,7 +68,7 @@ const TONE_MAP = {
       '幻想的', '魅了', '洗練された', '本質的',
     ],
     good_examples: [
-      '新商品のご案内です\n今週から販売開始しました\nぜひお試しください',
+      '// 口調の参考（内容は写真・投稿に合わせて変える）\n新しい商品が入荷しました\n今週から販売開始です\nぜひお試しください',
       '本日の営業は18時までです\nご来店お待ちしています',
     ],
     bad_examples: [
@@ -96,13 +95,12 @@ const TONE_MAP = {
       'いたします', 'させていただきます', 'でしょう', 'なのです',
     ],
     good_examples: [
-      '今日のランチ🍽️\nパスタ美味しすぎた',
-      '夜の散歩\nこの時間の空が好き',
-      '今日はグレーのパーカーで\nシンプルだけどお気に入り',
+      '// 口調の参考（内容は写真・投稿に合わせて変える）\n新しいの届いた🙌\nずっと欲しかったやつ\nテンション上がりすぎてる',
+      '今日めちゃくちゃよかった\nまた行きたい',
+      'これ本当にやばい\nみんなにも試してほしい',
     ],
     bad_examples: [
       '今日は少しカジュアルなスタイルです',
-      'グレーのパーカーがお気に入りです',
       '皆様はどんなコーデがお好みですか',
       '本日のランチをご紹介させていただきます',
       '幻想的な雰囲気に包まれたひととき',
@@ -124,9 +122,9 @@ const TONE_MAP = {
       '幻想的', '魅了', '洗練', '本質的',
     ],
     good_examples: [
-      '今日は少しカジュアルなスタイルで📸\nグレーのパーカーがお気に入りです\nみんなはどんなコーデが好き？',
-      '夜の街に灯る提灯が本当に美しいです✨\n着物を着て歩くと特別な気分になりますね',
-      '今日は新メニュー試してみたよ🍰\n想像以上に美味しくてびっくり\nみんなもぜひ食べてみてね',
+      '// 口調の参考（内容は写真・投稿に合わせて変える）\n新しいのが入荷しました📦\n想像以上にいい感じで嬉しい\nみんなはもう見てくれた？',
+      '久しぶりにこれ使ってみたよ✨\nやっぱり好きだなって思った',
+      '今日はこれをご紹介します🎉\nぜひ一度試してみてね',
     ],
     bad_examples: [
       '本日は新メニューをご紹介させていただきます',
@@ -148,7 +146,7 @@ const TONE_MAP = {
       '幻想的', '魅了', '洗練された', '本質的',
     ],
     good_examples: [
-      '新商品のご案内です\n今週から販売開始しました\nぜひお試しください',
+      '// 口調の参考（内容は写真・投稿に合わせて変える）\n新しい商品が入荷しました\n今週から販売開始です\nぜひお試しください',
       '本日の営業は18時までです\nご来店お待ちしています',
     ],
     bad_examples: [
@@ -364,7 +362,7 @@ function buildCharacterSection(store) {
 /**
  * 画像から投稿を生成するプロンプト（抜本改革版）
  */
-export function buildImagePostPrompt(store, learningData, lengthOverride = null, blendedInsights = null, personalization = '') {
+export function buildImagePostPrompt(store, learningData, lengthOverride = null, blendedInsights = null, personalization = '', imageDescription = null) {
   const postLength = lengthOverride || store.config?.post_length || 'medium';
   const lengthInfo = getPostLengthInfo(postLength);
   const toneData = getToneData(store.tone);
@@ -423,12 +421,19 @@ ${Object.entries(templates.custom_fields || {})
     }
   }
 
-  // カテゴリー別人気ハッシュタグ（集合知データがない場合のフォールバック）
+  // ハッシュタグ指示（画像分析結果があればそれを使う）
   let fallbackHashtags = '';
-  if (!collectiveIntelligenceSection && store.category) {
-    const popularTags = getPopularHashtagsByCategory(store.category);
-    fallbackHashtags = `\n【ハッシュタグ】\n以下から3-5個を選択:\n${popularTags.slice(0, 8).join(', ')}`;
+  if (!collectiveIntelligenceSection) {
+    const categoryHint = store.category ? `業種「${store.category}」` : '';
+    fallbackHashtags = imageDescription
+      ? `\n【ハッシュタグ（厳守）】\n上記「この写真に写っているもの」の分析結果を読んで、実際に写っているもの + ${categoryHint}に直結するタグのみ（5-8個）。\n絶対NG：写真に写っていないものや場所のタグ、#海 #夕暮れ #空 #風景 #instagood #japan #photooftheday #フォロー などの汎用タグ`
+      : `\n【ハッシュタグ（必須）】\n${categoryHint}この投稿内容に最も合うタグを5-8個。#instagood #japan など汎用タグは使わない。`;
   }
+
+  // 画像分析結果セクション
+  const imageDescriptionSection = imageDescription
+    ? `\n【この写真に写っているもの（分析済み）】\n${imageDescription}\n`
+    : '';
 
   const characterSection = buildCharacterSection(store);
 
@@ -443,19 +448,27 @@ ${toneData.style_rules.map((r, i) => `${i + 1}. ${r}`).join('\n')}
 【絶対に使わない言葉（AI丸出しになるのでNG）】
 ${toneData.forbidden_words.join(', ')}
 
-【良い投稿の例（このスタイルで書く）】
-${toneData.good_examples.join('\n\n')}
+【口調スタイルの例（参考）】
+${toneData.good_examples.filter(e => !e.startsWith('//')).join('\n\n')}
 
 【悪い投稿の例（絶対避ける）】
 ${toneData.bad_examples.join('\n\n')}
-${templateInfo}${characterSection}${collectiveIntelligenceSection}${fallbackHashtags}${personalization}
+${templateInfo}${characterSection}${imageDescriptionSection}${collectiveIntelligenceSection}${fallbackHashtags}${personalization}
 
-【今回の投稿】
-- この画像について、上記のスタイルで自然に投稿を書いてください
-- 文字数: ${lengthInfo.range}（目安、厳密でなくてOK）
-${collectiveIntelligenceSection ? '  ※ 上記の集合知データ（文字数・絵文字数・ハッシュタグ）を必ず反映してください' : ''}
-- 画像に写っているものを素直に表現する
-- 分析や説明ではなく、あなたが感じたことを書く
+【今回の投稿（厳守）】
+上記「この写真に写っているもの」の内容だけをベースに投稿を書いてください。
+
+絶対NG（ハルシネーション禁止）：
+- 分析結果に書かれていない音・においなどを勝手に追加しない（「波の音」「潮の香り」など）
+- 分析結果に書かれていない場所・状況を作り出さない（「海辺を歩いている」「散歩中」など）
+- 「〜の季節」「〜な気分」など写真から直接読み取れない雰囲気を勝手に付け足さない
+- 写真に写っているもの以外について言及しない
+
+必ず守る：
+- 文字数: ${lengthInfo.range}
+- 分析結果に書かれていることのみを投稿に反映する
+- 写っているものを具体的に言及する
+${collectiveIntelligenceSection ? '- 集合知データの文字数・絵文字数は参考程度に反映する' : ''}
 
 投稿文のみを出力してください。説明や補足は一切不要です。`;
 }
@@ -522,11 +535,11 @@ ${Object.entries(templates.custom_fields || {})
     }
   }
 
-  // カテゴリー別人気ハッシュタグ（集合知データがない場合のフォールバック）
+  // ハッシュタグは常にAIが投稿内容を見て自由生成
   let fallbackHashtags = '';
-  if (!collectiveIntelligenceSection && store.category) {
-    const popularTags = getPopularHashtagsByCategory(store.category);
-    fallbackHashtags = `\n【ハッシュタグ】\n以下から3-5個を選択:\n${popularTags.slice(0, 8).join(', ')}`;
+  if (!collectiveIntelligenceSection) {
+    const categoryHint = store.category ? `業種は「${store.category}」。` : '';
+    fallbackHashtags = `\n【ハッシュタグ（必須）】\n${categoryHint}この投稿内容を直接読んで、内容に最も合うInstagramハッシュタグを5-8個付ける。業種タグと投稿内容タグを両方含めること。#instagood #japan #photooftheday などの汎用タグは使わない。`;
   }
 
   const characterSection = buildCharacterSection(store);

@@ -348,6 +348,8 @@ export async function handleHelpMenu(user, replyToken) {
 5️⃣ 【学習】
 　　AI学習・フィードバック機能
 
+💬 「問い合わせ」でサポート連絡先を確認
+
 番号またはカテゴリー名を送信してください。
 例: 「1」または「店舗登録」`;
 
@@ -449,9 +451,10 @@ export async function handleHelpSettings(user, replyToken) {
   const message = `⚙️ 設定ヘルプ
 
 【文章量の設定】
-長さ: short（短文）
-長さ: medium（中文）
-長さ: long（長文）
+長さ: 超短文（30文字以内）
+長さ: 短文（100-150文字）
+長さ: 中文（200-300文字）
+長さ: 長文（400-500文字）
 
 【テンプレート登録】
 テンプレート: address:渋谷区〇〇
@@ -470,6 +473,10 @@ export async function handleHelpSettings(user, replyToken) {
 データリセット
 → 投稿履歴・報告データ・学習データをすべて削除
 → テスト終了後、本番運用に切り替える際に使用
+
+【お問い合わせ】
+問い合わせ
+→ サポートの連絡先を確認
 
 その他のヘルプは「ヘルプ」と送信してください。`;
 

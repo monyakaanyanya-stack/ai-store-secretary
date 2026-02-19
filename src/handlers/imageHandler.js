@@ -1,5 +1,5 @@
 import { replyText, getImageAsBase64 } from '../services/lineService.js';
-import { askClaudeWithImage } from '../services/claudeService.js';
+import { askClaude, describeImage } from '../services/claudeService.js';
 import { getStore, savePostHistory } from '../services/supabaseService.js';
 import { buildImagePostPrompt } from '../utils/promptBuilder.js';
 import { aggregateLearningData } from '../utils/learningData.js';
@@ -9,7 +9,7 @@ import { getAdvancedPersonalizationPrompt } from '../services/advancedPersonaliz
 import { getSeasonalMemoryPromptAddition } from '../services/seasonalMemoryService.js';
 
 /**
- * 画像メッセージ処理: 画像取得 → 投稿生成 → 返信 → 履歴保存
+ * 画像メッセージ処理: 画像取得 → 画像分析 → 投稿生成 → 返信 → 履歴保存
  */
 export async function handleImageMessage(user, messageId, replyToken) {
   // 店舗が未設定の場合
@@ -30,6 +30,11 @@ export async function handleImageMessage(user, messageId, replyToken) {
     console.log(`[Image] 画像取得中: messageId=${messageId}`);
     const imageBase64 = await getImageAsBase64(messageId);
 
+    // ステップ1: 画像を先に分析して「何が写っているか」を把握
+    console.log(`[Image] 画像分析中: store=${store.name}`);
+    const imageDescription = await describeImage(imageBase64);
+    console.log(`[Image] 画像分析結果: ${imageDescription?.slice(0, 100)}...`);
+
     // 学習データを集約
     const learningData = await aggregateLearningData(store.id);
 
@@ -46,11 +51,11 @@ export async function handleImageMessage(user, messageId, replyToken) {
     const seasonalMemory = await getSeasonalMemoryPromptAddition(store.id);
     const personalization = basicPersonalization + advancedPersonalization + seasonalMemory;
 
-    // プロンプト構築 → Claude API で投稿生成（lengthOverride なし = デフォルト設定を使用）
-    const prompt = buildImagePostPrompt(store, learningData, null, blendedInsights, personalization);
-    const postContent = await askClaudeWithImage(prompt, imageBase64);
+    // ステップ2: 画像分析結果を使ってテキストのみで投稿生成（画像への依存をなくす）
+    const prompt = buildImagePostPrompt(store, learningData, null, blendedInsights, personalization, imageDescription);
+    const postContent = await askClaude(prompt);
 
-    // 投稿履歴に保存（画像のBase64は大きいのでURLのみ or 保存しない）
+    // 投稿履歴に保存
     const savedPost = await savePostHistory(user.id, store.id, postContent);
 
     // エンゲージメントメトリクスを保存（初期値）
