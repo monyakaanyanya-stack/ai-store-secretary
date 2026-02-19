@@ -1,6 +1,7 @@
 import { replyText } from '../services/lineService.js';
 import { getStore } from '../services/supabaseService.js';
 import { saveEngagementMetrics } from '../services/collectiveIntelligence.js';
+import { applyEngagementToProfile } from '../services/personalizationEngine.js';
 
 /**
  * エンゲージメント報告のパース
@@ -120,6 +121,9 @@ export async function handleEngagementReport(user, text, replyToken) {
 
     await saveEngagementMetrics(store.id, store.category || 'その他', postData, metricsData);
 
+    // エンゲージメント実績を個別学習プロファイルに反映
+    await applyEngagementToProfile(store.id, latestPost.content, metricsData);
+
     console.log(`[Report] エンゲージメント報告完了: store=${store.name}, likes=${metrics.likes}`);
 
     // 今月の報告回数を取得
@@ -225,6 +229,9 @@ export async function handlePostSelection(user, postNumber, replyToken) {
     };
 
     await saveEngagementMetrics(store.id, store.category || 'その他', postData, metricsData);
+
+    // エンゲージメント実績を個別学習プロファイルに反映
+    await applyEngagementToProfile(store.id, selectedPost.content, metricsData);
 
     // pending_reportを完了にする
     await completePendingReport(pendingReport.id);

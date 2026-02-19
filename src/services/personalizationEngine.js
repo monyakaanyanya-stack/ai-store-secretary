@@ -118,11 +118,16 @@ export async function applyFeedbackToProfile(storeId, feedback, originalPost) {
  */
 export async function getPersonalizationPromptAddition(storeId) {
   const profile = await getOrCreateLearningProfile(storeId);
-  if (!profile || profile.interaction_count === 0) {
+  if (!profile) return '';
+
+  const profileData = profile.profile_data || {};
+  // interaction_count が 0 でも、エンゲージメント学習データがあれば反映する
+  const el = profileData.engagement_learning || {};
+  const hasEngagementLearning = (el.high_er_posts || 0) > 0 || (el.low_er_posts || 0) > 0;
+  if (profile.interaction_count === 0 && !hasEngagementLearning) {
     return '';
   }
 
-  const profileData = profile.profile_data || {};
   const additions = [];
 
   // 口調の調整
@@ -161,9 +166,80 @@ export async function getPersonalizationPromptAddition(storeId) {
     additions.push(`・好まれる表現: ${topWords.join(', ')}`);
   }
 
+  // エンゲージメント学習（実績から得た傾向）
+  const el = profileData.engagement_learning || {};
+  if (el.preferred_length) {
+    additions.push(`・高エンゲージメント投稿の平均文字数: ${el.preferred_length}文字`);
+  }
+  if (el.preferred_emoji_count !== undefined) {
+    additions.push(`・高エンゲージメント投稿の平均絵文字数: ${el.preferred_emoji_count}個`);
+  }
+  if (el.high_er_tone) {
+    additions.push(`・高エンゲージメント時の傾向: ${el.high_er_tone}`);
+  }
+
   if (additions.length === 0) return '';
 
   return `\n【パーソナライゼーション】\n${additions.join('\n')}`;
+}
+
+/**
+ * エンゲージメント実績を学習プロファイルに反映
+ * @param {string} storeId - 店舗ID
+ * @param {string} postContent - 投稿内容
+ * @param {Object} metricsData - エンゲージメント指標
+ */
+export async function applyEngagementToProfile(storeId, postContent, metricsData) {
+  if (!storeId || !postContent) return;
+
+  const profile = await getOrCreateLearningProfile(storeId);
+  if (!profile) return;
+
+  const profileData = profile.profile_data || {};
+  const el = profileData.engagement_learning || {
+    high_er_posts: 0,
+    low_er_posts: 0,
+    total_length: 0,
+    total_emoji: 0,
+  };
+
+  const er = metricsData.engagement_rate || 0;
+  const postLength = postContent.length;
+  const emojiCount = (postContent.match(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu) || []).length;
+
+  // ER 4% 以上を「高エンゲージメント」として学習
+  if (er >= 4) {
+    el.high_er_posts = (el.high_er_posts || 0) + 1;
+    el.total_length = (el.total_length || 0) + postLength;
+    el.total_emoji = (el.total_emoji || 0) + emojiCount;
+
+    // 高ER投稿の平均的な特徴を計算
+    el.preferred_length = Math.round(el.total_length / el.high_er_posts);
+    el.preferred_emoji_count = Math.round(el.total_emoji / el.high_er_posts);
+
+    // 文章が短めか長めかの傾向
+    if (el.preferred_length < 100) {
+      el.high_er_tone = '短文・テンポよい投稿';
+    } else if (el.preferred_length > 250) {
+      el.high_er_tone = '詳細な説明文';
+    } else {
+      el.high_er_tone = '中程度の文量';
+    }
+  } else if (er > 0 && er < 2) {
+    el.low_er_posts = (el.low_er_posts || 0) + 1;
+  }
+
+  profileData.engagement_learning = el;
+
+  await supabase
+    .from('learning_profiles')
+    .update({
+      profile_data: profileData,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('store_id', storeId);
+
+  console.log(`[Personalization] エンゲージメント学習完了: store=${storeId}, ER=${er}%, 高ER投稿=${el.high_er_posts}件`);
 }
 
 /**
