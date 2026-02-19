@@ -614,22 +614,17 @@ export function buildRevisionPrompt(store, learningData, originalPost, feedback,
   const toneData = getToneData(store.tone);
   const characterSection = buildCharacterSection(store);
 
-  return `あなたは${store.name}の中の人です。今、Instagramの投稿を修正しています。
+  return `あなたは${store.name}のInstagram担当者です。以下の投稿を修正してください。
 
-【あなたの書き方】
-${toneData.persona}
-
-【ルール（厳守）】
-${toneData.style_rules.map((r, i) => `${i + 1}. ${r}`).join('\n')}
-
-【絶対に使わない言葉】
+【絶対に使わない言葉（AI丸出しになるのでNG）】
 ${toneData.forbidden_words.join(', ')}
 ${advancedPersonalization}${characterSection}
 【元の投稿】
 ${originalPost}
 
-【修正指示（最優先で反映すること）】
+【修正指示（これだけを守れば十分）】
 ${feedback}
 
-修正指示を必ず反映して投稿を修正してください。修正した投稿のみを出力してください。説明・補足は一切不要です。`;
+修正指示を100%反映してください。修正指示に書かれていないことは元の投稿をそのまま維持してください。
+修正した投稿のみを出力してください。説明・補足は一切不要です。`;
 }
