@@ -18,6 +18,7 @@ import { handleAdminMenu, handleAdminTestData, handleAdminClearData, handleAdmin
 import { handleInstagramCommand } from './instagramHandler.js';
 import { handleFollowerCountResponse, getPendingFollowerRequest } from '../services/monthlyFollowerService.js';
 import { handleDataResetPrompt, handleDataResetExecution, handleStoreDeletePrompt, handleStoreDeleteExecution } from './dataResetHandler.js';
+import { applyFeedbackToProfile } from '../services/personalizationEngine.js';
 import { detectUserIntent } from '../services/intentDetection.js';
 import { handleHelpRequest, handleGreeting, handleConfusion } from './conversationHandler.js';
 import {
@@ -284,8 +285,24 @@ export async function handleTextMessage(user, text, replyToken) {
   // ユーザーメッセージを会話履歴に保存
   await saveConversation(user.id, 'user', trimmed);
 
-  // 古い会話履歴をクリーンアップ（最新20件を保持）
-  await cleanOldConversations(user.id, 20);
+  // 好み発言を検出して学習（「直し:」以外の自然な発言から）
+  if (user.current_store_id) {
+    const preferenceKeywords = [
+      'もっと', 'もう少し', 'もうちょっと', 'もう少々',
+      'カジュアル', '丁寧', 'フォーマル', '短く', '長く',
+      '簡潔', '詳しく', '絵文字', 'emoji', 'テンポ',
+      '明るく', '柔らかく', 'やわらかく', '硬く', 'かわいく',
+      'シンプル', 'シック', 'ポップ', 'スタイリッシュ'
+    ];
+    const hasPreference = preferenceKeywords.some(kw => trimmed.includes(kw));
+    if (hasPreference && trimmed.length > 5 && trimmed.length < 50) {
+      // 重い分析は不要、基本学習（キーワードマッチ）だけ実行
+      applyFeedbackToProfile(user.current_store_id, trimmed, '').catch(() => {});
+    }
+  }
+
+  // 古い会話履歴をクリーンアップ（最新40件を保持）
+  await cleanOldConversations(user.id, 40);
 
   // 自然な会話で応答
   const store = user.current_store_id ? await getStore(user.current_store_id) : null;
