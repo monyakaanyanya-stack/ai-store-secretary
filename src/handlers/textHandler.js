@@ -14,9 +14,10 @@ import { handleFeedback } from './feedbackHandler.js';
 import { handleEngagementReport, handlePostSelection } from './reportHandler.js';
 import { handleOnboardingStart, handleOnboardingResponse, handleHelpMenu, handleHelpCategory } from './onboardingHandler.js';
 import { handleDataStats } from './dataStatsHandler.js';
-import { handleAdminMenu, handleAdminTestData, handleAdminClearData, handleAdminClearTestData } from './adminHandler.js';
+import { handleAdminMenu, handleAdminTestData, handleAdminClearData, handleAdminClearTestData, handleAdminReportMode, handleAdminReportSave } from './adminHandler.js';
+import { handleInstagramCommand } from './instagramHandler.js';
 import { handleFollowerCountResponse, getPendingFollowerRequest } from '../services/monthlyFollowerService.js';
-import { handleDataResetPrompt, handleDataResetExecution } from './dataResetHandler.js';
+import { handleDataResetPrompt, handleDataResetExecution, handleStoreDeletePrompt, handleStoreDeleteExecution } from './dataResetHandler.js';
 import { detectUserIntent } from '../services/intentDetection.js';
 import { handleHelpRequest, handleGreeting, handleConfusion } from './conversationHandler.js';
 import {
@@ -30,12 +31,20 @@ import { aggregateLearningData } from '../utils/learningData.js';
 import { getBlendedInsights, saveEngagementMetrics } from '../services/collectiveIntelligence.js';
 import { getPersonalizationPromptAddition, getLearningStatus } from '../services/personalizationEngine.js';
 import { getAdvancedPersonalizationPrompt } from '../services/advancedPersonalization.js';
+import { getSeasonalMemoryPromptAddition, getSeasonalMemoryStatus } from '../services/seasonalMemoryService.js';
 
 /**
  * テキストメッセージの振り分け処理
  */
 export async function handleTextMessage(user, text, replyToken) {
   const trimmed = text.trim();
+
+  // Instagram コマンド
+  if (trimmed.startsWith('/instagram')) {
+    const args = trimmed.replace(/^\/instagram\s*/, '');
+    const handled = await handleInstagramCommand(user, args, replyToken);
+    if (handled) return;
+  }
 
   // 管理者コマンド（最優先で処理）
   if (trimmed.startsWith('/admin')) {
@@ -54,13 +63,31 @@ export async function handleTextMessage(user, text, replyToken) {
     } else if (args === 'clear-data') {
       const handled = await handleAdminClearData(user, replyToken);
       if (handled) return;
+    } else if (args === 'report') {
+      const handled = await handleAdminReportMode(user, replyToken);
+      if (handled) return;
     }
   }
 
-  // オンボーディング中の入力を処理（最優先）
-  const onboardingHandled = await handleOnboardingResponse(user, trimmed, replyToken);
-  if (onboardingHandled) {
-    return;
+  // 管理者の実データ入力（カテゴリー: から始まる場合）
+  if (trimmed.startsWith('カテゴリー:') || trimmed.startsWith('カテゴリ:')) {
+    const handled = await handleAdminReportSave(user, trimmed, replyToken);
+    if (handled) return;
+  }
+
+  // 重要なコマンドはオンボーディング中でも優先処理
+  const priorityCommands = [
+    '店舗削除', '店舗削除実行', 'データリセット', 'リセット', 'リセット実行',
+    'キャンセル', 'cancel', '店舗一覧', '学習状況', 'ヘルプ', 'help'
+  ];
+  const isPriorityCommand = priorityCommands.includes(trimmed);
+
+  // オンボーディング中の入力を処理（優先コマンド以外）
+  if (!isPriorityCommand) {
+    const onboardingHandled = await handleOnboardingResponse(user, trimmed, replyToken);
+    if (onboardingHandled) {
+      return;
+    }
   }
 
   // オンボーディング: 「登録」コマンド
@@ -148,12 +175,15 @@ export async function handleTextMessage(user, text, replyToken) {
     return await handleLearningStatus(user, replyToken);
   }
 
+  // 季節提案
+  if (trimmed === '季節提案' || trimmed === '季節記憶' || trimmed === '今月のヒント') {
+    return await handleSeasonalMemory(user, replyToken);
+  }
+
   // データ確認
   if (trimmed === 'データ確認' || trimmed === '集合知' || trimmed === 'データ') {
     return await handleDataStats(user, replyToken);
   }
-
-  console.log(`[TextHandler] Checking data reset: trimmed="${trimmed}"`);
 
   // データリセット（確認）
   if (trimmed === 'データリセット' || trimmed === 'リセット') {
@@ -166,9 +196,29 @@ export async function handleTextMessage(user, text, replyToken) {
     return await handleDataResetExecution(user, replyToken);
   }
 
-  // データリセットキャンセル
+  // 店舗削除（確認）
+  if (trimmed === '店舗削除') {
+    return await handleStoreDeletePrompt(user, replyToken);
+  }
+
+  // 店舗削除実行
+  if (trimmed === '店舗削除実行') {
+    return await handleStoreDeleteExecution(user, replyToken);
+  }
+
+  // キャンセル（データリセット・店舗削除共通）
   if (trimmed === 'キャンセル' || trimmed === 'cancel') {
-    return await replyText(replyToken, '✅ データリセットをキャンセルしました。');
+    return await replyText(replyToken, '✅ キャンセルしました。');
+  }
+
+  // キャラクター設定
+  if (trimmed === 'キャラ設定' || trimmed === 'キャラクター設定') {
+    return await handleCharacterSettingsPrompt(user, replyToken);
+  }
+
+  // キャラクター設定の入力（「口癖:」から始まる）
+  if (trimmed.startsWith('口癖:') || trimmed.startsWith('口癖：')) {
+    return await handleCharacterSettingsSave(user, trimmed, replyToken);
   }
 
   // 👍 良い評価
@@ -355,10 +405,11 @@ async function handleTextPostGeneration(user, text, replyToken) {
       console.log(`[Post] 集合知取得: category=${store.category}, group=${blendedInsights.categoryGroup}`);
     }
 
-    // パーソナライゼーション情報を取得（基本 + 高度）
+    // パーソナライゼーション情報を取得（基本 + 高度 + 季節記憶）
     const basicPersonalization = await getPersonalizationPromptAddition(store.id);
     const advancedPersonalization = await getAdvancedPersonalizationPrompt(store.id);
-    const personalization = basicPersonalization + advancedPersonalization;
+    const seasonalMemory = await getSeasonalMemoryPromptAddition(store.id);
+    const personalization = basicPersonalization + advancedPersonalization + seasonalMemory;
 
     const prompt = buildTextPostPrompt(store, learningData, text, null, blendedInsights, personalization);
     const postContent = await askClaude(prompt);
@@ -376,13 +427,8 @@ async function handleTextPostGeneration(user, text, replyToken) {
 
     console.log(`[Post] テキスト投稿生成完了: store=${store.name}`);
 
-    // 学習プロファイルを取得して学習回数を確認
-    const { getOrCreateLearningProfile } = await import('../services/personalizationEngine.js');
-    const profile = await getOrCreateLearningProfile(store.id);
-    const learningBadge = profile && profile.interaction_count > 0 ? `（あなたの学習スタイルで生成 📚 学習回数: ${profile.interaction_count}回）` : '';
-
     // コピペしやすい形式でフォーマット
-    const formattedReply = `✨ 投稿案ができました！${learningBadge}
+    const formattedReply = `✨ 投稿案ができました！
 
 以下をコピーしてInstagramに貼り付けてください↓
 ━━━━━━━━━━━
@@ -628,6 +674,16 @@ async function handleShowSettings(user, replyToken) {
       message += '\n【テンプレート】未設定';
     }
 
+    const character = config.character_settings;
+    if (character && (character.catchphrases?.length > 0 || character.ng_words?.length > 0 || character.personality)) {
+      message += '\n\n【キャラクター設定】\n';
+      if (character.catchphrases?.length > 0) message += `口癖: ${character.catchphrases.join('、')}\n`;
+      if (character.ng_words?.length > 0) message += `NGワード: ${character.ng_words.join('、')}\n`;
+      if (character.personality) message += `個性: ${character.personality}\n`;
+    } else {
+      message += '\n\n【キャラクター設定】未設定\n（「キャラ設定」で設定できます）';
+    }
+
     await replyText(replyToken, message);
   } catch (err) {
     console.error('[Settings] 確認エラー:', err.message);
@@ -652,10 +708,11 @@ async function handleTextPostGenerationWithLength(user, text, replyToken, length
       blendedInsights = await getBlendedInsights(store.id, store.category);
     }
 
-    // パーソナライゼーション情報を取得（基本 + 高度）
+    // パーソナライゼーション情報を取得（基本 + 高度 + 季節記憶）
     const basicPersonalization = await getPersonalizationPromptAddition(store.id);
     const advancedPersonalization = await getAdvancedPersonalizationPrompt(store.id);
-    const personalization = basicPersonalization + advancedPersonalization;
+    const seasonalMemory = await getSeasonalMemoryPromptAddition(store.id);
+    const personalization = basicPersonalization + advancedPersonalization + seasonalMemory;
 
     const prompt = buildTextPostPrompt(store, learningData, text, lengthOverride, blendedInsights, personalization);
     const postContent = await askClaude(prompt);
@@ -672,13 +729,8 @@ async function handleTextPostGenerationWithLength(user, text, replyToken, length
 
     console.log(`[Post] テキスト投稿生成完了 (length=${lengthOverride}): store=${store.name}`);
 
-    // 学習プロファイルを取得して学習回数を確認
-    const { getOrCreateLearningProfile } = await import('../services/personalizationEngine.js');
-    const profile = await getOrCreateLearningProfile(store.id);
-    const learningBadge = profile && profile.interaction_count > 0 ? `（あなたの学習スタイルで生成 📚 学習回数: ${profile.interaction_count}回）` : '';
-
     // コピペしやすい形式でフォーマット
-    const formattedReply = `✨ 投稿案ができました！${learningBadge}
+    const formattedReply = `✨ 投稿案ができました！
 
 以下をコピーしてInstagramに貼り付けてください↓
 ━━━━━━━━━━━
@@ -812,6 +864,107 @@ async function handleTemplateDelete(user, fieldToDelete, replyToken) {
   } catch (err) {
     console.error('[Template] 削除エラー:', err.message);
     await replyText(replyToken, `削除中にエラーが発生しました: ${err.message}`);
+  }
+}
+
+// ==================== キャラクター設定 ====================
+
+async function handleCharacterSettingsPrompt(user, replyToken) {
+  if (!user.current_store_id) {
+    return await replyText(replyToken, '店舗が選択されていません。');
+  }
+
+  try {
+    const store = await getStore(user.current_store_id);
+    const character = store.config?.character_settings;
+
+    let currentSettings = '（未設定）';
+    if (character) {
+      const parts = [];
+      if (character.catchphrases?.length > 0) parts.push(`口癖: ${character.catchphrases.join('、')}`);
+      if (character.ng_words?.length > 0) parts.push(`NGワード: ${character.ng_words.join('、')}`);
+      if (character.personality) parts.push(`個性: ${character.personality}`);
+      if (parts.length > 0) currentSettings = parts.join('\n');
+    }
+
+    const message = `🎭 キャラクター設定
+
+【現在の設定】
+${currentSettings}
+
+━━━━━━━━━━━━━━━
+【設定方法】以下の形式で送信してください:
+
+口癖: やん、なぁ、めっちゃ
+NGワード: ありがとうございます、させていただきます
+個性: 関西弁でコーヒーへの情熱が強め
+
+※ 設定しない項目は省略できます
+※ 「口癖:」から始まる形式で送信してください`;
+
+    await replyText(replyToken, message);
+  } catch (err) {
+    console.error('[Character] 設定プロンプトエラー:', err.message);
+    await replyText(replyToken, `エラーが発生しました: ${err.message}`);
+  }
+}
+
+async function handleCharacterSettingsSave(user, text, replyToken) {
+  if (!user.current_store_id) {
+    return await replyText(replyToken, '店舗が選択されていません。');
+  }
+
+  try {
+    const store = await getStore(user.current_store_id);
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+    const parsed = {};
+
+    for (const line of lines) {
+      const colonIdx = line.indexOf(':');
+      if (colonIdx === -1) continue;
+      const key = line.slice(0, colonIdx).trim();
+      const value = line.slice(colonIdx + 1).trim();
+      parsed[key] = value;
+    }
+
+    const character_settings = {
+      catchphrases: parsed['口癖'] ? parsed['口癖'].split(/[、,，]/).map(s => s.trim()).filter(s => s) : (store.config?.character_settings?.catchphrases || []),
+      ng_words: parsed['NGワード'] ? parsed['NGワード'].split(/[、,，]/).map(s => s.trim()).filter(s => s) : (store.config?.character_settings?.ng_words || []),
+      personality: parsed['個性'] || store.config?.character_settings?.personality || '',
+    };
+
+    const newConfig = {
+      ...(store.config || {}),
+      character_settings,
+    };
+
+    await updateStoreConfig(store.id, newConfig);
+
+    const summary = [];
+    if (character_settings.catchphrases.length > 0) summary.push(`口癖: ${character_settings.catchphrases.join('、')}`);
+    if (character_settings.ng_words.length > 0) summary.push(`NGワード: ${character_settings.ng_words.join('、')}`);
+    if (character_settings.personality) summary.push(`個性: ${character_settings.personality}`);
+
+    await replyText(replyToken, `✅ キャラクター設定を保存しました！\n\n${summary.join('\n')}\n\n次回の投稿からこの個性が反映されます🎭`);
+  } catch (err) {
+    console.error('[Character] 設定保存エラー:', err.message);
+    await replyText(replyToken, `エラーが発生しました: ${err.message}`);
+  }
+}
+
+// ==================== 季節記憶表示 ====================
+
+async function handleSeasonalMemory(user, replyToken) {
+  if (!user.current_store_id) {
+    return await replyText(replyToken, '店舗が選択されていません。');
+  }
+
+  try {
+    const status = await getSeasonalMemoryStatus(user.current_store_id);
+    await replyText(replyToken, status);
+  } catch (err) {
+    console.error('[SeasonalMemory] 表示エラー:', err.message);
+    await replyText(replyToken, `エラーが発生しました: ${err.message}`);
   }
 }
 

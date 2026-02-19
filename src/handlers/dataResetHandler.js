@@ -1,5 +1,5 @@
 import { replyText } from '../services/lineService.js';
-import { supabase } from '../services/supabaseService.js';
+import { supabase, getStore, getStoresByUser, deleteStore, updateCurrentStore } from '../services/supabaseService.js';
 
 /**
  * データリセット確認メッセージ
@@ -89,5 +89,95 @@ AIは初期状態に戻りました。
   } catch (err) {
     console.error('[DataReset] エラー:', err.message);
     await replyText(replyToken, `リセット中にエラーが発生しました: ${err.message}`);
+  }
+}
+
+/**
+ * 店舗削除の確認メッセージ
+ */
+export async function handleStoreDeletePrompt(user, replyToken) {
+  // 店舗一覧を取得
+  const stores = await getStoresByUser(user.id);
+
+  if (stores.length === 0) {
+    return await replyText(replyToken, '削除できる店舗がありません。');
+  }
+
+  // 選択中の店舗がある場合はそれを削除対象に
+  if (user.current_store_id) {
+    const store = await getStore(user.current_store_id);
+    if (store) {
+      const message = `⚠️ 店舗削除の確認
+
+「${store.name}」を削除します。
+
+以下のデータがすべて削除されます：
+━━━━━━━━━━━━━━━
+🏪 店舗情報（業種・こだわり・口調）
+📝 投稿履歴
+🧠 学習データ・プロファイル
+📊 フォロワー履歴
+📸 Instagram連携情報
+━━━━━━━━━━━━━━━
+
+【残るデータ】
+✅ 集合知データ（業種カテゴリー別の学習データ）
+　→ 他の店舗・将来の登録でも活用されます
+
+⚠️ この操作は元に戻せません
+
+削除する場合: 「店舗削除実行」
+キャンセル: 「キャンセル」`;
+      return await replyText(replyToken, message);
+    }
+  }
+
+  // 選択中の店舗がない場合は一覧を表示して切替を促す
+  const list = stores.map((s, i) => `${i + 1}. ${s.name}`).join('\n');
+  return await replyText(replyToken, `店舗を選択してから削除してください。
+
+登録済み店舗:
+${list}
+
+切替: 店舗名 → で選択してから
+もう一度「店舗削除」と送信してください。`);
+}
+
+/**
+ * 店舗削除の実行
+ */
+export async function handleStoreDeleteExecution(user, replyToken) {
+  if (!user.current_store_id) {
+    return await replyText(replyToken, '店舗が選択されていません。');
+  }
+
+  try {
+    const store = await getStore(user.current_store_id);
+    if (!store) {
+      return await replyText(replyToken, '店舗が見つかりません。');
+    }
+
+    const storeName = store.name;
+    const storeId = user.current_store_id;
+
+    // 店舗削除（関連データも含む）
+    await deleteStore(storeId);
+
+    // 別の店舗に切り替え（削除した店舗を除外して残りを取得）
+    const allStores = await getStoresByUser(user.id);
+    const remaining = allStores.filter(s => s.id !== storeId);
+    let switchMessage = '';
+    if (remaining.length > 0) {
+      await updateCurrentStore(user.id, remaining[0].id);
+      switchMessage = `\n\n「${remaining[0].name}」に切り替えました。`;
+    } else {
+      await updateCurrentStore(user.id, null);
+      switchMessage = '\n\n店舗がなくなりました。「登録」で新しく登録できます。';
+    }
+
+    await replyText(replyToken, `✅ 「${storeName}」を削除しました。${switchMessage}`);
+  } catch (err) {
+    console.error('[StoreDelete] エラー:', err.message);
+    await replyText(replyToken, `削除中にエラーが発生しました: ${err.message}`);
   }
 }

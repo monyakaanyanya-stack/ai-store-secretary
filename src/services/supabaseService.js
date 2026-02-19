@@ -1,8 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 
+// RLS有効時はservice_roleキーを使用（anon keyではアクセス不可）
+// Supabase Dashboard > Project Settings > API > service_role key
 export const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  }
 );
 
 // ==================== ユーザー ====================
@@ -83,6 +91,18 @@ export async function getStoresByUser(userId) {
 
   if (error) throw new Error(`店舗一覧取得失敗: ${error.message}`);
   return data || [];
+}
+
+export async function deleteStore(storeId) {
+  // 関連データを順番に削除してから店舗本体を削除
+  await supabase.from('post_history').delete().eq('store_id', storeId);
+  await supabase.from('learning_data').delete().eq('store_id', storeId);
+  await supabase.from('learning_profiles').delete().eq('store_id', storeId);
+  await supabase.from('follower_history').delete().eq('store_id', storeId);
+  await supabase.from('instagram_accounts').delete().eq('store_id', storeId);
+
+  const { error } = await supabase.from('stores').delete().eq('id', storeId);
+  if (error) throw new Error(`店舗削除失敗: ${error.message}`);
 }
 
 // ==================== 投稿履歴 ====================
