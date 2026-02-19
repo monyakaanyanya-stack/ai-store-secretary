@@ -82,7 +82,7 @@ export async function handleTextMessage(user, text, replyToken) {
   // 重要なコマンドはオンボーディング中でも優先処理
   const priorityCommands = [
     '店舗削除', '店舗削除実行', 'データリセット', 'リセット', 'リセット実行',
-    'キャンセル', 'cancel', '店舗一覧', '学習状況', 'ヘルプ', 'help'
+    'キャンセル', 'cancel', '店舗一覧', '学習状況', 'ヘルプ', 'help', '問い合わせ'
   ];
   const isPriorityCommand = priorityCommands.includes(trimmed);
 
@@ -177,6 +177,19 @@ export async function handleTextMessage(user, text, replyToken) {
   // 学習状況
   if (trimmed === '学習状況' || trimmed === '学習') {
     return await handleLearningStatus(user, replyToken);
+  }
+
+  // 問い合わせ
+  if (trimmed === '問い合わせ') {
+    const contactEmail = process.env.CONTACT_EMAIL || 'rion.monya0224@gmail.com';
+    return await replyText(replyToken, `📩 お問い合わせ
+
+ご不明な点やご要望は、以下のメールアドレスまでお気軽にどうぞ！
+
+${contactEmail}
+
+件名に「AI店舗秘書について」と記載いただけると助かります。
+通常2〜3営業日以内にご返信いたします。`);
   }
 
   // 季節提案
