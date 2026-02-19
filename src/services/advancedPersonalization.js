@@ -231,6 +231,8 @@ export async function updateAdvancedProfile(storeId, analysis) {
         hashtag_preferences: hashtagPrefs,
         cta_preferences: ctaPrefs,
         learning_summaries: learningSummaries,
+        writing_style: profileData.writing_style || {},       // 語尾・口癖・文体スタイル
+        latest_learnings: profileData.latest_learnings || [], // ユーザーに見せる学習内容
       },
       interaction_count: profile.interaction_count + 1,
       last_feedback_at: new Date().toISOString(),
