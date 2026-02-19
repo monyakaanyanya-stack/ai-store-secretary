@@ -69,9 +69,10 @@ function analyzeEngagementData(data) {
     }
   });
 
-  // 平均エンゲージメント率でソート（統計的信頼性のため最低3回使われたタグのみ）
+  // 平均エンゲージメント率でソート（データが少ない場合は1件からでも反映）
+  const minCount = Object.values(hashtagMetrics).some(d => d.count >= 3) ? 3 : 1;
   const topHashtags = Object.entries(hashtagMetrics)
-    .filter(([, d]) => d.count >= 3)
+    .filter(([, d]) => d.count >= minCount)
     .map(([tag, d]) => ({
       tag,
       avgEngagementRate: d.rates.reduce((a, b) => a + b, 0) / d.rates.length,
