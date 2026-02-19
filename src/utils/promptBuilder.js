@@ -379,13 +379,13 @@ ${Object.entries(templates.custom_fields || {})
 
   // 集合知データの構築（同業種の成功パターンを反映）
   let collectiveIntelligenceSection = '';
+  let dbTags = []; // スコープ外からも参照できるよう宣言
 
   if (blendedInsights) {
     const { category, group, own } = blendedInsights;
     const insights = [];
 
-    // ハッシュタグ（優先度1）
-    const dbTags = [];
+    // 集合知ハッシュタグを収集（写真内容タグの後に付ける参考タグとして使う）
     if (category && category.sampleSize > 0) {
       dbTags.push(...category.topHashtags.slice(0, 3));
     }
@@ -393,18 +393,14 @@ ${Object.entries(templates.custom_fields || {})
       dbTags.push(...group.topHashtags.slice(0, 2));
     }
 
-    if (dbTags.length > 0) {
-      insights.push(`【ハッシュタグ（必須）】\n以下は同業種で高エンゲージメントのハッシュタグです。3-5個を必ず使用:\n${dbTags.join(', ')}`);
-    }
-
-    // 文字数（優先度2）
+    // 文字数（優先度1）
     const avgLength = category?.avgLength || group?.avgLength;
     const topPostsLength = category?.topPostsAvgLength || group?.topPostsAvgLength;
     if (avgLength && topPostsLength) {
       insights.push(`【文字数（必須）】\n同業種の高エンゲージメント投稿の平均文字数: ${topPostsLength}文字\n※ この文字数を目安に作成してください`);
     }
 
-    // 絵文字（優先度3）
+    // 絵文字（優先度2）
     const avgEmojiCount = category?.avgEmojiCount || group?.avgEmojiCount;
     if (avgEmojiCount !== undefined) {
       insights.push(`【絵文字（必須）】\n同業種の平均絵文字数: ${Math.round(avgEmojiCount)}個\n※ この数を目安に使用してください`);
@@ -421,13 +417,17 @@ ${Object.entries(templates.custom_fields || {})
     }
   }
 
-  // ハッシュタグ指示（画像分析結果があればそれを使う）
+  // ハッシュタグ指示: 写真内容タグ（先）＋集合知タグ（後）
+  const categoryHint = store.category ? `業種「${store.category}」` : '';
   let fallbackHashtags = '';
-  if (!collectiveIntelligenceSection) {
-    const categoryHint = store.category ? `業種「${store.category}」` : '';
-    fallbackHashtags = imageDescription
-      ? `\n【ハッシュタグ（厳守）】\n上記「この写真に写っているもの」の分析結果を読んで、実際に写っているもの + ${categoryHint}に直結するタグのみ（5-8個）。\n絶対NG：写真に写っていないものや場所のタグ、#海 #夕暮れ #空 #風景 #instagood #japan #photooftheday #フォロー などの汎用タグ`
-      : `\n【ハッシュタグ（必須）】\n${categoryHint}この投稿内容に最も合うタグを5-8個。#instagood #japan など汎用タグは使わない。`;
+  if (imageDescription) {
+    // 集合知タグがあれば「後ろに追加」として指示
+    const collectiveTagNote = dbTags && dbTags.length > 0
+      ? `\n追加可能な業種タグ（上記の後に1-3個追加してよい）: ${dbTags.join(', ')}`
+      : '';
+    fallbackHashtags = `\n【ハッシュタグ（厳守）】\n順番: ①写真に実際に写っているもの・${categoryHint}に直結するタグ（3-5個）→ ②業種の定番タグ（1-3個）\n絶対NG：写真に写っていないもののタグ（写真がカモメなら#海 #夕暮れ #空 などNG）、#instagood #japan #photooftheday などの汎用タグ${collectiveTagNote}`;
+  } else if (!collectiveIntelligenceSection) {
+    fallbackHashtags = `\n【ハッシュタグ（必須）】\n${categoryHint}この投稿内容に最も合うタグを5-8個。#instagood #japan など汎用タグは使わない。`;
   }
 
   // 画像分析結果セクション
