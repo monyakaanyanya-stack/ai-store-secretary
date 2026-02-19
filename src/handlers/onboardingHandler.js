@@ -82,6 +82,10 @@ export async function handleOnboardingResponse(user, message, replyToken) {
     return await handleCategoryDetailSelection(user, state, trimmed, replyToken);
   }
 
+  if (state.step === 'custom_category') {
+    return await handleCustomCategoryInput(user, state, trimmed, replyToken);
+  }
+
   if (state.step === 'store_info') {
     return await handleStoreInfoInput(user, state, trimmed, replyToken);
   }
@@ -119,10 +123,91 @@ async function handleCategoryGroupSelection(user, input, replyToken) {
 }
 
 /**
+ * 自由入力業種の処理
+ */
+async function handleCustomCategoryInput(user, state, input, replyToken) {
+  const customCategory = input.trim();
+
+  if (!customCategory || customCategory.length > 30) {
+    return await replyText(replyToken, '業種名は1〜30文字で入力してください。\n\n例: ペットサロン');
+  }
+
+  // category_requests テーブルに記録（管理者が後で確認してリストに追加可能）
+  try {
+    await supabase
+      .from('category_requests')
+      .insert({
+        user_id: user.id,
+        category_name: customCategory,
+        parent_group: state.selected_group,
+        status: 'pending',
+        created_at: new Date().toISOString(),
+      });
+  } catch (err) {
+    // テーブルがなくても登録は続行（ログのみ）
+    console.log(`[Onboarding] category_requests 保存スキップ: ${err.message}`);
+  }
+
+  // 状態を更新してstore_infoステップへ
+  await supabase
+    .from('onboarding_state')
+    .update({
+      step: 'store_info',
+      selected_category: customCategory,
+      updated_at: new Date().toISOString()
+    })
+    .eq('user_id', user.id);
+
+  const storeInfoMessage = `業種: ${customCategory} ✅
+
+次に、以下の情報を入力してください：
+
+━━━━━━━━━━━━━━━
+店名,こだわり,口調
+━━━━━━━━━━━━━━━
+
+【例】
+幸福堂,天然酵母の手作りパン,フレンドリー
+
+【口調の例】
+・フレンドリー（明るい・親しみやすい）
+・カジュアル（タメ口・親しみやすい）
+・丁寧（ビジネス的・プロフェッショナル）
+
+カンマ区切りで入力してください。`;
+
+  await replyText(replyToken, storeInfoMessage);
+  return true;
+}
+
+/**
  * 詳細カテゴリー選択処理
  */
 async function handleCategoryDetailSelection(user, state, input, replyToken) {
   const categoryNumber = parseInt(input, 10);
+
+  // 0 = その他（自由入力）
+  if (categoryNumber === 0) {
+    await supabase
+      .from('onboarding_state')
+      .update({
+        step: 'custom_category',
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', user.id);
+
+    await replyText(replyToken, `業種名を入力してください 📝
+
+例:
+・ペットサロン
+・占い師
+・整骨院
+・建築事務所
+
+そのまま業種名を送ってください。`);
+    return true;
+  }
+
   const selectedCategory = getCategoryByNumber(state.selected_group, categoryNumber);
 
   if (!selectedCategory) {

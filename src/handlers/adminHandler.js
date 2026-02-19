@@ -234,6 +234,43 @@ export async function handleAdminReportSave(user, text, replyToken) {
 }
 
 /**
+ * 管理者用: カテゴリーリクエスト一覧を確認
+ * コマンド: /admin category-requests
+ */
+export async function handleAdminCategoryRequests(user, replyToken) {
+  if (!isAdmin(user.line_user_id)) {
+    return false;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('category_requests')
+      .select('*')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
+      await replyText(replyToken, '⚙️ カテゴリーリクエスト\n\n新しいリクエストはありません。');
+      return true;
+    }
+
+    const list = data.map((r, i) =>
+      `${i + 1}. ${r.category_name}（${r.parent_group}）`
+    ).join('\n');
+
+    await replyText(replyToken, `⚙️ カテゴリーリクエスト（未対応: ${data.length}件）\n\n${list}\n\ncategoryGroups.js に追加後、/admin category-approve で処理済みにできます。`);
+    return true;
+  } catch (err) {
+    console.error('[Admin] カテゴリーリクエスト取得エラー:', err.message);
+    await replyText(replyToken, `❌ エラー: ${err.message}`);
+    return true;
+  }
+}
+
+/**
  * 管理者用メニュー
  */
 export async function handleAdminMenu(user, replyToken) {
@@ -258,6 +295,10 @@ export async function handleAdminMenu(user, replyToken) {
 【全データ削除】
 /admin clear-data
 → 全データを削除（ユーザーデータも含む）
+
+【カテゴリーリクエスト確認】
+/admin category-requests
+→ ユーザーが自由入力した業種一覧を確認
 
 【データ確認】
 データ確認

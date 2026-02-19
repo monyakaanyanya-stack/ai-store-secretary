@@ -172,6 +172,7 @@ export function generateDetailCategoryMessage(groupName) {
   return `【${groupName}の詳細業種を選択してください】
 
 ${menu}
+0. その他（リストにない業種）
 
 番号を送ってください（例: 1）`;
 }
