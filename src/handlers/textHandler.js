@@ -81,7 +81,7 @@ export async function handleTextMessage(user, text, replyToken) {
 
   // 重要なコマンドはオンボーディング中でも優先処理
   const priorityCommands = [
-    '店舗削除', '店舗削除実行', 'データリセット', 'リセット', 'リセット実行',
+    '店舗削除', '店舗削除実行', 'データリセット', 'リセット', 'リセット実行', '学習リセット',
     'キャンセル', 'cancel', '店舗一覧', '学習状況', 'ヘルプ', 'help', '問い合わせ'
   ];
   const isPriorityCommand = priorityCommands.includes(trimmed);
@@ -203,7 +203,7 @@ ${contactEmail}
   }
 
   // データリセット（確認）
-  if (trimmed === 'データリセット' || trimmed === 'リセット') {
+  if (trimmed === 'データリセット' || trimmed === 'リセット' || trimmed === '学習リセット') {
     console.log(`[TextHandler] Data reset matched! Calling handleDataResetPrompt`);
     return await handleDataResetPrompt(user, replyToken);
   }
