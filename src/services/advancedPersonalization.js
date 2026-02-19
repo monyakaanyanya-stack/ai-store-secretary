@@ -42,6 +42,12 @@ ${feedback}
     "avoided_phrases": [string],
     "preferred_phrases": [string]
   },
+  "writing_style": {
+    "sentence_endings": [string],
+    "catchphrases": [string],
+    "line_break_style": "frequent" | "normal" | null,
+    "punctuation": string | null
+  },
   "hashtag_preference": {
     "quantity": number (-5 〜 +5),
     "style": "trending" | "niche" | "mixed"
@@ -50,13 +56,17 @@ ${feedback}
     "strength": number (-5 〜 +5),
     "style": "direct" | "soft" | "none"
   },
-  "summary": string
+  "summary": string,
+  "human_readable_learnings": [string]
 }
 
 説明:
 - 数値は-5（とても減らす）〜+5（とても増やす）のスケール
 - 変化がない場合は0
-- フィードバックから明確に読み取れる内容のみ記載`;
+- フィードバックから明確に読み取れる内容のみ記載
+- writing_style.sentence_endings: 「〜だわ」「〜じゃん」「笑」「w」など語尾・文末表現をそのまま抽出
+- writing_style.catchphrases: 「まじ」「やばい」など口癖となりうる表現
+- human_readable_learnings: ユーザーに見せる「今回学習したこと」を箇条書きで3件以内（例: ["語尾を「〜だわ」スタイルに変更", "絵文字を減らす", "短文中心にする"]）`;
 
   try {
     const response = await askClaude(prompt, {
@@ -132,6 +142,51 @@ export async function updateAdvancedProfile(storeId, analysis) {
   analysis.expression_patterns.preferred_words.forEach(word => {
     wordPrefs[word] = (wordPrefs[word] || 0) + 5;
   });
+
+  // 語尾・文体スタイル（最重要：次回投稿に直接反映される）
+  if (analysis.writing_style) {
+    const writingStyle = profileData.writing_style || {};
+
+    // 語尾パターン（上書きではなく蓄積）
+    if (analysis.writing_style.sentence_endings && analysis.writing_style.sentence_endings.length > 0) {
+      const currentEndings = writingStyle.sentence_endings || [];
+      analysis.writing_style.sentence_endings.forEach(ending => {
+        if (!currentEndings.includes(ending)) {
+          currentEndings.push(ending);
+        }
+      });
+      // 最新5件のみ保持
+      writingStyle.sentence_endings = currentEndings.slice(-5);
+    }
+
+    // 口癖・フレーズ
+    if (analysis.writing_style.catchphrases && analysis.writing_style.catchphrases.length > 0) {
+      const currentPhrases = writingStyle.catchphrases || [];
+      analysis.writing_style.catchphrases.forEach(phrase => {
+        if (!currentPhrases.includes(phrase)) {
+          currentPhrases.push(phrase);
+        }
+      });
+      writingStyle.catchphrases = currentPhrases.slice(-10);
+    }
+
+    // 改行スタイル
+    if (analysis.writing_style.line_break_style) {
+      writingStyle.line_break_style = analysis.writing_style.line_break_style;
+    }
+
+    // 句読点スタイル
+    if (analysis.writing_style.punctuation) {
+      writingStyle.punctuation = analysis.writing_style.punctuation;
+    }
+
+    profileData.writing_style = writingStyle;
+  }
+
+  // 人間に見せる学習サマリー
+  if (analysis.human_readable_learnings && analysis.human_readable_learnings.length > 0) {
+    profileData.latest_learnings = analysis.human_readable_learnings;
+  }
 
   // ハッシュタグスタイル
   const hashtagPrefs = profileData.hashtag_preferences || {};
@@ -271,6 +326,20 @@ export async function getAdvancedPersonalizationPrompt(storeId) {
     additions.push(`・CTA: ${styleDesc[ctaPrefs.style]}`);
   }
 
+  // 語尾・文体スタイル（最重要：最初に記載して優先度を上げる）
+  const writingStyle = profileData.writing_style || {};
+  const writingAdditions = [];
+
+  if (writingStyle.sentence_endings && writingStyle.sentence_endings.length > 0) {
+    writingAdditions.push(`語尾は「${writingStyle.sentence_endings.join('」「')}」のスタイルを使う（厳守）`);
+  }
+  if (writingStyle.catchphrases && writingStyle.catchphrases.length > 0) {
+    writingAdditions.push(`「${writingStyle.catchphrases.join('」「')}」などの口癖を自然に使う`);
+  }
+  if (writingStyle.line_break_style === 'frequent') {
+    writingAdditions.push('改行を多めに使って縦に展開する');
+  }
+
   // 最近の学習サマリー
   const summaries = profileData.learning_summaries || [];
   if (summaries.length > 0) {
@@ -278,9 +347,17 @@ export async function getAdvancedPersonalizationPrompt(storeId) {
     additions.push(`・最近の学習: ${recentSummaries.join(' / ')}`);
   }
 
-  if (additions.length === 0) return '';
+  if (writingAdditions.length === 0 && additions.length === 0) return '';
 
-  return `\n【高度なパーソナライゼーション（${profile.interaction_count}回の学習）】\n${additions.join('\n')}`;
+  const writingSection = writingAdditions.length > 0
+    ? `\n【この人の文体（最優先で反映）】\n${writingAdditions.map(a => `・${a}`).join('\n')}`
+    : '';
+
+  const generalSection = additions.length > 0
+    ? `\n【高度なパーソナライゼーション（${profile.interaction_count}回の学習）】\n${additions.join('\n')}`
+    : '';
+
+  return writingSection + generalSection;
 }
 
 /**

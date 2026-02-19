@@ -97,40 +97,46 @@ export async function handleFeedback(user, feedback, replyToken) {
 
     console.log(`[Feedback] 修正完了: store=${store.name}, method=${learningMethod}`);
 
-    // 学習プロファイルを取得して学習回数を確認
+    // 学習プロファイルを取得して学習回数・学習内容を確認
     const { getOrCreateLearningProfile } = await import('../services/personalizationEngine.js');
     const profile = await getOrCreateLearningProfile(store.id);
+    const profileData = profile?.profile_data || {};
+
+    // 今回学習した具体的な内容を取得
+    const latestLearnings = profileData.latest_learnings || [];
 
     // 応答メッセージ
     let message;
     if (revisedContent) {
       // 詳細フィードバックの場合（修正版あり）
-      message = `✅ 学習しました！🧠
+      const learningList = latestLearnings.length > 0
+        ? latestLearnings.map(l => `✅ ${l}`).join('\n')
+        : `✅ ${feedback}`;
 
-今回学習した内容:
-- ${feedback}
+      message = `🧠 学習しました！
 
-【修正後の投稿】
+${learningList}
+
+次回からずっと反映されます。
+
+━━━━━━━━━━━
 ${revisedContent}
+━━━━━━━━━━━
 
-📚 学習回数: ${profile.interaction_count}回
-🎯 高度な学習を適用しました
-次回の投稿から、この学習が反映されます！
+📚 累計学習回数: ${profile.interaction_count}回
 
-「学習状況」と送ると、学習内容を確認できます。`;
+「学習状況」で学習内容を確認できます。`;
     } else {
       // 簡易フィードバックの場合（修正版なし）
       message = `✅ 学習しました！
 
-今回学習した内容:
-- ${feedback}
+・${feedback}
 
-📚 学習回数: ${profile.interaction_count}回
-次回の投稿から、この学習が反映されます！
+📚 累計学習回数: ${profile.interaction_count}回
+次回の投稿から反映されます。
 
-より詳しいフィードバック（例: 「直し: もっとカジュアルに、絵文字を減らして」）を送ると、さらに精度が向上します。
-
-「学習状況」と送ると、学習内容を確認できます。`;
+より具体的に教えると精度が上がります
+例: 「直し: 語尾を〜だわにして、もっと短く」`;
     }
 
     await replyText(replyToken, message);
