@@ -167,7 +167,6 @@ export async function getPersonalizationPromptAddition(storeId) {
   }
 
   // エンゲージメント学習（実績から得た傾向）
-  const el = profileData.engagement_learning || {};
   if (el.preferred_length) {
     additions.push(`・高エンゲージメント投稿の平均文字数: ${el.preferred_length}文字`);
   }
