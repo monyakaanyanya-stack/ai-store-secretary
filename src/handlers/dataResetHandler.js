@@ -62,10 +62,13 @@ export async function handleDataResetExecution(user, replyToken) {
       .eq('store_id', storeId);
 
     // 3. 学習プロファイルを削除
-    await supabase
+    const { error: profileError } = await supabase
       .from('learning_profiles')
       .delete()
       .eq('store_id', storeId);
+    if (profileError) {
+      console.error('[DataReset] learning_profiles削除エラー:', profileError.message);
+    }
 
     console.log(`[DataReset] データリセット完了: store=${storeId}, posts=${postCount}, learning=${learningCount}`);
 
