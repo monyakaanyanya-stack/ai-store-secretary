@@ -12,6 +12,7 @@ import { applyFeedbackToProfile } from '../services/personalizationEngine.js';
 import {
   analyzeFeedbackWithClaude,
   updateAdvancedProfile,
+  getAdvancedPersonalizationPrompt,
 } from '../services/advancedPersonalization.js';
 
 /**
@@ -68,8 +69,11 @@ export async function handleFeedback(user, feedback, replyToken) {
       // 学習データを集約
       const learningData = await aggregateLearningData(store.id);
 
+      // 高度な学習データ（語尾・文体スタイルなど）を取得
+      const advancedPersonalization = await getAdvancedPersonalizationPrompt(store.id);
+
       // 修正版を生成
-      const prompt = buildRevisionPrompt(store, learningData, latestPost.content, feedback);
+      const prompt = buildRevisionPrompt(store, learningData, latestPost.content, feedback, advancedPersonalization);
       revisedContent = await askClaude(prompt);
 
       // 修正版を投稿履歴に保存

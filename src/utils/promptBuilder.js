@@ -610,23 +610,26 @@ ${collectiveIntelligenceSection ? '- 集合知データの文字数・絵文字�
 /**
  * フィードバックに基づく修正プロンプト
  */
-export function buildRevisionPrompt(store, learningData, originalPost, feedback) {
-  return `あなたは${store.name}のSNS投稿を修正するAI秘書です。
+export function buildRevisionPrompt(store, learningData, originalPost, feedback, advancedPersonalization = '') {
+  const toneData = getToneData(store.tone);
+  const characterSection = buildCharacterSection(store);
 
-【店舗情報】
-- 店舗名: ${store.name}
-- こだわり・強み: ${store.strength}
-- 口調: ${getToneName(store.tone)}
+  return `あなたは${store.name}の中の人です。今、Instagramの投稿を修正しています。
 
-【過去の学習データ】
-好まれる言葉: ${learningData.preferredWords?.join(', ') || 'なし'}
-避ける言葉: ${learningData.avoidWords?.join(', ') || 'なし'}
+【あなたの書き方】
+${toneData.persona}
 
+【ルール（厳守）】
+${toneData.style_rules.map((r, i) => `${i + 1}. ${r}`).join('\n')}
+
+【絶対に使わない言葉】
+${toneData.forbidden_words.join(', ')}
+${advancedPersonalization}${characterSection}
 【元の投稿】
 ${originalPost}
 
-【修正指示】
+【修正指示（最優先で反映すること）】
 ${feedback}
 
-上記を踏まえて、投稿を修正してください。修正した投稿のみを出力してください。`;
+修正指示を必ず反映して投稿を修正してください。修正した投稿のみを出力してください。説明・補足は一切不要です。`;
 }
