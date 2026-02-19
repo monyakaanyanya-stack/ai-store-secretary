@@ -18,9 +18,9 @@ export async function saveConversation(userId, role, content) {
 }
 
 /**
- * 直近の会話履歴を取得（最大10件）
+ * 直近の会話履歴を取得（最大20件）
  */
-export async function getRecentConversations(userId, limit = 10) {
+export async function getRecentConversations(userId, limit = 20) {
   try {
     const { data, error } = await supabase
       .from('conversation_history')
@@ -42,7 +42,7 @@ export async function getRecentConversations(userId, limit = 10) {
 /**
  * 会話履歴をクリア（古い履歴を削除）
  */
-export async function cleanOldConversations(userId, keepLast = 20) {
+export async function cleanOldConversations(userId, keepLast = 40) {
   try {
     const { data: conversations } = await supabase
       .from('conversation_history')
