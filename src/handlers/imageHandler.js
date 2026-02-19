@@ -30,25 +30,25 @@ export async function handleImageMessage(user, messageId, replyToken) {
     console.log(`[Image] 画像取得中: messageId=${messageId}`);
     const imageBase64 = await getImageAsBase64(messageId);
 
-    // ステップ1: 画像を先に分析して「何が写っているか」を把握
-    console.log(`[Image] 画像分析中: store=${store.name}`);
-    const imageDescription = await describeImage(imageBase64);
+    // 画像分析とSupabase取得を並列実行（タイムアウト対策）
+    console.log(`[Image] 画像分析・データ取得を並列実行中: store=${store.name}`);
+    const [
+      imageDescription,
+      learningData,
+      blendedInsights,
+      basicPersonalization,
+      advancedPersonalization,
+      seasonalMemory,
+    ] = await Promise.all([
+      describeImage(imageBase64),
+      aggregateLearningData(store.id),
+      store.category ? getBlendedInsights(store.id, store.category) : Promise.resolve(null),
+      getPersonalizationPromptAddition(store.id),
+      getAdvancedPersonalizationPrompt(store.id),
+      getSeasonalMemoryPromptAddition(store.id),
+    ]);
     console.log(`[Image] 画像分析結果: ${imageDescription?.slice(0, 100)}...`);
 
-    // 学習データを集約
-    const learningData = await aggregateLearningData(store.id);
-
-    // 集合知を取得（カテゴリーが設定されている場合のみ）
-    let blendedInsights = null;
-    if (store.category) {
-      blendedInsights = await getBlendedInsights(store.id, store.category);
-      console.log(`[Image] 集合知取得: category=${store.category}, group=${blendedInsights.categoryGroup}`);
-    }
-
-    // パーソナライゼーション情報を取得（基本 + 高度 + 季節記憶）
-    const basicPersonalization = await getPersonalizationPromptAddition(store.id);
-    const advancedPersonalization = await getAdvancedPersonalizationPrompt(store.id);
-    const seasonalMemory = await getSeasonalMemoryPromptAddition(store.id);
     const personalization = basicPersonalization + advancedPersonalization + seasonalMemory;
 
     // ステップ2: 画像分析結果を使ってテキストのみで投稿生成（画像への依存をなくす）
