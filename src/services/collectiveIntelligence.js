@@ -57,20 +57,28 @@ export async function getGroupInsights(categoryGroup, limit = 200) {
 function analyzeEngagementData(data) {
   if (!data || data.length === 0) return getDefaultInsights();
 
-  // ハッシュタグ頻度分析
-  const hashtagFrequency = {};
+  // ハッシュタグのエンゲージメント率分析（使用回数ではなく効果で判定）
+  const hashtagMetrics = {};
   data.forEach(post => {
-    if (post.hashtags) {
+    if (post.hashtags && post.engagement_rate != null) {
       post.hashtags.forEach(tag => {
-        hashtagFrequency[tag] = (hashtagFrequency[tag] || 0) + 1;
+        if (!hashtagMetrics[tag]) hashtagMetrics[tag] = { rates: [], count: 0 };
+        hashtagMetrics[tag].rates.push(post.engagement_rate);
+        hashtagMetrics[tag].count++;
       });
     }
   });
 
-  const topHashtags = Object.entries(hashtagFrequency)
-    .sort((a, b) => b[1] - a[1])
+  // 平均エンゲージメント率でソート（統計的信頼性のため最低3回使われたタグのみ）
+  const topHashtags = Object.entries(hashtagMetrics)
+    .filter(([, d]) => d.count >= 3)
+    .map(([tag, d]) => ({
+      tag,
+      avgEngagementRate: d.rates.reduce((a, b) => a + b, 0) / d.rates.length,
+    }))
+    .sort((a, b) => b.avgEngagementRate - a.avgEngagementRate)
     .slice(0, 10)
-    .map(([tag]) => tag);
+    .map(item => item.tag);
 
   // 投稿長の傾向分析
   const avgLength = data.reduce((sum, post) => sum + (post.post_length || 0), 0) / data.length;

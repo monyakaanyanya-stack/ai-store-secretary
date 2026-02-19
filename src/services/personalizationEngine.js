@@ -128,19 +128,19 @@ export async function getPersonalizationPromptAddition(storeId) {
   // 口調の調整
   const toneAdj = profileData.tone_adjustments || {};
   if (toneAdj.casual > 0) {
-    additions.push(`・よりカジュアルな表現を好む（学習回数: ${toneAdj.casual}回）`);
+    additions.push('・よりカジュアルな表現を好む');
   }
   if (toneAdj.formal > 0) {
-    additions.push(`・よりフォーマルな表現を好む（学習回数: ${toneAdj.formal}回）`);
+    additions.push('・よりフォーマルな表現を好む');
   }
 
   // 文章長の好み
   const lengthPrefs = profileData.length_preferences || {};
   if (lengthPrefs.prefer_short > 0) {
-    additions.push(`・簡潔な表現を好む（学習回数: ${lengthPrefs.prefer_short}回）`);
+    additions.push('・簡潔な表現を好む');
   }
   if (lengthPrefs.prefer_long > 0) {
-    additions.push(`・詳細な説明を好む（学習回数: ${lengthPrefs.prefer_long}回）`);
+    additions.push('・詳細な説明を好む');
   }
 
   // 絵文字スタイル
@@ -163,7 +163,7 @@ export async function getPersonalizationPromptAddition(storeId) {
 
   if (additions.length === 0) return '';
 
-  return `\n【パーソナライゼーション（${profile.interaction_count}回の学習データ）】\n${additions.join('\n')}`;
+  return `\n【パーソナライゼーション】\n${additions.join('\n')}`;
 }
 
 /**
@@ -275,20 +275,27 @@ export async function getLearningStatus(storeId, category) {
     if (metrics && metrics.length > 0) {
       collectiveInfo = `\n【集合知データ】\n・同業種データ数: ${metrics.length}件\n`;
 
-      // 人気ハッシュタグ
-      const allHashtags = {};
+      // 人気ハッシュタグ（使用回数ではなくエンゲージメント率で判定）
+      const hashtagMetrics = {};
       metrics.forEach(m => {
-        if (m.hashtags) {
+        if (m.hashtags && m.engagement_rate != null) {
           m.hashtags.forEach(tag => {
-            allHashtags[tag] = (allHashtags[tag] || 0) + 1;
+            if (!hashtagMetrics[tag]) hashtagMetrics[tag] = { rates: [], count: 0 };
+            hashtagMetrics[tag].rates.push(m.engagement_rate);
+            hashtagMetrics[tag].count++;
           });
         }
       });
 
-      const topHashtags = Object.entries(allHashtags)
-        .sort((a, b) => b[1] - a[1])
+      const topHashtags = Object.entries(hashtagMetrics)
+        .filter(([, d]) => d.count >= 2)
+        .map(([tag, d]) => ({
+          tag,
+          avgEngagementRate: d.rates.reduce((a, b) => a + b, 0) / d.rates.length,
+        }))
+        .sort((a, b) => b.avgEngagementRate - a.avgEngagementRate)
         .slice(0, 5)
-        .map(([tag]) => tag);
+        .map(item => item.tag);
 
       if (topHashtags.length > 0) {
         collectiveInfo += `・人気ハッシュタグ: ${topHashtags.join(', ')}\n`;

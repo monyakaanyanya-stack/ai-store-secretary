@@ -6,6 +6,7 @@ import { aggregateLearningData } from '../utils/learningData.js';
 import { getBlendedInsights, saveEngagementMetrics } from '../services/collectiveIntelligence.js';
 import { getPersonalizationPromptAddition, getPersonalizationLevel } from '../services/personalizationEngine.js';
 import { getAdvancedPersonalizationPrompt } from '../services/advancedPersonalization.js';
+import { getSeasonalMemoryPromptAddition } from '../services/seasonalMemoryService.js';
 
 /**
  * 画像メッセージ処理: 画像取得 → 投稿生成 → 返信 → 履歴保存
@@ -39,10 +40,11 @@ export async function handleImageMessage(user, messageId, replyToken) {
       console.log(`[Image] 集合知取得: category=${store.category}, group=${blendedInsights.categoryGroup}`);
     }
 
-    // パーソナライゼーション情報を取得（基本 + 高度）
+    // パーソナライゼーション情報を取得（基本 + 高度 + 季節記憶）
     const basicPersonalization = await getPersonalizationPromptAddition(store.id);
     const advancedPersonalization = await getAdvancedPersonalizationPrompt(store.id);
-    const personalization = basicPersonalization + advancedPersonalization;
+    const seasonalMemory = await getSeasonalMemoryPromptAddition(store.id);
+    const personalization = basicPersonalization + advancedPersonalization + seasonalMemory;
 
     // プロンプト構築 → Claude API で投稿生成（lengthOverride なし = デフォルト設定を使用）
     const prompt = buildImagePostPrompt(store, learningData, null, blendedInsights, personalization);
@@ -61,13 +63,8 @@ export async function handleImageMessage(user, messageId, replyToken) {
 
     console.log(`[Image] 画像投稿生成完了: store=${store.name}`);
 
-    // 学習プロファイルを取得して学習回数を確認
-    const { getOrCreateLearningProfile } = await import('../services/personalizationEngine.js');
-    const profile = await getOrCreateLearningProfile(store.id);
-    const learningBadge = profile && profile.interaction_count > 0 ? `（あなたの学習スタイルで生成 📚 学習回数: ${profile.interaction_count}回）` : '';
-
     // コピペしやすい形式でフォーマット
-    const formattedReply = `✨ 投稿案ができました！${learningBadge}
+    const formattedReply = `✨ 投稿案ができました！
 
 以下をコピーしてInstagramに貼り付けてください↓
 ━━━━━━━━━━━
