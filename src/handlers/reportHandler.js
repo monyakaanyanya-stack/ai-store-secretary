@@ -163,8 +163,8 @@ ${postContent}...
 
     await replyText(replyToken, feedbackMessage);
   } catch (err) {
-    console.error('[Report] エンゲージメント報告エラー:', err.message);
-    await replyText(replyToken, `エラーが発生しました: ${err.message}`);
+    console.error('[Report] エンゲージメント報告エラー:', err);
+    await replyText(replyToken, 'エラーが発生しました。しばらくしてから再度お試しください。');
   }
 }
 
@@ -281,8 +281,8 @@ ${postContent}...
     await replyText(replyToken, feedbackMessage);
     return true; // 処理完了
   } catch (err) {
-    console.error('[Report] 投稿選択エラー:', err.message);
-    await replyText(replyToken, `エラーが発生しました: ${err.message}`);
+    console.error('[Report] 投稿選択エラー:', err);
+    await replyText(replyToken, 'エラーが発生しました。しばらくしてから再度お試しください。');
     return true;
   }
 }

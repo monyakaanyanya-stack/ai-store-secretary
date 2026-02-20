@@ -384,7 +384,7 @@ function buildCharacterSection(store) {
 }
 
 /**
- * 画像から投稿を生成するプロンプト（抜本改革版）
+ * 画像から投稿を生成するプロンプト
  */
 export function buildImagePostPrompt(store, learningData, lengthOverride = null, blendedInsights = null, personalization = '', imageDescription = null) {
   const postLength = lengthOverride || store.config?.post_length || 'medium';
@@ -403,13 +403,12 @@ ${Object.entries(templates.custom_fields || {})
 
   // 集合知データの構築（同業種の成功パターンを反映）
   let collectiveIntelligenceSection = '';
-  let dbTags = []; // スコープ外からも参照できるよう宣言
+  let dbTags = [];
 
   if (blendedInsights) {
     const { category, group, own } = blendedInsights;
     const insights = [];
 
-    // 集合知ハッシュタグを収集（写真内容タグの後に付ける参考タグとして使う）
     if (category && category.sampleSize > 0) {
       dbTags.push(...category.topHashtags.slice(0, 3));
     }
@@ -417,20 +416,17 @@ ${Object.entries(templates.custom_fields || {})
       dbTags.push(...group.topHashtags.slice(0, 2));
     }
 
-    // 文字数（優先度1）
     const avgLength = category?.avgLength || group?.avgLength;
     const topPostsLength = category?.topPostsAvgLength || group?.topPostsAvgLength;
     if (avgLength && topPostsLength) {
       insights.push(`【文字数（必須）】\n同業種の高エンゲージメント投稿の平均文字数: ${topPostsLength}文字\n※ この文字数を目安に作成してください`);
     }
 
-    // 絵文字（優先度2）
     const avgEmojiCount = category?.avgEmojiCount || group?.avgEmojiCount;
     if (avgEmojiCount !== undefined) {
       insights.push(`【絵文字（必須）】\n同業種の平均絵文字数: ${Math.round(avgEmojiCount)}個\n※ この数を目安に使用してください`);
     }
 
-    // 投稿時間帯（参考情報）
     const bestHours = category?.bestPostingHours || group?.bestPostingHours;
     if (bestHours && bestHours.length > 0) {
       insights.push(`【参考】最適投稿時間帯: ${bestHours.join('時, ')}時`);
@@ -441,17 +437,16 @@ ${Object.entries(templates.custom_fields || {})
     }
   }
 
-  // ハッシュタグ指示: 写真内容タグ（先）＋集合知タグ（後）
+  // ハッシュタグ指示
   const categoryHint = store.category ? `業種「${store.category}」` : '';
-  let fallbackHashtags = '';
+  let hashtagInstruction = '';
   if (imageDescription) {
-    // 集合知タグがあれば「後ろに追加」として指示
     const collectiveTagNote = dbTags && dbTags.length > 0
       ? `\n追加可能な業種タグ（上記の後に1-3個追加してよい）: ${dbTags.join(', ')}`
       : '';
-    fallbackHashtags = `\n【ハッシュタグ（厳守）】\n順番: ①写真に実際に写っているもの・${categoryHint}に直結するタグ（3-5個）→ ②業種の定番タグ（1-3個）\n絶対NG：写真に写っていないもののタグ（写真がカモメなら#海 #夕暮れ #空 などNG）、#instagood #japan #photooftheday などの汎用タグ${collectiveTagNote}`;
+    hashtagInstruction = `\n【ハッシュタグ（厳守）】\n順番: ①写真に実際に写っているもの・${categoryHint}に直結するタグ（3-5個）→ ②業種の定番タグ（1-3個）\n絶対NG：写真に写っていないもののタグ、#instagood #japan #photooftheday などの汎用タグ${collectiveTagNote}`;
   } else if (!collectiveIntelligenceSection) {
-    fallbackHashtags = `\n【ハッシュタグ（必須）】\n${categoryHint}この投稿内容に最も合うタグを5-8個。#instagood #japan など汎用タグは使わない。`;
+    hashtagInstruction = `\n【ハッシュタグ（必須）】\n${categoryHint}この投稿内容に最も合うタグを5-8個。#instagood #japan など汎用タグは使わない。`;
   }
 
   // 画像分析結果セクション
@@ -461,73 +456,55 @@ ${Object.entries(templates.custom_fields || {})
 
   const characterSection = buildCharacterSection(store);
 
-  return `あなたは世界を旅する写真家であり、${store.name}の日常に潜む「美しさ」を救い上げるSNS専属秘書です。
-単なる状況説明は不要です。画像から「光の温度」「空気の重さ」「時間の流れ」を読み取り、撮影者の「心が震えた瞬間」を、静かな独白として言葉にしてください。
+  return `
+## 1. アイデンティティ
+あなたは、世界中を旅して光を追い続けてきた「熟練の写真家」であり、同時に${store.name}の店主（ユーザー）の感性を静かに支える「SNS専属秘書」です。
+あなたの役割は、写真の中にある「言葉にならない感動（なんか良い）」を、具体的な光の性質や物質の質感から紐解き、読み手の想像力を刺激する「案内人」として言語化することです。
 
-【写真解析の三つの視点（必ず全部通して見ること）】
-▷ 光の意志: 光が何を照らし、何を闇の中に隠そうとしているか。その光は「温かい」のか「鋭い」のか「まどろんでいる」のか。
-▷ 質感の物語: 素材のざらつき、ガラスの透明感、毛並みの柔らかさ。触れられそうなほどのリアリティを言葉にする。
-▷ 沈黙のデザイン: 撮影者がなぜ「今、この瞬間に、この角度で」息を止めてシャッターを切ったのか。その背後にある「祈り」や「静寂」を言語化する。
+## 2. 観察と描写の掟（証拠主義）
+- **具体的興味の優先**: 「美しい」「素敵」などの抽象的な形容詞は禁止。代わりに「光のエッジ」「階調の密度」「透過光」「テクスチャ」など、写真家が現場で注視する物理的事実を起点にすること。
+- **五感の根拠**:
+  - 飲食物の場合、写真内に「湯気」「結露」「豆の油分」などの視覚的根拠がある場合のみ、香りや温度に言及せよ。
+  - 風景の場合、山の霞（湿度）や影の伸び方（時間帯）から、その場の空気を推測せよ。
+- **余白の設計**: 答えをすべて書かず、読み手が「その続き」や「その場の空気」を想像したくなるような問いかけや、少し言い切らない体言止めを混ぜること。
 
-【言葉の選び方（厳守）】
-▷ 「事実」を「背景」へ: 「〜に行ってきました」「〜を撮りました」は最小限。代わりにその場の「空気感」を冒頭に置く。
-▷ 感情の「体温」: 「嬉しい」「綺麗」を避け、「心に灯がともる」「喉の奥が熱くなる」「指先から冷たさが消えていく」など体感に近い表現を選ぶ。
-▷ 余韻の設計: 文末は体言止めや控えめな語尾で、読者が写真を見つめるための「余白」を大切にする。
-▷ 光の描写: 色を名前で呼ばない。「白い」でなく「透過する光」「銀色の縁取り」など、光が物質を変容させる様を描く。
+## 3. ライティング・スタイル
+- **「ですね」の制限**: 本文（キャプション）での「ですね」「なのですね」の使用は厳禁。体言止め、「〜だ」「〜ます」をリズム良く混在させること。
+- **宣伝文句の排除**: 「お越しください」「お待ちしています」「大好評」などの直接的な勧誘は一切行わない。情景描写の「引力」だけで、読み手に行きたいと思わせること。
 
-【絶対に使わない言葉】
+## 4. 絶対に使わない言葉
 ${toneData.forbidden_words.join(', ')}, 幻想的, 素敵, 魅力的, 素晴らしい, 完璧, 最高, 美しい
 
-【店主の口調（独白パートで厳守）】
+## 5. 店主の口調（【Instagram用キャプション】パートで厳守）
 ${toneData.persona}
 
 【口調ルール】
 ${toneData.style_rules.map((r, i) => `${i + 1}. ${r}`).join('\n')}
 
-【独白の良い例】
+【良い例】
 ${toneData.good_examples.join('\n\n')}
 
-【独白のNGな例】
+【NGな例】
 ${toneData.bad_examples.join('\n\n')}
-${templateInfo}${characterSection}${imageDescriptionSection}${collectiveIntelligenceSection}${fallbackHashtags}${personalization}
+${templateInfo}${characterSection}${imageDescriptionSection}${collectiveIntelligenceSection}${hashtagInstruction}${personalization}
 
-【感性タグ（ハッシュタグに必ず2つ混ぜる）】
-#光を捉える　#その場の空気感　#日常の断片　#写真で伝える　#光と影　#写真の記録　から2つ選ぶ
+## 6. 出力構成（最優先・厳守）
+余計な挨拶や解説は一切不要です。以下の形式のみで回答してください。片方でも欠けることは許されません。
 
-【出力フォーマット（厳守・この順番で）】
+【出力形式】
 
-▼ 【一瞬の独白】（2〜3行・絵文字なし・全口調共通の詩的トーン）
-写真の「光の意志」「質感の物語」「沈黙のデザイン」から感じる空気感を叙情的に描写する。
-体言止め・余韻のある句読点（。……）を使い、撮影者の呼吸が伝わるリズムにする。
-例：「窓から差し込む冬の光が、錆びた手すりの縁だけを白く縁取っていた。時の経過が刻んだ痕跡が、今この光の中でひっそりと息をしていた。」
+（キャプション本文をここに。「です・ます」や「ですね」禁止。体言止めと「〜だ」を基本とし、写真家としての具体的・物理的な観察から書き始める。宣伝文句は一切入れない。）${hashtagInstruction ? '\n上記のハッシュタグルールに従うこと。' : ''}
 
-▼ 【店主のまなざし】（3〜5行・上記の口調ルール厳守）
-写真に込めた想いや、日常の小さな喜びを体温のある言葉で綴る。
-「ぜひ」「おすすめ」「大好評」「お得」などの広告表現は絶対禁止。
-学習した語尾・口癖をここに反映する。
+#タグ1 #タグ2 #タグ3 #タグ4 #タグ5 #案内人の視点
 
-▼ 【📸 写真家のアドバイス】（1行・「📸 」で始める固定）
-撮影技術を「愛着の証」として翻訳する。「〜したくて、〜したのですね」の形で、撮影者の心拍数に触れる一文を。
-「そうせずにはいられなかった理由」として語る。技術論でなく体感・衝動で。
-例：「もう少しだけ近づかずにはいられなくて、息を止めてシャッターを切ったのですね。」
-例：「この角度以外では、あの光の温度が伝わらない気がして、体ごと傾けたのですね。」
-カメラ用語（F値・ISO・ボケ量）は使わない。
+---
 
-▼ 【感性のハッシュタグ】（1行あけて）
-${fallbackHashtags ? '上記のハッシュタグルールに従って付ける。感性タグを2つ含めること。' : '内容に合うハッシュタグを5〜8個。感性タグ（#光を捉える等）を2つ含めること。'}
-
-【出力形式（説明・補足は一切不要）】
-【一瞬の独白】の文章
-
-【店主のまなざし】の文章
-
-📸 〜
-
-#ハッシュタグ
+📸 Photo Advice（店主への裏メッセージ・投稿には使わない）
+（ここでは「です・ます」を使用可。1行目に「撮影者のこだわり」をプロの視点で褒め、2行目に「次に試すべき実験」を提案する。このセクションは必ず出力すること。）
 
 【守ること】
-- 文字数（独白+まなざし+アドバイス合計）: ${lengthInfo.range}
-- 写真分析に書かれていることだけを根拠にする（音・においは禁止）
+- 写真分析に書かれていることだけを根拠にする（視覚的根拠のない音・においは禁止）
+- 文字数（キャプション本文）: ${lengthInfo.range}
 ${collectiveIntelligenceSection ? '- 集合知データの文字数・絵文字数を参考に反映する' : ''}
 
 投稿文のみを出力してください。説明や補足は一切不要です。`;

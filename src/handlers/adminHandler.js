@@ -62,8 +62,8 @@ export async function handleAdminTestData(user, args, replyToken) {
     await replyText(replyToken, `✅ テストデータ投入完了\n\n業種: ${category}\n件数: ${inserted}件`);
     return true;
   } catch (err) {
-    console.error('[Admin] テストデータ投入エラー:', err.message);
-    await replyText(replyToken, `❌ エラー: ${err.message}`);
+    console.error('[Admin] テストデータ投入エラー:', err);
+    await replyText(replyToken, '❌ テストデータ投入中にエラーが発生しました。ログを確認してください。');
     return true;
   }
 }
@@ -88,8 +88,8 @@ export async function handleAdminClearData(user, replyToken) {
     await replyText(replyToken, `✅ データベースクリア完了\n\n削除件数: ${count || 0}件`);
     return true;
   } catch (err) {
-    console.error('[Admin] データクリアエラー:', err.message);
-    await replyText(replyToken, `❌ エラー: ${err.message}`);
+    console.error('[Admin] データクリアエラー:', err);
+    await replyText(replyToken, '❌ データクリア中にエラーが発生しました。ログを確認してください。');
     return true;
   }
 }
@@ -114,8 +114,8 @@ export async function handleAdminClearTestData(user, replyToken) {
     await replyText(replyToken, `✅ テストデータクリア完了\n\n削除件数: ${count || 0}件`);
     return true;
   } catch (err) {
-    console.error('[Admin] テストデータクリアエラー:', err.message);
-    await replyText(replyToken, `❌ エラー: ${err.message}`);
+    console.error('[Admin] テストデータクリアエラー:', err);
+    await replyText(replyToken, '❌ テストデータクリア中にエラーが発生しました。ログを確認してください。');
     return true;
   }
 }
@@ -227,8 +227,8 @@ export async function handleAdminReportSave(user, text, replyToken) {
     }
     return true;
   } catch (err) {
-    console.error('[Admin] 実データ登録エラー:', err.message);
-    await replyText(replyToken, `❌ エラー: ${err.message}`);
+    console.error('[Admin] 実データ登録エラー:', err);
+    await replyText(replyToken, '❌ 実データ登録中にエラーが発生しました。ログを確認してください。');
     return true;
   }
 }
@@ -264,8 +264,8 @@ export async function handleAdminCategoryRequests(user, replyToken) {
     await replyText(replyToken, `⚙️ カテゴリーリクエスト（未対応: ${data.length}件）\n\n${list}\n\ncategoryGroups.js に追加後、/admin category-approve で処理済みにできます。`);
     return true;
   } catch (err) {
-    console.error('[Admin] カテゴリーリクエスト取得エラー:', err.message);
-    await replyText(replyToken, `❌ エラー: ${err.message}`);
+    console.error('[Admin] カテゴリーリクエスト取得エラー:', err);
+    await replyText(replyToken, '❌ カテゴリーリクエスト取得中にエラーが発生しました。ログを確認してください。');
     return true;
   }
 }

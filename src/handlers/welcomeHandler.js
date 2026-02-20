@@ -62,7 +62,7 @@ InstagramやX用の魅力的な投稿文に！
       throw new Error(`LINEプッシュ失敗: ${res.status} ${body}`);
     }
 
-    console.log(`[Welcome] ウェルカムメッセージ送信完了: ${lineUserId}`);
+    console.log(`[Welcome] ウェルカムメッセージ送信完了: ${lineUserId.slice(0, 4)}****`);
   } catch (err) {
     console.error('[Welcome] ウェルカムメッセージ送信エラー:', err.message);
   }

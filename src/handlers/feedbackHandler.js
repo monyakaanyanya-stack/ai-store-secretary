@@ -145,8 +145,8 @@ ${revisedContent}
 
     await replyText(replyToken, message);
   } catch (err) {
-    console.error('[Feedback] 処理エラー:', err.message);
-    await replyText(replyToken, `修正中にエラーが発生しました: ${err.message}`);
+    console.error('[Feedback] 処理エラー:', err);
+    await replyText(replyToken, '修正中にエラーが発生しました。しばらくしてから再度お試しください。');
   }
 }
 

@@ -31,7 +31,7 @@ export async function handleHelpRequest(user, replyToken) {
 例: 「本日のおすすめランチ」`;
 
   await replyText(replyToken, message);
-  console.log(`[Conversation] Help request handled for user: ${user.id}`);
+  console.log(`[Conversation] Help request handled`);
 }
 
 /**
@@ -54,7 +54,7 @@ export async function handleGreeting(user, replyToken) {
 分からない場合は「ヘルプ」と送ってね！`;
 
   await replyText(replyToken, message);
-  console.log(`[Conversation] Greeting handled for user: ${user.id}`);
+  console.log(`[Conversation] Greeting handled`);
 }
 
 /**
@@ -89,5 +89,5 @@ export async function handleConfusion(user, replyToken) {
 詳しくは「ヘルプ」と送ってください。`;
 
   await replyText(replyToken, message);
-  console.log(`[Conversation] Confusion handled for user: ${user.id}`);
+  console.log(`[Conversation] Confusion handled`);
 }

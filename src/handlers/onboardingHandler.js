@@ -43,7 +43,7 @@ ${generateGroupSelectionMessage()}`;
  * オンボーディング中のユーザー入力を処理
  */
 export async function handleOnboardingResponse(user, message, replyToken) {
-  console.log(`[Onboarding] handleOnboardingResponse called: user=${user.id}, message="${message}"`);
+  console.log(`[Onboarding] handleOnboardingResponse called`);
 
   // オンボーディング状態を取得
   const { data: state } = await supabase
@@ -315,12 +315,12 @@ async function handleStoreInfoInput(user, state, input, replyToken) {
 
     await replyText(replyToken, successMessage);
 
-    console.log(`[Onboarding] 店舗登録完了: user=${user.line_user_id}, store=${storeName}, category=${state.selected_category}`);
+    console.log(`[Onboarding] 店舗登録完了: store=${storeName}, category=${state.selected_category}`);
 
     return true;
   } catch (error) {
     console.error('[Onboarding] 店舗登録エラー:', error);
-    await replyText(replyToken, `エラーが発生しました: ${error.message}\n\n「登録」でもう一度やり直してください。`);
+    await replyText(replyToken, 'エラーが発生しました。「登録」でもう一度やり直してください。');
     return true;
   }
 }

@@ -73,6 +73,6 @@ ${totalCount === 0 ?
     await replyText(replyToken, message);
   } catch (err) {
     console.error('[DataStats] データ統計取得エラー:', err.message);
-    await replyText(replyToken, `エラーが発生しました: ${err.message}`);
+    await replyText(replyToken, 'エラーが発生しました。しばらくしてから再度お試しください。');
   }
 }

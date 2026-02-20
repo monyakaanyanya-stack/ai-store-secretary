@@ -1,4 +1,5 @@
 import { supabase } from './supabaseService.js';
+import { encrypt, decrypt } from '../utils/security.js';
 
 const GRAPH_API_BASE = 'https://graph.instagram.com/v21.0';
 
@@ -75,13 +76,16 @@ export async function connectInstagramAccount(storeId, accessToken) {
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 60);
 
+  // トークンを暗号化して保存
+  const encryptedToken = encrypt(accessToken);
+
   const { data, error } = await supabase
     .from('instagram_accounts')
     .upsert({
       store_id: storeId,
       instagram_user_id: accountInfo.id,
       instagram_username: accountInfo.username,
-      access_token: accessToken,
+      access_token: encryptedToken,
       token_expires_at: expiresAt.toISOString(),
       followers_count: accountInfo.followers_count || 0,
       media_count: accountInfo.media_count || 0,
@@ -110,7 +114,19 @@ export async function getInstagramAccount(storeId) {
     .eq('is_active', true)
     .single();
 
-  return data || null;
+  if (!data) return null;
+
+  // トークンを復号（暗号化されている場合）
+  if (data.access_token) {
+    try {
+      data.access_token = decrypt(data.access_token);
+    } catch {
+      // 暗号化されていない旧データの場合はそのまま使用
+      console.warn('[Instagram] トークン復号失敗: 暗号化されていない旧データの可能性があります');
+    }
+  }
+
+  return data;
 }
 
 /**

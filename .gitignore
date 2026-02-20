@@ -1,3 +1,43 @@
+# Dependencies
 node_modules/
+
+# Environment variables (all variants)
 .env
+.env.local
+.env.production
+.env.staging
+.env.*.local
+
+# Logs
 *.log
+logs/
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Build output
+dist/
+build/
+coverage/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Credentials and secrets
+*.pem
+*.key
+*.cert
+credentials.json
+service-account*.json

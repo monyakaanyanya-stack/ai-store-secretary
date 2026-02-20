@@ -33,7 +33,7 @@ export async function getOrCreateUser(lineUserId) {
     .single();
 
   if (error) throw new Error(`ユーザー作成失敗: ${error.message}`);
-  console.log(`[Supabase] 新規ユーザー作成: ${lineUserId}`);
+  console.log(`[Supabase] 新規ユーザー作成: ${lineUserId.slice(0, 4)}****`);
   return newUser;
 }
 

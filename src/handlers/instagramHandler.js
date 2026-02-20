@@ -63,8 +63,8 @@ async function handleInstagramStatus(user, replyToken) {
     const status = await getInstagramConnectionStatus(user.current_store_id);
     await replyText(replyToken, status);
   } catch (err) {
-    console.error('[Instagram] 状態確認エラー:', err.message);
-    await replyText(replyToken, `❌ エラー: ${err.message}`);
+    console.error('[Instagram] 状態確認エラー:', err);
+    await replyText(replyToken, '❌ エラーが発生しました。しばらくしてから再度お試しください。');
   }
   return true;
 }
@@ -102,8 +102,8 @@ async function handleInstagramConnect(user, token, replyToken) {
 
 と送信してください。`);
   } catch (err) {
-    console.error('[Instagram] 連携エラー:', err.message);
-    await replyText(replyToken, `❌ 連携失敗: ${err.message}\n\nトークンを確認してください。`);
+    console.error('[Instagram] 連携エラー:', err);
+    await replyText(replyToken, '❌ 連携に失敗しました。トークンが正しいか確認してください。');
   }
   return true;
 }
@@ -116,8 +116,8 @@ async function handleInstagramSync(user, replyToken) {
 
     await replyText(replyToken, `✅ 同期完了！\n\n新規取得: ${synced}件\n\n統計を確認するには:\n/instagram stats`);
   } catch (err) {
-    console.error('[Instagram] 同期エラー:', err.message);
-    await replyText(replyToken, `❌ 同期失敗: ${err.message}`);
+    console.error('[Instagram] 同期エラー:', err);
+    await replyText(replyToken, '❌ 同期に失敗しました。トークンの有効期限を確認してください。');
   }
   return true;
 }
@@ -145,8 +145,8 @@ async function handleInstagramStats(user, replyToken) {
 平均リーチ: ${stats.avgReach.toLocaleString()}
 平均ER: ${stats.avgER}%${hashtagSection}${topPostPreview}`);
   } catch (err) {
-    console.error('[Instagram] 統計エラー:', err.message);
-    await replyText(replyToken, `❌ エラー: ${err.message}`);
+    console.error('[Instagram] 統計エラー:', err);
+    await replyText(replyToken, '❌ 統計の取得に失敗しました。しばらくしてから再度お試しください。');
   }
   return true;
 }
@@ -167,8 +167,8 @@ async function handleInstagramDisconnect(user, replyToken) {
 
     await replyText(replyToken, '✅ Instagram連携を解除しました。\n\n再連携する場合は:\n/instagram connect [トークン]');
   } catch (err) {
-    console.error('[Instagram] 解除エラー:', err.message);
-    await replyText(replyToken, `❌ エラー: ${err.message}`);
+    console.error('[Instagram] 解除エラー:', err);
+    await replyText(replyToken, '❌ 解除に失敗しました。しばらくしてから再度お試しください。');
   }
   return true;
 }

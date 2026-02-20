@@ -181,7 +181,10 @@ export async function handleTextMessage(user, text, replyToken) {
 
   // 問い合わせ
   if (trimmed === '問い合わせ') {
-    const contactEmail = process.env.CONTACT_EMAIL || 'rion.monya0224@gmail.com';
+    const contactEmail = process.env.CONTACT_EMAIL;
+    if (!contactEmail) {
+      return await replyText(replyToken, '📩 お問い合わせ\n\n現在、お問い合わせ先が設定されていません。\n管理者にご連絡ください。');
+    }
     return await replyText(replyToken, `📩 お問い合わせ
 
 ご不明な点やご要望は、以下のメールアドレスまでお気軽にどうぞ！
@@ -360,8 +363,8 @@ async function handleStoreRegistration(user, text, replyToken) {
       `✅ 店舗「${store.name}」を登録しました！\n\n業種: ${store.category || '未設定'}\nこだわり: ${store.strength}\n口調: ${store.tone}\n\nこの店舗が選択中です。画像やテキストを送ると投稿案を作成します。`
     );
   } catch (err) {
-    console.error('[Store] 登録エラー:', err.message);
-    await replyText(replyToken, `店舗登録中にエラーが発生しました: ${err.message}`);
+    console.error('[Store] 登録エラー:', err);
+    await replyText(replyToken, '店舗登録中にエラーが発生しました。しばらくしてから再度お試しください。');
   }
 }
 
@@ -387,8 +390,8 @@ async function handleStoreSwitch(user, storeName, replyToken) {
     await updateCurrentStore(user.id, target.id);
     await replyText(replyToken, `✅ 店舗を「${target.name}」に切り替えました。`);
   } catch (err) {
-    console.error('[Store] 切替エラー:', err.message);
-    await replyText(replyToken, `店舗切替中にエラーが発生しました: ${err.message}`);
+    console.error('[Store] 切替エラー:', err);
+    await replyText(replyToken, '店舗切替中にエラーが発生しました。しばらくしてから再度お試しください。');
   }
 }
 
@@ -478,8 +481,8 @@ ${postContent}
 
     await replyText(replyToken, formattedReply);
   } catch (err) {
-    console.error('[Post] テキスト投稿生成エラー:', err.message);
-    await replyText(replyToken, `投稿生成中にエラーが発生しました: ${err.message}`);
+    console.error('[Post] テキスト投稿生成エラー:', err);
+    await replyText(replyToken, '投稿生成中にエラーが発生しました。しばらくしてから再度お試しください。');
   }
 }
 
@@ -591,8 +594,8 @@ async function handleStoreUpdate(user, updateData, replyToken) {
     console.log(`[Store] 更新完了: ${store.name} → ${summary.join(', ')}`);
     await replyText(replyToken, `✅ 店舗情報を更新しました！\n\n${summary.join('\n')}`);
   } catch (err) {
-    console.error('[Store] 更新エラー:', err.message);
-    await replyText(replyToken, `更新中にエラーが発生しました: ${err.message}`);
+    console.error('[Store] 更新エラー:', err);
+    await replyText(replyToken, '更新中にエラーが発生しました。しばらくしてから再度お試しください。');
   }
 }
 
@@ -625,8 +628,8 @@ async function handlePostLength(user, lengthParam, replyToken) {
       `✅ デフォルトの投稿長を「${lengthInfo.description} (${lengthInfo.range})」に設定しました。`
     );
   } catch (err) {
-    console.error('[Settings] 長さ設定エラー:', err.message);
-    await replyText(replyToken, `設定中にエラーが発生しました: ${err.message}`);
+    console.error('[Settings] 長さ設定エラー:', err);
+    await replyText(replyToken, '設定中にエラーが発生しました。しばらくしてから再度お試しください。');
   }
 }
 
@@ -676,8 +679,8 @@ async function handleTemplate(user, templateData, replyToken) {
       `✅ テンプレート情報を更新しました:\n\n${summary.join('\n')}`
     );
   } catch (err) {
-    console.error('[Template] 更新エラー:', err.message);
-    await replyText(replyToken, `更新中にエラーが発生しました: ${err.message}`);
+    console.error('[Template] 更新エラー:', err);
+    await replyText(replyToken, '更新中にエラーが発生しました。しばらくしてから再度お試しください。');
   }
 }
 
@@ -719,8 +722,8 @@ async function handleShowSettings(user, replyToken) {
 
     await replyText(replyToken, message);
   } catch (err) {
-    console.error('[Settings] 確認エラー:', err.message);
-    await replyText(replyToken, `エラーが発生しました: ${err.message}`);
+    console.error('[Settings] 確認エラー:', err);
+    await replyText(replyToken, 'エラーが発生しました。しばらくしてから再度お試しください。');
   }
 }
 
@@ -780,8 +783,8 @@ ${postContent}
 
     await replyText(replyToken, formattedReply);
   } catch (err) {
-    console.error('[Post] 生成エラー:', err.message);
-    await replyText(replyToken, `投稿生成中にエラーが発生しました: ${err.message}`);
+    console.error('[Post] 生成エラー:', err);
+    await replyText(replyToken, '投稿生成中にエラーが発生しました。しばらくしてから再度お試しください。');
   }
 }
 
@@ -828,8 +831,8 @@ ${fields.map((f, i) => `${i + 1}. ${f}`).join('\n')}
 
     await replyText(replyToken, message);
   } catch (err) {
-    console.error('[Template] 削除プロンプトエラー:', err.message);
-    await replyText(replyToken, `エラーが発生しました: ${err.message}`);
+    console.error('[Template] 削除プロンプトエラー:', err);
+    await replyText(replyToken, 'エラーが発生しました。しばらくしてから再度お試しください。');
   }
 }
 
@@ -895,8 +898,8 @@ async function handleTemplateDelete(user, fieldToDelete, replyToken) {
 
     await replyText(replyToken, `✅ テンプレートを削除しました:\n${deletedFields.join(', ')}`);
   } catch (err) {
-    console.error('[Template] 削除エラー:', err.message);
-    await replyText(replyToken, `削除中にエラーが発生しました: ${err.message}`);
+    console.error('[Template] 削除エラー:', err);
+    await replyText(replyToken, '削除中にエラーが発生しました。しばらくしてから再度お試しください。');
   }
 }
 
@@ -937,8 +940,8 @@ NGワード: ありがとうございます、させていただきます
 
     await replyText(replyToken, message);
   } catch (err) {
-    console.error('[Character] 設定プロンプトエラー:', err.message);
-    await replyText(replyToken, `エラーが発生しました: ${err.message}`);
+    console.error('[Character] 設定プロンプトエラー:', err);
+    await replyText(replyToken, 'エラーが発生しました。しばらくしてから再度お試しください。');
   }
 }
 
@@ -980,8 +983,8 @@ async function handleCharacterSettingsSave(user, text, replyToken) {
 
     await replyText(replyToken, `✅ キャラクター設定を保存しました！\n\n${summary.join('\n')}\n\n次回の投稿からこの個性が反映されます🎭`);
   } catch (err) {
-    console.error('[Character] 設定保存エラー:', err.message);
-    await replyText(replyToken, `エラーが発生しました: ${err.message}`);
+    console.error('[Character] 設定保存エラー:', err);
+    await replyText(replyToken, 'エラーが発生しました。しばらくしてから再度お試しください。');
   }
 }
 
@@ -996,8 +999,8 @@ async function handleSeasonalMemory(user, replyToken) {
     const status = await getSeasonalMemoryStatus(user.current_store_id);
     await replyText(replyToken, status);
   } catch (err) {
-    console.error('[SeasonalMemory] 表示エラー:', err.message);
-    await replyText(replyToken, `エラーが発生しました: ${err.message}`);
+    console.error('[SeasonalMemory] 表示エラー:', err);
+    await replyText(replyToken, 'エラーが発生しました。しばらくしてから再度お試しください。');
   }
 }
 
@@ -1013,8 +1016,8 @@ async function handleLearningStatus(user, replyToken) {
     const status = await getLearningStatus(store.id, store.category);
     await replyText(replyToken, status);
   } catch (err) {
-    console.error('[Learning] 学習状況取得エラー:', err.message);
-    await replyText(replyToken, `学習状況の取得中にエラーが発生しました: ${err.message}`);
+    console.error('[Learning] 学習状況取得エラー:', err);
+    await replyText(replyToken, '学習状況の取得中にエラーが発生しました。しばらくしてから再度お試しください。');
   }
 }
 
@@ -1082,8 +1085,8 @@ async function handlePositiveFeedback(user, replyToken) {
     console.log(`[Feedback] 👍 良い評価: store=${store.name}`);
     await replyText(replyToken, '👍 ありがとうございます！\n\nこのスタイルを学習しました。次回からこの方向性で生成します！');
   } catch (err) {
-    console.error('[Feedback] 👍 処理エラー:', err.message);
-    await replyText(replyToken, `エラーが発生しました: ${err.message}`);
+    console.error('[Feedback] 👍 処理エラー:', err);
+    await replyText(replyToken, 'エラーが発生しました。しばらくしてから再度お試しください。');
   }
 }
 
@@ -1115,8 +1118,8 @@ async function handleNegativeFeedback(user, replyToken) {
     console.log(`[Feedback] 👎 イマイチ評価: store=${store.name}`);
     await replyText(replyToken, '👎 フィードバックありがとうございます。\n\n「直し: 〜」で具体的に修正指示を送っていただけると、より精度が上がります！');
   } catch (err) {
-    console.error('[Feedback] 👎 処理エラー:', err.message);
-    await replyText(replyToken, `エラーが発生しました: ${err.message}`);
+    console.error('[Feedback] 👎 処理エラー:', err);
+    await replyText(replyToken, 'エラーが発生しました。しばらくしてから再度お試しください。');
   }
 }
 
@@ -1131,11 +1134,11 @@ async function handleDisableReminder(user, replyToken) {
 
     if (error) throw error;
 
-    console.log(`[Reminder] リマインダー停止: user=${user.line_user_id}`);
+    console.log(`[Reminder] リマインダー停止`);
     await replyText(replyToken, '✅ デイリーリマインダーを停止しました。\n\n再開したい場合は「リマインダー再開」と送信してください。');
   } catch (err) {
-    console.error('[Reminder] 停止エラー:', err.message);
-    await replyText(replyToken, `エラーが発生しました: ${err.message}`);
+    console.error('[Reminder] 停止エラー:', err);
+    await replyText(replyToken, 'エラーが発生しました。しばらくしてから再度お試しください。');
   }
 }
 
@@ -1150,10 +1153,10 @@ async function handleEnableReminder(user, replyToken) {
 
     if (error) throw error;
 
-    console.log(`[Reminder] リマインダー再開: user=${user.line_user_id}`);
+    console.log(`[Reminder] リマインダー再開`);
     await replyText(replyToken, '✅ デイリーリマインダーを再開しました。\n\n毎朝10時に報告のリマインドをお送りします！');
   } catch (err) {
-    console.error('[Reminder] 再開エラー:', err.message);
-    await replyText(replyToken, `エラーが発生しました: ${err.message}`);
+    console.error('[Reminder] 再開エラー:', err);
+    await replyText(replyToken, 'エラーが発生しました。しばらくしてから再度お試しください。');
   }
 }

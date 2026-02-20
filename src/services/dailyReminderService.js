@@ -31,7 +31,7 @@ export async function sendDailyReminders() {
     for (const user of users) {
       // 同じLINE IDに複数回送信しないようにチェック
       if (sentLineUserIds.has(user.line_user_id)) {
-        console.log(`[DailyReminder] スキップ（重複）: ${user.line_user_id}`);
+        console.log(`[DailyReminder] スキップ（重複）: ${user.line_user_id.slice(0, 4)}****`);
         skipCount++;
         continue;
       }
@@ -58,7 +58,7 @@ export async function sendDailyReminders() {
           skipCount++;
         }
       } catch (err) {
-        console.error(`[DailyReminder] ユーザー ${user.line_user_id} への送信エラー:`, err.message);
+        console.error(`[DailyReminder] ユーザー ${user.line_user_id.slice(0, 4)}**** への送信エラー:`, err.message);
       }
     }
 
@@ -88,7 +88,7 @@ async function sendReminderToUser(lineUserId) {
   };
 
   await pushMessage(lineUserId, [message]);
-  console.log(`[DailyReminder] 送信完了: ${lineUserId}`);
+  console.log(`[DailyReminder] 送信完了: ${lineUserId.slice(0, 4)}****`);
 }
 
 /**

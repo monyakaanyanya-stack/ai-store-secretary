@@ -6,6 +6,8 @@ import { handleImageMessage } from './src/handlers/imageHandler.js';
 import { getOrCreateUser } from './src/services/supabaseService.js';
 import { startScheduler } from './src/services/scheduler.js';
 import { sendWelcomeMessage } from './src/handlers/welcomeHandler.js';
+import { checkRateLimit, maskUserId } from './src/utils/security.js';
+import { replyText } from './src/services/lineService.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -13,6 +15,17 @@ const PORT = process.env.PORT || 3000;
 const lineConfig = {
   channelSecret: process.env.LINE_CHANNEL_SECRET,
 };
+
+// ==================== セキュリティヘッダー ====================
+app.disable('x-powered-by');
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  next();
+});
 
 // LINE Webhook は raw body が必要（署名検証用）
 app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
@@ -44,7 +57,7 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
     try {
       await processEvent(event);
     } catch (err) {
-      console.error('[Webhook] イベント処理エラー:', err.message);
+      console.error('[Webhook] イベント処理エラー:', err);
     }
   }
 });
@@ -54,7 +67,7 @@ async function processEvent(event) {
 
   // フォローイベント（友だち追加）
   if (event.type === 'follow') {
-    console.log(`[Event] follow event: user=${lineUserId}`);
+    console.log(`[Event] follow event: user=${maskUserId(lineUserId)}`);
     await sendWelcomeMessage(lineUserId);
     return;
   }
@@ -63,9 +76,17 @@ async function processEvent(event) {
 
   const replyToken = event.replyToken;
 
+  // ==================== レート制限チェック ====================
+  const rateCheck = checkRateLimit(lineUserId);
+  if (!rateCheck.allowed) {
+    console.warn(`[RateLimit] ユーザー ${maskUserId(lineUserId)} がレート制限に到達`);
+    await replyText(replyToken, 'メッセージの送信が多すぎます。少し待ってから再度お試しください。');
+    return;
+  }
+
   // ユーザー取得 or 新規作成
   const user = await getOrCreateUser(lineUserId);
-  console.log(`[Event] user=${lineUserId}, type=${event.message.type}`);
+  console.log(`[Event] user=${maskUserId(lineUserId)}, type=${event.message.type}`);
 
   switch (event.message.type) {
     case 'text':
@@ -80,13 +101,13 @@ async function processEvent(event) {
   }
 }
 
-// ヘルスチェック
+// ヘルスチェック（サービス名を隠す）
 app.get('/', (req, res) => {
-  res.json({ status: 'ok', service: 'AI Store Secretary' });
+  res.json({ status: 'ok' });
 });
 
 app.listen(PORT, () => {
-  console.log(`[Server] AI Store Secretary が起動しました (port: ${PORT})`);
+  console.log(`[Server] サーバー起動完了 (port: ${PORT})`);
 
   // スケジューラー起動
   startScheduler();

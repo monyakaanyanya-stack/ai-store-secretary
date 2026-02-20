@@ -86,7 +86,7 @@ ${postContent}
 
     await replyText(replyToken, formattedReply);
   } catch (err) {
-    console.error('[Image] 画像投稿生成エラー:', err.message);
-    await replyText(replyToken, `投稿生成中にエラーが発生しました: ${err.message}`);
+    console.error('[Image] 画像投稿生成エラー:', err);
+    await replyText(replyToken, '投稿生成中にエラーが発生しました。しばらくしてから再度お試しください。');
   }
 }

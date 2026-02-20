@@ -5,7 +5,7 @@ import { supabase, getStore, getStoresByUser, deleteStore, updateCurrentStore } 
  * データリセット確認メッセージ
  */
 export async function handleDataResetPrompt(user, replyToken) {
-  console.log(`[DataReset] handleDataResetPrompt called: user=${user.id}, store=${user.current_store_id}`);
+  console.log(`[DataReset] handleDataResetPrompt called`);
 
   if (!user.current_store_id) {
     console.warn(`[DataReset] 店舗未選択: user=${user.id}`);
@@ -91,7 +91,7 @@ AIは初期状態に戻りました。
     await replyText(replyToken, message);
   } catch (err) {
     console.error('[DataReset] エラー:', err.message);
-    await replyText(replyToken, `リセット中にエラーが発生しました: ${err.message}`);
+    await replyText(replyToken, 'リセット中にエラーが発生しました。しばらくしてから再度お試しください。');
   }
 }
 
@@ -181,6 +181,6 @@ export async function handleStoreDeleteExecution(user, replyToken) {
     await replyText(replyToken, `✅ 「${storeName}」を削除しました。${switchMessage}`);
   } catch (err) {
     console.error('[StoreDelete] エラー:', err.message);
-    await replyText(replyToken, `削除中にエラーが発生しました: ${err.message}`);
+    await replyText(replyToken, '削除中にエラーが発生しました。しばらくしてから再度お試しください。');
   }
 }
