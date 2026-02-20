@@ -498,7 +498,7 @@ ${templateInfo}${characterSection}${imageDescriptionSection}${collectiveIntellig
 #タグ1 #タグ2 #タグ3 #タグ4 #タグ5 #案内人の視点
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📸 Photo Advice（投稿には使わない・店主への裏メッセージ）
+📸 Photo Advice
 
 この写真で「効いていた」構図や視点を、話しかけるように1〜2文で褒める。
 箇条書きや【】見出しは使わず、友人に話すような自然な文体で書く。
