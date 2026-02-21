@@ -666,7 +666,7 @@ async function handleTemplateHelp(user, replyToken) {
 
 【ハッシュタグを固定登録】
 毎回必ず使いたいタグをあらかじめ登録できます。
-テンプレート: ハッシュタグ:#カフェ #コーヒー #おうちカフェ
+テンプレート: #カフェ #コーヒー #おうちカフェ
 
 ※ 登録したタグが最初に使われ、
 　その後に内容に合うタグ・業種タグが追加されます
@@ -696,6 +696,20 @@ async function handleTemplate(user, templateData, replyToken) {
       ...existingTemplates,
       custom_fields: { ...(existingTemplates.custom_fields || {}) },
     };
+
+    // 「テンプレート: #カフェ #コーヒー」のように#で始まる場合はそのままハッシュタグとして登録
+    if (templateData.trim().startsWith('#')) {
+      templates.hashtags = templateData.trim().split(/\s+/).filter(t => t.startsWith('#'));
+      const newConfig = {
+        ...(store.config || {}),
+        templates,
+      };
+      await updateStoreConfig(store.id, newConfig);
+      await replyText(replyToken,
+        `✅ ハッシュタグを更新しました:\n\n${templates.hashtags.join(' ')}`
+      );
+      return;
+    }
 
     // ハッシュタグだけ先に正規表現で抽出（#タグにスペースが含まれるため）
     const hashtagMatch = templateData.match(/(?:ハッシュタグ|hashtag|タグ)\s*[:：]\s*((?:#\S+\s*)+)/i);
@@ -1126,7 +1140,7 @@ const HELP_TEXT = `📖 AI店舗秘書の使い方
 ・テンプレート: 住所:〇〇,営業時間:〇〇 → 投稿末尾に自動で含まれる情報を登録
 　例）テンプレート: 住所:東京都渋谷区〇〇,営業時間:10:00-20:00
 　住所・営業時間以外も登録可（例: 電話:03-xxxx-xxxx）
-・テンプレート: ハッシュタグ:#カフェ #コーヒー #おうちカフェ → 毎回必ず使うタグを登録
+・テンプレート: #カフェ #コーヒー #おうちカフェ → 毎回必ず使うタグを登録
 　登録したタグが先頭に入り、その後に内容に合うタグが追加されます
 ・テンプレート削除 → テンプレート削除（対話形式）
 ・設定確認 → 現在の設定を表示
