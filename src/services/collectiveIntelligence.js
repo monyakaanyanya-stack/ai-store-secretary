@@ -1,6 +1,7 @@
 import { supabase } from './supabaseService.js';
 import { getCategoryGroup } from '../config/categoryGroups.js';
 import { validateEngagementMetrics, isStatisticalOutlier } from '../config/validationRules.js';
+import { analyzePostStructure, extractWinningPattern } from '../utils/postAnalyzer.js';
 
 /**
  * 同じカテゴリーの店舗から集合知を取得
@@ -123,6 +124,9 @@ function analyzeEngagementData(data) {
     return sum + si;
   }, 0) / topPosts.length;
 
+  // 上位20件の骨格パターンから「勝ちパターン」を抽出
+  const winningPattern = extractWinningPattern(topPosts, 3);
+
   return {
     topHashtags,
     avgLength: Math.round(avgLength),
@@ -130,6 +134,7 @@ function analyzeEngagementData(data) {
     topPostsAvgLength: Math.round(topPostsAvgLength),
     avgSaveIntensity: parseFloat(avgSaveIntensity.toFixed(3)),
     topPostsAvgSaveIntensity: parseFloat(topPostsAvgSaveIntensity.toFixed(3)),
+    winningPattern, // 勝ちパターン（3件以上でないとnull）
     bestPostingHours,
     sampleSize: data.length,
     // engagement_rate は実リーチ入力ありのデータのみ平均（信頼性のある値だけ使う）
@@ -233,6 +238,7 @@ export async function saveEngagementMetrics(storeId, category, postData, metrics
     engagement_rate: metrics.engagement_rate || 0,
     save_intensity: metrics.save_intensity || 0,
     reaction_index: metrics.reaction_index || 0,
+    post_structure: analyzePostStructure(postData.content), // 投稿骨格を解析して保存
     post_time: new Date().toTimeString().slice(0, 8),
     day_of_week: new Date().getDay(),
   };

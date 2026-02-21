@@ -430,6 +430,19 @@ export function buildImagePostPrompt(store, learningData, lengthOverride = null,
       insights.push(`【参考】最適投稿時間帯: ${bestHours.join('時, ')}時`);
     }
 
+    // 勝ちパターン（自店舗または同業種の高保存強度投稿の骨格）
+    const winningPattern = own?.winningPattern || category?.winningPattern || group?.winningPattern;
+    if (winningPattern) {
+      const hookJp = buildHookTypeJapanese(winningPattern.dominantHookType);
+      const ctaJp = buildCTAPositionJapanese(winningPattern.dominantCTAPosition);
+      const lineBreakNote = winningPattern.avgLineBreakDensity >= 0.06
+        ? '多め（縦長・読みやすい構造）'
+        : winningPattern.avgLineBreakDensity >= 0.03
+        ? '標準的'
+        : '少なめ（まとまった段落）';
+      insights.push(`【保存されやすい投稿の型（${winningPattern.sampleSize}件の分析）】\n・1行目: ${hookJp}（${winningPattern.dominantHookRatio}%）\n・CTA位置: ${ctaJp}\n・改行: ${lineBreakNote}\nこの型を意識して書くと保存されやすい`);
+    }
+
     if (insights.length > 0) {
       collectiveIntelligenceSection = `\n━━━━━━━━━━━━━━━━━━━━━━━━\n📊 集合知データ（同業種${category?.sampleSize || 0}件・保存強度ベース）\n━━━━━━━━━━━━━━━━━━━━━━━━\n${insights.join('\n\n')}\n━━━━━━━━━━━━━━━━━━━━━━━━\n`;
     }
@@ -572,6 +585,19 @@ export function buildTextPostPrompt(store, learningData, userText, lengthOverrid
       insights.push(`【参考】最適投稿時間帯: ${bestHours.join('時, ')}時`);
     }
 
+    // 勝ちパターン
+    const winningPattern = own?.winningPattern || category?.winningPattern || group?.winningPattern;
+    if (winningPattern) {
+      const hookJp = buildHookTypeJapanese(winningPattern.dominantHookType);
+      const ctaJp = buildCTAPositionJapanese(winningPattern.dominantCTAPosition);
+      const lineBreakNote = winningPattern.avgLineBreakDensity >= 0.06
+        ? '多め（縦長・読みやすい構造）'
+        : winningPattern.avgLineBreakDensity >= 0.03
+        ? '標準的'
+        : '少なめ（まとまった段落）';
+      insights.push(`【保存されやすい投稿の型（${winningPattern.sampleSize}件の分析）】\n・1行目: ${hookJp}（${winningPattern.dominantHookRatio}%）\n・CTA位置: ${ctaJp}\n・改行: ${lineBreakNote}\nこの型を意識して書くと保存されやすい`);
+    }
+
     if (insights.length > 0) {
       collectiveIntelligenceSection = `\n━━━━━━━━━━━━━━━━━━━━━━━━\n📊 集合知データ（同業種${category?.sampleSize || 0}件・保存強度ベース）\n━━━━━━━━━━━━━━━━━━━━━━━━\n${insights.join('\n\n')}\n━━━━━━━━━━━━━━━━━━━━━━━━\n`;
     }
@@ -679,6 +705,33 @@ export function appendTemplateFooter(postContent, store) {
 
   // ハッシュタグも区切り線もない場合は末尾に追記
   return `${postContent}\n\n${infoLines.join('\n')}`;
+}
+
+/**
+ * hook_typeを日本語に変換（promptBuilder内部用）
+ */
+function buildHookTypeJapanese(hookType) {
+  const map = {
+    emotion: '感情・本音先行（「やばい」「好きすぎ」など）',
+    question: '問いかけ（「〜知ってる？」など）',
+    taigen_dome: '体言止め（短い名詞で余白を作る）',
+    fact: '事実・お知らせ先行',
+    unknown: '様々',
+  };
+  return map[hookType] || hookType;
+}
+
+/**
+ * CTA位置を日本語に変換（promptBuilder内部用）
+ */
+function buildCTAPositionJapanese(pos) {
+  const map = {
+    none: 'CTAなし',
+    early: '冒頭（行動喚起を最初に）',
+    middle: '中盤',
+    end: '末尾（最後に行動喚起）',
+  };
+  return map[pos] || pos;
 }
 
 /**
