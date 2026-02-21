@@ -163,6 +163,18 @@ export async function handleTextMessage(user, text, replyToken) {
     return await handlePostLength(user, length, replyToken);
   }
 
+  // テンプレート登録の説明表示
+  if (
+    trimmed === 'テンプレート登録' ||
+    trimmed === 'テンプレ登録' ||
+    trimmed === 'テンプレ登録したい' ||
+    trimmed === 'テンプレート登録したい' ||
+    trimmed === 'テンプレート設定' ||
+    trimmed === 'テンプレ設定'
+  ) {
+    return await handleTemplateHelp(user, replyToken);
+  }
+
   // テンプレート設定: 「テンプレート: address:住所」など
   if (trimmed.startsWith('テンプレート:') || trimmed.startsWith('テンプレート:')) {
     const templateData = trimmed.replace(/^テンプレート[:：]\s*/, '');
@@ -631,6 +643,34 @@ async function handlePostLength(user, lengthParam, replyToken) {
     console.error('[Settings] 長さ設定エラー:', err);
     await replyText(replyToken, '設定中にエラーが発生しました。しばらくしてから再度お試しください。');
   }
+}
+
+// ==================== テンプレート登録ヘルプ ====================
+
+async function handleTemplateHelp(user, replyToken) {
+  const message = `📋 テンプレート登録の使い方
+
+投稿の末尾に毎回自動で追加する情報を登録できます。
+
+【登録方法】
+テンプレート: 住所:〇〇,営業時間:〇〇
+
+【具体例】
+テンプレート: 住所:東京都渋谷区神南1-1-1,営業時間:10:00〜20:00
+
+【住所・営業時間以外も登録可】
+テンプレート: 電話:03-1234-5678,予約:完全予約制,駐車場:あり
+
+【複数まとめて登録】
+テンプレート: 住所:大阪市中央区〇〇,営業時間:11:00〜19:00,電話:06-1234-5678
+
+━━━━━━━━━━━
+登録後は投稿のたびに自動で末尾に含まれます。
+
+「設定確認」→ 現在のテンプレートを確認
+「テンプレート削除」→ テンプレートを削除`;
+
+  await replyText(replyToken, message);
 }
 
 // ==================== テンプレート設定 ====================
