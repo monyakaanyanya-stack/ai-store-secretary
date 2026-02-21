@@ -16,6 +16,7 @@ export async function getCategoryInsights(category, limit = 100) {
     .from('engagement_metrics')
     .select('*')
     .eq('category', category)
+    .eq('status', '報告済')                          // 未報告（数値ゼロ）を除外
     .order('save_intensity', { ascending: false })  // 保存強度でランキング
     .limit(limit);
 
@@ -40,6 +41,7 @@ export async function getGroupInsights(categoryGroup, limit = 200) {
     .from('engagement_metrics')
     .select('*')
     .eq('category_group', categoryGroup)
+    .eq('status', '報告済')                          // 未報告（数値ゼロ）を除外
     .order('save_intensity', { ascending: false })  // 保存強度でランキング
     .limit(limit);
 
@@ -184,6 +186,7 @@ async function getOwnStoreInsights(storeId) {
     .from('engagement_metrics')
     .select('*')
     .eq('store_id', storeId)
+    .eq('status', '報告済')          // 未報告（数値ゼロ）を除外
     .order('created_at', { ascending: false })
     .limit(50);
 
@@ -221,6 +224,10 @@ function getDefaultInsights() {
 export async function saveEngagementMetrics(storeId, category, postData, metrics = {}) {
   const categoryGroup = getCategoryGroup(category);
 
+  // ステータス判定：いいね or 保存が入っていれば「報告済」、なければ「未報告」
+  // 未報告レコードは集合知・勝ちパターンの学習対象から除外される
+  const isReported = (metrics.likes_count > 0 || metrics.saves_count > 0);
+
   // データ準備
   const metricsData = {
     store_id: storeId,
@@ -242,6 +249,7 @@ export async function saveEngagementMetrics(storeId, category, postData, metrics
     post_structure: analyzePostStructure(postData.content), // 投稿骨格を解析して保存
     post_time: new Date().toTimeString().slice(0, 8),
     day_of_week: new Date().getDay(),
+    status: isReported ? '報告済' : '未報告',
   };
 
   // バリデーション実行
