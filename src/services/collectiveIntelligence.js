@@ -15,7 +15,7 @@ export async function getCategoryInsights(category, limit = 100) {
     .from('engagement_metrics')
     .select('*')
     .eq('category', category)
-    .order('engagement_rate', { ascending: false })
+    .order('save_intensity', { ascending: false })  // 保存強度でランキング
     .limit(limit);
 
   if (error || !data || data.length === 0) {
@@ -39,7 +39,7 @@ export async function getGroupInsights(categoryGroup, limit = 200) {
     .from('engagement_metrics')
     .select('*')
     .eq('category_group', categoryGroup)
-    .order('engagement_rate', { ascending: false })
+    .order('save_intensity', { ascending: false })  // 保存強度でランキング
     .limit(limit);
 
   if (error || !data || data.length === 0) {
@@ -57,27 +57,31 @@ export async function getGroupInsights(categoryGroup, limit = 200) {
 function analyzeEngagementData(data) {
   if (!data || data.length === 0) return getDefaultInsights();
 
-  // ハッシュタグのエンゲージメント率分析（使用回数ではなく効果で判定）
+  // ハッシュタグの保存強度分析（使用回数ではなく保存強度で判定）
   const hashtagMetrics = {};
   data.forEach(post => {
-    if (post.hashtags && post.engagement_rate != null) {
+    // save_intensityがある投稿を優先、なければいいね数が正の投稿を使用
+    const intensity = post.save_intensity != null ? post.save_intensity
+      : (post.likes_count > 0 ? (post.saves_count / post.likes_count) : 0);
+
+    if (post.hashtags) {
       post.hashtags.forEach(tag => {
-        if (!hashtagMetrics[tag]) hashtagMetrics[tag] = { rates: [], count: 0 };
-        hashtagMetrics[tag].rates.push(post.engagement_rate);
+        if (!hashtagMetrics[tag]) hashtagMetrics[tag] = { intensities: [], count: 0 };
+        hashtagMetrics[tag].intensities.push(intensity);
         hashtagMetrics[tag].count++;
       });
     }
   });
 
-  // 平均エンゲージメント率でソート（データが少ない場合は1件からでも反映）
+  // 平均保存強度でソート（データが少ない場合は1件からでも反映）
   const minCount = Object.values(hashtagMetrics).some(d => d.count >= 3) ? 3 : 1;
   const topHashtags = Object.entries(hashtagMetrics)
     .filter(([, d]) => d.count >= minCount)
     .map(([tag, d]) => ({
       tag,
-      avgEngagementRate: d.rates.reduce((a, b) => a + b, 0) / d.rates.length,
+      avgSaveIntensity: d.intensities.reduce((a, b) => a + b, 0) / d.intensities.length,
     }))
-    .sort((a, b) => b.avgEngagementRate - a.avgEngagementRate)
+    .sort((a, b) => b.avgSaveIntensity - a.avgSaveIntensity)
     .slice(0, 10)
     .map(item => item.tag);
 
@@ -105,14 +109,35 @@ function analyzeEngagementData(data) {
     .slice(0, 3)
     .map(([hour]) => parseInt(hour));
 
+  // 保存強度の平均（メイン指標）
+  const avgSaveIntensity = data.reduce((sum, post) => {
+    const si = post.save_intensity != null ? post.save_intensity
+      : (post.likes_count > 0 ? post.saves_count / post.likes_count : 0);
+    return sum + si;
+  }, 0) / data.length;
+
+  // 上位20件の保存強度平均
+  const topPostsAvgSaveIntensity = topPosts.reduce((sum, post) => {
+    const si = post.save_intensity != null ? post.save_intensity
+      : (post.likes_count > 0 ? post.saves_count / post.likes_count : 0);
+    return sum + si;
+  }, 0) / topPosts.length;
+
   return {
     topHashtags,
     avgLength: Math.round(avgLength),
     avgEmojiCount: Math.round(avgEmojiCount),
     topPostsAvgLength: Math.round(topPostsAvgLength),
+    avgSaveIntensity: parseFloat(avgSaveIntensity.toFixed(3)),
+    topPostsAvgSaveIntensity: parseFloat(topPostsAvgSaveIntensity.toFixed(3)),
     bestPostingHours,
     sampleSize: data.length,
-    avgEngagementRate: data.reduce((sum, post) => sum + (post.engagement_rate || 0), 0) / data.length,
+    // engagement_rate は実リーチ入力ありのデータのみ平均（信頼性のある値だけ使う）
+    avgEngagementRate: (() => {
+      const realReachData = data.filter(p => p.reach_actual > 0 && p.engagement_rate > 0);
+      if (realReachData.length === 0) return null;
+      return parseFloat((realReachData.reduce((sum, p) => sum + p.engagement_rate, 0) / realReachData.length).toFixed(2));
+    })(),
   };
 }
 
@@ -204,7 +229,10 @@ export async function saveEngagementMetrics(storeId, category, postData, metrics
     saves_count: metrics.saves_count || 0,
     comments_count: metrics.comments_count || 0,
     reach: metrics.reach || 0,
+    reach_actual: metrics.reach_actual || 0,
     engagement_rate: metrics.engagement_rate || 0,
+    save_intensity: metrics.save_intensity || 0,
+    reaction_index: metrics.reaction_index || 0,
     post_time: new Date().toTimeString().slice(0, 8),
     day_of_week: new Date().getDay(),
   };

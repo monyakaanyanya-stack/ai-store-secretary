@@ -6,6 +6,7 @@ import { applyEngagementToProfile } from '../services/personalizationEngine.js';
 /**
  * エンゲージメント報告のパース
  * 例: "報告: いいね120, 保存15, コメント5"
+ * 例: "報告: いいね120, 保存15, コメント5, リーチ:800"  ← リーチは任意
  */
 function parseEngagementReport(text) {
   // "報告:" または "報告：" で始まるかチェック
@@ -16,42 +17,60 @@ function parseEngagementReport(text) {
   const result = {
     likes: 0,
     saves: 0,
-    comments: 0
+    comments: 0,
+    reach: null, // null = 入力なし（推定しない）
   };
 
   // いいね数を抽出
   const likesMatch = text.match(/(?:いいね|イイネ|like)[\s:：]*(\d+)/i);
-  if (likesMatch) {
-    result.likes = parseInt(likesMatch[1], 10);
-  }
+  if (likesMatch) result.likes = parseInt(likesMatch[1], 10);
 
   // 保存数を抽出
   const savesMatch = text.match(/(?:保存|save)[\s:：]*(\d+)/i);
-  if (savesMatch) {
-    result.saves = parseInt(savesMatch[1], 10);
-  }
+  if (savesMatch) result.saves = parseInt(savesMatch[1], 10);
 
   // コメント数を抽出
   const commentsMatch = text.match(/(?:コメント|comment)[\s:：]*(\d+)/i);
-  if (commentsMatch) {
-    result.comments = parseInt(commentsMatch[1], 10);
-  }
+  if (commentsMatch) result.comments = parseInt(commentsMatch[1], 10);
+
+  // リーチ数を抽出（任意入力）
+  const reachMatch = text.match(/(?:リーチ|reach)[\s:：]*(\d+)/i);
+  if (reachMatch) result.reach = parseInt(reachMatch[1], 10);
 
   return result;
 }
 
 /**
- * エンゲージメント率を計算
+ * 正直な指標を計算（いいね×10推定は使わない）
+ *
+ * 保存強度指数 = 保存 ÷ いいね
+ *   → 高いほどアルゴリズム評価が高い投稿
+ *
+ * 反応指数 = (いいね + 保存×3) ÷ フォロワー × 100
+ *   → フォロワー数がある場合のみ算出
+ *
+ * エンゲージメント率 = (いいね + 保存 + コメント) ÷ リーチ × 100
+ *   → 実リーチが入力された場合のみ算出
  */
-function calculateEngagementRate(metrics, reach = null) {
-  const totalEngagement = metrics.likes + metrics.saves + metrics.comments;
+function calculateMetrics(metrics, followerCount = null) {
+  const { likes, saves, comments, reach } = metrics;
 
-  // リーチが不明な場合は、いいね数を基準に推定
-  const estimatedReach = reach || metrics.likes * 10; // 仮の推定
+  // 保存強度指数（常時算出）
+  const saveIntensity = likes > 0 ? parseFloat((saves / likes).toFixed(4)) : 0;
 
-  if (estimatedReach === 0) return 0;
+  // 反応指数（フォロワー数があるときだけ）
+  let reactionIndex = 0;
+  if (followerCount && followerCount > 0) {
+    reactionIndex = parseFloat(((likes + saves * 3) / followerCount * 100).toFixed(4));
+  }
 
-  return (totalEngagement / estimatedReach * 100).toFixed(2);
+  // エンゲージメント率（実リーチ入力があるときだけ）
+  let engagementRate = null;
+  if (reach && reach > 0) {
+    engagementRate = parseFloat(((likes + saves + comments) / reach * 100).toFixed(2));
+  }
+
+  return { saveIntensity, reactionIndex, engagementRate };
 }
 
 /**
@@ -102,8 +121,9 @@ export async function handleEngagementReport(user, text, replyToken) {
     // 投稿内容のプレビュー
     let postContent = latestPost.content.split('#')[0].trim().slice(0, 50);
 
-    // エンゲージメント率を計算
-    const engagementRate = calculateEngagementRate(metrics);
+    // 正直な指標を計算（いいね×10推定は使わない）
+    const followerCount = parseInt(store.follower_count, 10) || null;
+    const { saveIntensity, reactionIndex, engagementRate } = calculateMetrics(metrics, followerCount);
 
     // 集合知データベースに保存
     const postData = {
@@ -115,8 +135,11 @@ export async function handleEngagementReport(user, text, replyToken) {
       likes_count: metrics.likes,
       saves_count: metrics.saves,
       comments_count: metrics.comments,
-      reach: metrics.likes * 10, // 仮の推定値
-      engagement_rate: parseFloat(engagementRate),
+      reach_actual: metrics.reach || 0,
+      reach: metrics.reach || 0, // 実リーチのみ（推定値は使わない）
+      engagement_rate: engagementRate || 0,
+      save_intensity: saveIntensity,
+      reaction_index: reactionIndex,
     };
 
     await saveEngagementMetrics(store.id, store.category || 'その他', postData, metricsData);
@@ -124,24 +147,28 @@ export async function handleEngagementReport(user, text, replyToken) {
     // エンゲージメント実績を個別学習プロファイルに反映
     await applyEngagementToProfile(store.id, latestPost.content, metricsData);
 
-    console.log(`[Report] エンゲージメント報告完了: store=${store.name}, likes=${metrics.likes}`);
+    console.log(`[Report] エンゲージメント報告完了: store=${store.name}, likes=${metrics.likes}, save_intensity=${saveIntensity}`);
 
     // 今月の報告回数を取得
     const reportCount = await getMonthlyReportCount(user.id, store.id);
 
-    // フォロワー数を基準にした分析
-    let followerAnalysis = '';
-    const followerCount = parseInt(store.follower_count, 10);
+    // 保存強度の評価コメント
+    let saveComment = '';
+    if (saveIntensity >= 0.3) saveComment = '🔥 保存率がかなり高い！アルゴリズム評価◎';
+    else if (saveIntensity >= 0.15) saveComment = '✨ 保存率が良好です';
+    else if (saveIntensity >= 0.05) saveComment = '👍 標準的な保存率';
+    else if (metrics.likes > 0) saveComment = '💡 保存を増やすと伸びやすくなります';
 
-    if (followerCount && followerCount > 0) {
-      const likesPerFollower = ((metrics.likes / followerCount) * 100).toFixed(2);
-      const savesPerFollower = ((metrics.saves / followerCount) * 100).toFixed(2);
+    // 反応指数の表示（フォロワー数あるときのみ）
+    let reactionLine = '';
+    if (followerCount && followerCount > 0 && reactionIndex > 0) {
+      reactionLine = `\n📊 反応指数: ${reactionIndex.toFixed(2)}（フォロワー${followerCount.toLocaleString()}人比）`;
+    }
 
-      followerAnalysis = `
-📊 フォロワー比分析 (基準: ${followerCount.toLocaleString()}人)
-❤️ いいね率: ${likesPerFollower}%
-💾 保存率: ${savesPerFollower}%
-`;
+    // リーチ入力があった場合のみエンゲージメント率を表示
+    let engagementLine = '';
+    if (engagementRate !== null) {
+      engagementLine = `\n📈 エンゲージメント率: ${engagementRate}%（実リーチ${metrics.reach?.toLocaleString()}より算出）`;
     }
 
     // フィードバックメッセージ
@@ -151,15 +178,16 @@ export async function handleEngagementReport(user, text, replyToken) {
 ❤️ いいね: ${metrics.likes}
 💾 保存: ${metrics.saves}
 💬 コメント: ${metrics.comments}
-📈 エンゲージメント率: ${engagementRate}%
-${followerAnalysis}
+💾 保存強度: ${saveIntensity.toFixed(2)}（保存÷いいね）${reactionLine}${engagementLine}
+${saveComment}
+
 📝 対象の投稿:
 ${postContent}...
 
 🌱 集合知データベースに追加されました！
-
 今月の報告回数: ${reportCount}回
-みんなで育てる集合知が成長しています✨`;
+
+💡 リーチがわかる場合は「リーチ:800」を追加すると精度が上がります`;
 
     await replyText(replyToken, feedbackMessage);
   } catch (err) {
@@ -206,13 +234,15 @@ export async function handlePostSelection(user, postNumber, replyToken) {
     let postContent = selectedPost.content.split('#')[0].trim().slice(0, 50);
     const hashtags = extractHashtags(selectedPost.content);
 
-    // エンゲージメント率を計算
+    // 正直な指標を計算
     const metrics = {
       likes: pendingReport.likes_count,
       saves: pendingReport.saves_count,
-      comments: pendingReport.comments_count
+      comments: pendingReport.comments_count,
+      reach: pendingReport.reach_actual || null,
     };
-    const engagementRate = calculateEngagementRate(metrics);
+    const followerCount = parseInt(store.follower_count, 10) || null;
+    const { saveIntensity, reactionIndex, engagementRate } = calculateMetrics(metrics, followerCount);
 
     // 集合知データベースに保存
     const postData = {
@@ -224,8 +254,11 @@ export async function handlePostSelection(user, postNumber, replyToken) {
       likes_count: metrics.likes,
       saves_count: metrics.saves,
       comments_count: metrics.comments,
-      reach: metrics.likes * 10, // 仮の推定値
-      engagement_rate: parseFloat(engagementRate),
+      reach_actual: metrics.reach || 0,
+      reach: metrics.reach || 0,
+      engagement_rate: engagementRate || 0,
+      save_intensity: saveIntensity,
+      reaction_index: reactionIndex,
     };
 
     await saveEngagementMetrics(store.id, store.category || 'その他', postData, metricsData);
@@ -236,29 +269,28 @@ export async function handlePostSelection(user, postNumber, replyToken) {
     // pending_reportを完了にする
     await completePendingReport(pendingReport.id);
 
-    console.log(`[Report] エンゲージメント報告完了: store=${store.name}, post_index=${selectedIndex}, likes=${metrics.likes}`);
+    console.log(`[Report] エンゲージメント報告完了: store=${store.name}, post_index=${selectedIndex}, likes=${metrics.likes}, save_intensity=${saveIntensity}`);
 
     // 今月の報告回数を取得
     const reportCount = await getMonthlyReportCount(user.id, store.id);
 
-    // フォロワー数を基準にした分析
-    let followerAnalysis = '';
-    console.log(`[Report] store.follower_count = ${store.follower_count} (type: ${typeof store.follower_count})`);
+    // 保存強度の評価コメント
+    let saveComment = '';
+    if (saveIntensity >= 0.3) saveComment = '🔥 保存率がかなり高い！アルゴリズム評価◎';
+    else if (saveIntensity >= 0.15) saveComment = '✨ 保存率が良好です';
+    else if (saveIntensity >= 0.05) saveComment = '👍 標準的な保存率';
+    else if (metrics.likes > 0) saveComment = '💡 保存を増やすと伸びやすくなります';
 
-    const followerCount = parseInt(store.follower_count, 10);
-    console.log(`[Report] parsed followerCount = ${followerCount} (isNaN: ${isNaN(followerCount)})`);
+    // 反応指数の表示
+    let reactionLine = '';
+    if (followerCount && followerCount > 0 && reactionIndex > 0) {
+      reactionLine = `\n📊 反応指数: ${reactionIndex.toFixed(2)}（フォロワー${followerCount.toLocaleString()}人比）`;
+    }
 
-    if (followerCount && followerCount > 0) {
-      const likesPerFollower = ((metrics.likes / followerCount) * 100).toFixed(2);
-      const savesPerFollower = ((metrics.saves / followerCount) * 100).toFixed(2);
-
-      followerAnalysis = `
-📊 フォロワー比分析 (基準: ${followerCount.toLocaleString()}人)
-❤️ いいね率: ${likesPerFollower}%
-💾 保存率: ${savesPerFollower}%
-`;
-    } else {
-      console.log(`[Report] フォロワー比分析をスキップ: followerCount=${followerCount}`);
+    // リーチ入力があった場合のみエンゲージメント率を表示
+    let engagementLine = '';
+    if (engagementRate !== null) {
+      engagementLine = `\n📈 エンゲージメント率: ${engagementRate}%（実リーチ${metrics.reach?.toLocaleString()}より算出）`;
     }
 
     // フィードバックメッセージ
@@ -268,15 +300,16 @@ export async function handlePostSelection(user, postNumber, replyToken) {
 ❤️ いいね: ${metrics.likes}
 💾 保存: ${metrics.saves}
 💬 コメント: ${metrics.comments}
-📈 エンゲージメント率: ${engagementRate}%
-${followerAnalysis}
+💾 保存強度: ${saveIntensity.toFixed(2)}（保存÷いいね）${reactionLine}${engagementLine}
+${saveComment}
+
 📝 選択した投稿:
 ${postContent}...
 
 🌱 集合知データベースに追加されました！
-
 今月の報告回数: ${reportCount}回
-みんなで育てる集合知が成長しています✨`;
+
+💡 リーチがわかる場合は「リーチ:800」を追加すると精度が上がります`;
 
     await replyText(replyToken, feedbackMessage);
     return true; // 処理完了

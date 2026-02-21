@@ -410,10 +410,14 @@ export function buildImagePostPrompt(store, learningData, lengthOverride = null,
       dbTags.push(...group.topHashtags.slice(0, 2));
     }
 
-    const avgLength = category?.avgLength || group?.avgLength;
+    // 保存強度が高い投稿の文字数（メイン指標）
     const topPostsLength = category?.topPostsAvgLength || group?.topPostsAvgLength;
-    if (avgLength && topPostsLength) {
-      insights.push(`【文字数（必須）】\n同業種の高エンゲージメント投稿の平均文字数: ${topPostsLength}文字\n※ この文字数を目安に作成してください`);
+    const topSaveIntensity = category?.topPostsAvgSaveIntensity || group?.topPostsAvgSaveIntensity;
+    if (topPostsLength) {
+      const intensityNote = topSaveIntensity != null
+        ? `（保存強度 ${topSaveIntensity.toFixed(2)} の投稿群）`
+        : '';
+      insights.push(`【文字数（必須）】\n保存されやすい投稿${intensityNote}の平均文字数: ${topPostsLength}文字\n※ この文字数を目安に作成してください`);
     }
 
     const avgEmojiCount = category?.avgEmojiCount || group?.avgEmojiCount;
@@ -427,7 +431,7 @@ export function buildImagePostPrompt(store, learningData, lengthOverride = null,
     }
 
     if (insights.length > 0) {
-      collectiveIntelligenceSection = `\n━━━━━━━━━━━━━━━━━━━━━━━━\n📊 集合知データ（同業種${category?.sampleSize || 0}件の成功パターン）\n━━━━━━━━━━━━━━━━━━━━━━━━\n${insights.join('\n\n')}\n━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+      collectiveIntelligenceSection = `\n━━━━━━━━━━━━━━━━━━━━━━━━\n📊 集合知データ（同業種${category?.sampleSize || 0}件・保存強度ベース）\n━━━━━━━━━━━━━━━━━━━━━━━━\n${insights.join('\n\n')}\n━━━━━━━━━━━━━━━━━━━━━━━━\n`;
     }
   }
 
@@ -546,11 +550,14 @@ export function buildTextPostPrompt(store, learningData, userText, lengthOverrid
       insights.push(`【ハッシュタグ（必須）】\n以下は同業種で高エンゲージメントのハッシュタグです。3-5個を必ず使用:\n${dbTags.join(', ')}`);
     }
 
-    // 文字数（優先度2）
-    const avgLength = category?.avgLength || group?.avgLength;
+    // 文字数（保存強度が高い投稿ベース）
     const topPostsLength = category?.topPostsAvgLength || group?.topPostsAvgLength;
-    if (avgLength && topPostsLength) {
-      insights.push(`【文字数（必須）】\n同業種の高エンゲージメント投稿の平均文字数: ${topPostsLength}文字\n※ この文字数を目安に作成してください`);
+    const topSaveIntensity = category?.topPostsAvgSaveIntensity || group?.topPostsAvgSaveIntensity;
+    if (topPostsLength) {
+      const intensityNote = topSaveIntensity != null
+        ? `（保存強度 ${topSaveIntensity.toFixed(2)} の投稿群）`
+        : '';
+      insights.push(`【文字数（必須）】\n保存されやすい投稿${intensityNote}の平均文字数: ${topPostsLength}文字\n※ この文字数を目安に作成してください`);
     }
 
     // 絵文字（優先度3）
@@ -566,7 +573,7 @@ export function buildTextPostPrompt(store, learningData, userText, lengthOverrid
     }
 
     if (insights.length > 0) {
-      collectiveIntelligenceSection = `\n━━━━━━━━━━━━━━━━━━━━━━━━\n📊 集合知データ（同業種${category?.sampleSize || 0}件の成功パターン）\n━━━━━━━━━━━━━━━━━━━━━━━━\n${insights.join('\n\n')}\n━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+      collectiveIntelligenceSection = `\n━━━━━━━━━━━━━━━━━━━━━━━━\n📊 集合知データ（同業種${category?.sampleSize || 0}件・保存強度ベース）\n━━━━━━━━━━━━━━━━━━━━━━━━\n${insights.join('\n\n')}\n━━━━━━━━━━━━━━━━━━━━━━━━\n`;
     }
   }
 
