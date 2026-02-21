@@ -690,9 +690,20 @@ async function handleTemplate(user, templateData, replyToken) {
   try {
     const store = await getStore(user.current_store_id);
 
-    // Parse: "住所: 東京都渋谷区, 営業時間: 10:00-20:00, website: https://..."
-    const pairs = templateData.split(',').map(p => p.trim());
+    // Parse: "住所: 東京都渋谷区, 営業時間: 10:00-20:00, ハッシュタグ:#カフェ #コーヒー"
+    // ハッシュタグはカンマで区切れないので先に抽出する
     const templates = { ...(store.config?.templates || {}) };
+
+    // ハッシュタグだけ先に正規表現で抽出（カンマ区切り対応のため）
+    const hashtagMatch = templateData.match(/(?:ハッシュタグ|hashtag|タグ)\s*[:：]\s*([#\S][^,]*)/i);
+    if (hashtagMatch) {
+      const rawTags = hashtagMatch[1].trim();
+      templates.hashtags = rawTags.split(/\s+/).filter(t => t.startsWith('#'));
+    }
+
+    // ハッシュタグ部分を除外してから残りをパース
+    const dataWithoutHashtag = templateData.replace(/(?:ハッシュタグ|hashtag|タグ)\s*[:：]\s*[^,]*/gi, '').trim().replace(/^,|,$|,,/g, '').trim();
+    const pairs = dataWithoutHashtag ? dataWithoutHashtag.split(',').map(p => p.trim()).filter(p => p) : [];
 
     for (const pair of pairs) {
       const colonIndex = pair.indexOf(':');
@@ -705,9 +716,6 @@ async function handleTemplate(user, templateData, replyToken) {
         templates.住所 = value;
       } else if (key === '営業時間') {
         templates.営業時間 = value;
-      } else if (key === 'ハッシュタグ' || key === 'hashtag' || key === 'タグ') {
-        // ハッシュタグはスペース区切りで配列として保存
-        templates.hashtags = value.split(/\s+/).filter(t => t.startsWith('#'));
       } else {
         templates.custom_fields = templates.custom_fields || {};
         templates.custom_fields[key] = value;
@@ -719,6 +727,7 @@ async function handleTemplate(user, templateData, replyToken) {
     const summary = [];
     if (templates.住所) summary.push(`住所: ${templates.住所}`);
     if (templates.営業時間) summary.push(`営業時間: ${templates.営業時間}`);
+    if (templates.hashtags?.length > 0) summary.push(`ハッシュタグ: ${templates.hashtags.join(' ')}`);
     if (templates.custom_fields) {
       Object.entries(templates.custom_fields).forEach(([k, v]) => {
         summary.push(`${k}: ${v}`);
