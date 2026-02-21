@@ -164,53 +164,89 @@ function getDefaultStructure() {
 
 /**
  * 複数投稿の構造パターンを集計して「勝ちパターン」を抽出
- * @param {Array} posts - engagement_metricsの配列（save_intensity降順）
- * @param {number} minCount - 最低件数（これ以下はnullを返す）
+ *
+ * 設計思想：
+ * - 勝ちの定義を固定: score = 保存×3 + いいね
+ * - 最低10件以上ないと仮説も立てない
+ * - 上位30%のみをパターン抽出の対象にする
+ * - 信頼レベルを明示（10件=仮説, 20件=参考, 30件+=高信頼）
+ *
+ * @param {Array} posts - engagement_metricsの配列（全件渡す）
+ * @param {number} minCount - 最低件数（これ未満はnullを返す）
  * @returns {Object|null} - 勝ちパターン、データ不足の場合はnull
  */
-export function extractWinningPattern(posts, minCount = 3) {
+export function extractWinningPattern(posts, minCount = 10) {
+  // post_structureがあり、hook_typeが判定できている投稿のみ対象
   const withStructure = posts.filter(p => p.post_structure && p.post_structure.hook_type !== 'unknown');
 
   if (withStructure.length < minCount) return null;
 
-  // hook_typeの集計
+  // ① 勝ちの定義を固定: score = 保存×3 + いいね
+  const scored = withStructure.map(p => ({
+    ...p,
+    _score: (p.saves_count || 0) * 3 + (p.likes_count || 0),
+  })).sort((a, b) => b._score - a._score);
+
+  // ② 上位30%のみ抽出（最低3件は確保）
+  const topCount = Math.max(3, Math.round(scored.length * 0.3));
+  const topPosts = scored.slice(0, topCount);
+
+  // ③ 信頼レベルの判定
+  const confidenceLevel = withStructure.length >= 30 ? 'high'
+    : withStructure.length >= 20 ? 'medium'
+    : 'low'; // 10件 = 仮説段階
+
+  // hook_typeの集計（上位30%から）
   const hookTypeCounts = {};
-  withStructure.forEach(p => {
+  topPosts.forEach(p => {
     const ht = p.post_structure.hook_type;
     hookTypeCounts[ht] = (hookTypeCounts[ht] || 0) + 1;
   });
   const dominantHookType = Object.entries(hookTypeCounts)
     .sort((a, b) => b[1] - a[1])[0]?.[0];
   const dominantHookRatio = Math.round(
-    (hookTypeCounts[dominantHookType] || 0) / withStructure.length * 100
+    (hookTypeCounts[dominantHookType] || 0) / topPosts.length * 100
   );
 
-  // CTA位置の集計
+  // CTA位置の集計（上位30%から）
   const ctaPositionCounts = {};
-  withStructure.forEach(p => {
+  topPosts.forEach(p => {
     const pos = p.post_structure.cta_position || 'none';
     ctaPositionCounts[pos] = (ctaPositionCounts[pos] || 0) + 1;
   });
   const dominantCTAPosition = Object.entries(ctaPositionCounts)
     .sort((a, b) => b[1] - a[1])[0]?.[0];
 
-  // 改行密度の平均
-  const avgLineBreakDensity = withStructure.reduce(
-    (sum, p) => sum + (p.post_structure.line_break_density || 0), 0
-  ) / withStructure.length;
+  // 文字数帯の集計（上位30%から）
+  const charBucketCounts = {};
+  topPosts.forEach(p => {
+    const len = p.post_structure.body_length || 0;
+    const bucket = len < 100 ? 'short' : len < 200 ? 'medium' : 'long';
+    charBucketCounts[bucket] = (charBucketCounts[bucket] || 0) + 1;
+  });
+  const dominantCharBucket = Object.entries(charBucketCounts)
+    .sort((a, b) => b[1] - a[1])[0]?.[0];
 
-  // save_intensityの平均
-  const avgSaveIntensity = withStructure.reduce(
+  // 改行密度の平均（上位30%から）
+  const avgLineBreakDensity = topPosts.reduce(
+    (sum, p) => sum + (p.post_structure.line_break_density || 0), 0
+  ) / topPosts.length;
+
+  // save_intensityの平均（上位30%から）
+  const avgSaveIntensity = topPosts.reduce(
     (sum, p) => sum + (p.save_intensity || 0), 0
-  ) / withStructure.length;
+  ) / topPosts.length;
 
   return {
     dominantHookType,
     dominantHookRatio,
     dominantCTAPosition,
+    dominantCharBucket,          // 'short' | 'medium' | 'long'
     avgLineBreakDensity: parseFloat(avgLineBreakDensity.toFixed(4)),
     avgSaveIntensity: parseFloat(avgSaveIntensity.toFixed(3)),
-    sampleSize: withStructure.length,
+    sampleSize: withStructure.length, // 全体サンプル数
+    topCount,                    // 上位30%の件数
+    confidenceLevel,             // 'low' | 'medium' | 'high'
   };
 }
 

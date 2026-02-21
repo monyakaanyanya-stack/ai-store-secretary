@@ -124,8 +124,9 @@ function analyzeEngagementData(data) {
     return sum + si;
   }, 0) / topPosts.length;
 
-  // 上位20件の骨格パターンから「勝ちパターン」を抽出
-  const winningPattern = extractWinningPattern(topPosts, 3);
+  // 全データからスコア順で「勝ちパターン」を抽出（最低10件必要）
+  // extractWinningPattern内でscore=保存×3+いいねでソート・上位30%のみ抽出
+  const winningPattern = extractWinningPattern(data, 10);
 
   return {
     topHashtags,
@@ -134,7 +135,7 @@ function analyzeEngagementData(data) {
     topPostsAvgLength: Math.round(topPostsAvgLength),
     avgSaveIntensity: parseFloat(avgSaveIntensity.toFixed(3)),
     topPostsAvgSaveIntensity: parseFloat(topPostsAvgSaveIntensity.toFixed(3)),
-    winningPattern, // 勝ちパターン（3件以上でないとnull）
+    winningPattern, // 勝ちパターン（10件以上でないとnull）
     bestPostingHours,
     sampleSize: data.length,
     // engagement_rate は実リーチ入力ありのデータのみ平均（信頼性のある値だけ使う）

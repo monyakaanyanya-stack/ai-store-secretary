@@ -430,7 +430,7 @@ export function buildImagePostPrompt(store, learningData, lengthOverride = null,
       insights.push(`【参考】最適投稿時間帯: ${bestHours.join('時, ')}時`);
     }
 
-    // 勝ちパターン（自店舗または同業種の高保存強度投稿の骨格）
+    // 勝ちパターン（自店舗 > 同カテゴリー > 大グループの優先順で取得）
     const winningPattern = own?.winningPattern || category?.winningPattern || group?.winningPattern;
     if (winningPattern) {
       const hookJp = buildHookTypeJapanese(winningPattern.dominantHookType);
@@ -440,7 +440,9 @@ export function buildImagePostPrompt(store, learningData, lengthOverride = null,
         : winningPattern.avgLineBreakDensity >= 0.03
         ? '標準的'
         : '少なめ（まとまった段落）';
-      insights.push(`【保存されやすい投稿の型（${winningPattern.sampleSize}件の分析）】\n・1行目: ${hookJp}（${winningPattern.dominantHookRatio}%）\n・CTA位置: ${ctaJp}\n・改行: ${lineBreakNote}\nこの型を意識して書くと保存されやすい`);
+      const charBucketJp = buildCharBucketJapanese(winningPattern.dominantCharBucket);
+      const confidenceLabel = buildConfidenceLabel(winningPattern.confidenceLevel);
+      insights.push(`【保存されやすい投稿の型${confidenceLabel}（${winningPattern.sampleSize}件中上位${winningPattern.topCount || ''}件を分析・score=保存×3+いいね）】\n・1行目: ${hookJp}（${winningPattern.dominantHookRatio}%）\n・文字数帯: ${charBucketJp}\n・CTA位置: ${ctaJp}\n・改行: ${lineBreakNote}\nこの型を意識して書くと保存されやすい`);
     }
 
     if (insights.length > 0) {
@@ -585,7 +587,7 @@ export function buildTextPostPrompt(store, learningData, userText, lengthOverrid
       insights.push(`【参考】最適投稿時間帯: ${bestHours.join('時, ')}時`);
     }
 
-    // 勝ちパターン
+    // 勝ちパターン（自店舗 > 同カテゴリー > 大グループの優先順で取得）
     const winningPattern = own?.winningPattern || category?.winningPattern || group?.winningPattern;
     if (winningPattern) {
       const hookJp = buildHookTypeJapanese(winningPattern.dominantHookType);
@@ -595,7 +597,9 @@ export function buildTextPostPrompt(store, learningData, userText, lengthOverrid
         : winningPattern.avgLineBreakDensity >= 0.03
         ? '標準的'
         : '少なめ（まとまった段落）';
-      insights.push(`【保存されやすい投稿の型（${winningPattern.sampleSize}件の分析）】\n・1行目: ${hookJp}（${winningPattern.dominantHookRatio}%）\n・CTA位置: ${ctaJp}\n・改行: ${lineBreakNote}\nこの型を意識して書くと保存されやすい`);
+      const charBucketJp = buildCharBucketJapanese(winningPattern.dominantCharBucket);
+      const confidenceLabel = buildConfidenceLabel(winningPattern.confidenceLevel);
+      insights.push(`【保存されやすい投稿の型${confidenceLabel}（${winningPattern.sampleSize}件中上位${winningPattern.topCount || ''}件を分析・score=保存×3+いいね）】\n・1行目: ${hookJp}（${winningPattern.dominantHookRatio}%）\n・文字数帯: ${charBucketJp}\n・CTA位置: ${ctaJp}\n・改行: ${lineBreakNote}\nこの型を意識して書くと保存されやすい`);
     }
 
     if (insights.length > 0) {
@@ -732,6 +736,33 @@ function buildCTAPositionJapanese(pos) {
     end: '末尾（最後に行動喚起）',
   };
   return map[pos] || pos;
+}
+
+/**
+ * 文字数帯を日本語に変換（promptBuilder内部用）
+ */
+function buildCharBucketJapanese(bucket) {
+  const map = {
+    short: '100文字未満（短文）',
+    medium: '100〜200文字（中文）',
+    long: '200文字以上（長文）',
+  };
+  return map[bucket] || '不明';
+}
+
+/**
+ * 信頼レベルをラベル表記に変換（promptBuilder内部用）
+ * - low    : 10〜19件（仮説段階）
+ * - medium : 20〜29件（参考値）
+ * - high   : 30件以上（高信頼）
+ */
+function buildConfidenceLabel(level) {
+  const map = {
+    low: '【仮説段階】',
+    medium: '【参考値】',
+    high: '【高信頼】',
+  };
+  return map[level] ? `${map[level]}` : '';
 }
 
 /**
