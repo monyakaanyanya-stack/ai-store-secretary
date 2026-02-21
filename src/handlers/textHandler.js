@@ -176,8 +176,13 @@ export async function handleTextMessage(user, text, replyToken) {
   }
 
   // テンプレート設定: 「テンプレート: address:住所」など
-  if (trimmed.startsWith('テンプレート:') || trimmed.startsWith('テンプレート:')) {
-    const templateData = trimmed.replace(/^テンプレート[:：]\s*/, '');
+  if (trimmed.startsWith('テンプレート:') || trimmed.startsWith('テンプレート:') ||
+      trimmed.startsWith('テンプレ:') || trimmed.startsWith('テンプレ：')) {
+    const templateData = trimmed.replace(/^(?:テンプレート|テンプレ)[:：]\s*/, '');
+    // 「削除」系のワードが来た場合は削除プロンプトへ
+    if (templateData === '削除' || templateData === '全削除' || templateData === 'all') {
+      return await handleTemplateDeletePrompt(user, replyToken);
+    }
     return await handleTemplate(user, templateData, replyToken);
   }
 
@@ -264,7 +269,14 @@ ${contactEmail}
   }
 
   // テンプレート削除（対話開始）
-  if (trimmed === 'テンプレート削除') {
+  if (
+    trimmed === 'テンプレート削除' ||
+    trimmed === 'テンプレ削除' ||
+    trimmed === 'テンプレート:削除' ||
+    trimmed === 'テンプレート：削除' ||
+    trimmed === 'テンプレ:削除' ||
+    trimmed === 'テンプレ：削除'
+  ) {
     return await handleTemplateDeletePrompt(user, replyToken);
   }
 
