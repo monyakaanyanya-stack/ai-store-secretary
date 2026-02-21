@@ -392,14 +392,8 @@ export function buildImagePostPrompt(store, learningData, lengthOverride = null,
   const toneData = getToneData(store.tone);
 
   const templates = store.config?.templates || {};
-  const templateInfo = Object.keys(templates).length > 0
-    ? `\n【必要な情報（投稿の最後に自然に含める）】
-${templates.住所 ? `住所: ${templates.住所}` : ''}
-${templates.営業時間 ? `営業時間: ${templates.営業時間}` : ''}
-${Object.entries(templates.custom_fields || {})
-  .map(([key, val]) => `${key}: ${val}`)
-  .join('\n')}`
-    : '';
+  // templateInfoはAIに渡さない（生成後に末尾固定追記するため）
+  const templateInfo = '';
 
   // 集合知データの構築（同業種の成功パターンを反映）
   let collectiveIntelligenceSection = '';
@@ -537,14 +531,8 @@ export function buildTextPostPrompt(store, learningData, userText, lengthOverrid
   const toneData = getToneData(store.tone);
 
   const templates = store.config?.templates || {};
-  const templateInfo = Object.keys(templates).length > 0
-    ? `\n【必要な情報（投稿の最後に自然に含める）】
-${templates.住所 ? `住所: ${templates.住所}` : ''}
-${templates.営業時間 ? `営業時間: ${templates.営業時間}` : ''}
-${Object.entries(templates.custom_fields || {})
-  .map(([key, val]) => `${key}: ${val}`)
-  .join('\n')}`
-    : '';
+  // templateInfoはAIに渡さない（生成後に末尾固定追記するため）
+  const templateInfo = '';
 
   // 集合知データの構築（同業種の成功パターンを反映）
   let collectiveIntelligenceSection = '';
@@ -639,6 +627,24 @@ ${userText}
 ${collectiveIntelligenceSection ? '- 集合知データの文字数・絵文字数・ハッシュタグを反映する' : ''}
 
 投稿文のみを出力してください。説明や補足は一切不要です。`;
+}
+
+/**
+ * テンプレート情報を投稿末尾に固定追記する（AIに渡さず直接付ける）
+ */
+export function appendTemplateFooter(postContent, store) {
+  const templates = store.config?.templates || {};
+  const lines = [];
+
+  if (templates.住所) lines.push(`📍 ${templates.住所}`);
+  if (templates.営業時間) lines.push(`🕐 ${templates.営業時間}`);
+  Object.entries(templates.custom_fields || {}).forEach(([k, v]) => {
+    lines.push(`${k}: ${v}`);
+  });
+
+  if (lines.length === 0) return postContent;
+
+  return `${postContent}\n\n${lines.join('\n')}`;
 }
 
 /**

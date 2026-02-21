@@ -1,7 +1,7 @@
 import { replyText, getImageAsBase64 } from '../services/lineService.js';
 import { askClaude, describeImage } from '../services/claudeService.js';
 import { getStore, savePostHistory } from '../services/supabaseService.js';
-import { buildImagePostPrompt } from '../utils/promptBuilder.js';
+import { buildImagePostPrompt, appendTemplateFooter } from '../utils/promptBuilder.js';
 import { aggregateLearningData } from '../utils/learningData.js';
 import { getBlendedInsights, saveEngagementMetrics } from '../services/collectiveIntelligence.js';
 import { getPersonalizationPromptAddition, getPersonalizationLevel } from '../services/personalizationEngine.js';
@@ -53,7 +53,10 @@ export async function handleImageMessage(user, messageId, replyToken) {
 
     // ステップ2: 画像分析結果を使ってテキストのみで投稿生成（画像への依存をなくす）
     const prompt = buildImagePostPrompt(store, learningData, null, blendedInsights, personalization, imageDescription);
-    const postContent = await askClaude(prompt);
+    const rawContent = await askClaude(prompt);
+
+    // テンプレートの住所・営業時間などを末尾に固定追記（AIにアレンジさせない）
+    const postContent = appendTemplateFooter(rawContent, store);
 
     // 投稿履歴に保存
     const savedPost = await savePostHistory(user.id, store.id, postContent);

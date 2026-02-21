@@ -27,7 +27,7 @@ import {
   getRecentConversations,
   cleanOldConversations
 } from '../services/conversationService.js';
-import { buildStoreParsePrompt, buildTextPostPrompt, POST_LENGTH_MAP } from '../utils/promptBuilder.js';
+import { buildStoreParsePrompt, buildTextPostPrompt, POST_LENGTH_MAP, appendTemplateFooter } from '../utils/promptBuilder.js';
 import { aggregateLearningData } from '../utils/learningData.js';
 import { getBlendedInsights, saveEngagementMetrics } from '../services/collectiveIntelligence.js';
 import { getPersonalizationPromptAddition, getLearningStatus } from '../services/personalizationEngine.js';
@@ -460,7 +460,10 @@ async function handleTextPostGeneration(user, text, replyToken) {
     const personalization = basicPersonalization + advancedPersonalization + seasonalMemory;
 
     const prompt = buildTextPostPrompt(store, learningData, text, null, blendedInsights, personalization);
-    const postContent = await askClaude(prompt);
+    const rawContent = await askClaude(prompt);
+
+    // テンプレートの住所・営業時間などを末尾に固定追記（AIにアレンジさせない）
+    const postContent = appendTemplateFooter(rawContent, store);
 
     // 投稿履歴に保存
     const savedPost = await savePostHistory(user.id, store.id, postContent);
@@ -837,7 +840,10 @@ async function handleTextPostGenerationWithLength(user, text, replyToken, length
     const personalization = basicPersonalization + advancedPersonalization + seasonalMemory;
 
     const prompt = buildTextPostPrompt(store, learningData, text, lengthOverride, blendedInsights, personalization);
-    const postContent = await askClaude(prompt);
+    const rawContent = await askClaude(prompt);
+
+    // テンプレートの住所・営業時間などを末尾に固定追記（AIにアレンジさせない）
+    const postContent = appendTemplateFooter(rawContent, store);
 
     const savedPost = await savePostHistory(user.id, store.id, postContent);
 
