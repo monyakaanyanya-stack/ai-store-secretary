@@ -690,19 +690,27 @@ async function handleTemplate(user, templateData, replyToken) {
   try {
     const store = await getStore(user.current_store_id);
 
-    // Parse: "住所: 東京都渋谷区, 営業時間: 10:00-20:00, ハッシュタグ:#カフェ #コーヒー"
-    // ハッシュタグはカンマで区切れないので先に抽出する
-    const templates = { ...(store.config?.templates || {}) };
+    // 既存のテンプレートをコピー（住所・営業時間など既存データを保持するため）
+    const existingTemplates = store.config?.templates || {};
+    const templates = {
+      ...existingTemplates,
+      custom_fields: { ...(existingTemplates.custom_fields || {}) },
+    };
 
-    // ハッシュタグだけ先に正規表現で抽出（カンマ区切り対応のため）
-    const hashtagMatch = templateData.match(/(?:ハッシュタグ|hashtag|タグ)\s*[:：]\s*([#\S][^,]*)/i);
+    // ハッシュタグだけ先に正規表現で抽出（#タグにスペースが含まれるため）
+    const hashtagMatch = templateData.match(/(?:ハッシュタグ|hashtag|タグ)\s*[:：]\s*((?:#\S+\s*)+)/i);
     if (hashtagMatch) {
       const rawTags = hashtagMatch[1].trim();
       templates.hashtags = rawTags.split(/\s+/).filter(t => t.startsWith('#'));
     }
 
     // ハッシュタグ部分を除外してから残りをパース
-    const dataWithoutHashtag = templateData.replace(/(?:ハッシュタグ|hashtag|タグ)\s*[:：]\s*[^,]*/gi, '').trim().replace(/^,|,$|,,/g, '').trim();
+    const dataWithoutHashtag = templateData
+      .replace(/(?:ハッシュタグ|hashtag|タグ)\s*[:：]\s*(?:#\S+\s*)*/gi, '')
+      .replace(/,\s*,/g, ',')
+      .replace(/^,|,$/g, '')
+      .trim();
+
     const pairs = dataWithoutHashtag ? dataWithoutHashtag.split(',').map(p => p.trim()).filter(p => p) : [];
 
     for (const pair of pairs) {
@@ -716,19 +724,23 @@ async function handleTemplate(user, templateData, replyToken) {
         templates.住所 = value;
       } else if (key === '営業時間') {
         templates.営業時間 = value;
-      } else {
-        templates.custom_fields = templates.custom_fields || {};
+      } else if (key) {
         templates.custom_fields[key] = value;
       }
     }
 
-    await updateStoreTemplates(store.id, templates);
+    // updateStoreConfigで直接保存（updateStoreTemplatesの二重マージを避ける）
+    const newConfig = {
+      ...(store.config || {}),
+      templates,
+    };
+    await updateStoreConfig(store.id, newConfig);
 
     const summary = [];
     if (templates.住所) summary.push(`住所: ${templates.住所}`);
     if (templates.営業時間) summary.push(`営業時間: ${templates.営業時間}`);
     if (templates.hashtags?.length > 0) summary.push(`ハッシュタグ: ${templates.hashtags.join(' ')}`);
-    if (templates.custom_fields) {
+    if (Object.keys(templates.custom_fields).length > 0) {
       Object.entries(templates.custom_fields).forEach(([k, v]) => {
         summary.push(`${k}: ${v}`);
       });
