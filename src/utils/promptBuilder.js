@@ -630,21 +630,56 @@ ${collectiveIntelligenceSection ? '- 集合知データの文字数・絵文字�
 }
 
 /**
- * テンプレート情報を投稿末尾に固定追記する（AIに渡さず直接付ける）
+ * テンプレート情報をハッシュタグの直前に挿入する（AIに渡さず直接付ける）
+ * 構造: 本文 → 住所・営業時間など → ハッシュタグ → ━━━ Photo Advice ━━━
  */
 export function appendTemplateFooter(postContent, store) {
   const templates = store.config?.templates || {};
-  const lines = [];
+  const infoLines = [];
 
-  if (templates.住所) lines.push(`📍 ${templates.住所}`);
-  if (templates.営業時間) lines.push(`🕐 ${templates.営業時間}`);
+  if (templates.住所) infoLines.push(`📍 ${templates.住所}`);
+  if (templates.営業時間) infoLines.push(`🕐 ${templates.営業時間}`);
   Object.entries(templates.custom_fields || {}).forEach(([k, v]) => {
-    lines.push(`${k}: ${v}`);
+    infoLines.push(`${k}: ${v}`);
   });
 
-  if (lines.length === 0) return postContent;
+  if (infoLines.length === 0) return postContent;
 
-  return `${postContent}\n\n${lines.join('\n')}`;
+  // ハッシュタグ行（#で始まる行）とPhoto Advice区切り線を探す
+  // 区切り線（━）でPostAdviceを分離
+  const dividerPattern = /\n(━{5,}[\s\S]*)/;
+  const dividerMatch = postContent.match(dividerPattern);
+
+  if (dividerMatch) {
+    // 区切り線がある場合：区切り線の前のハッシュタグ行を見つけてその前に挿入
+    const beforeDivider = postContent.slice(0, dividerMatch.index);
+    const dividerAndAfter = dividerMatch[1];
+
+    // beforeDivider内のハッシュタグ行（#で始まる行）を分離
+    const hashtagLinePattern = /\n(#[^\n]+)(\s*)$/;
+    const hashtagMatch = beforeDivider.match(hashtagLinePattern);
+
+    if (hashtagMatch) {
+      const bodyPart = beforeDivider.slice(0, hashtagMatch.index);
+      const hashtagPart = hashtagMatch[1];
+      return `${bodyPart}\n\n${infoLines.join('\n')}\n${hashtagPart}\n\n━${dividerAndAfter}`;
+    }
+    // ハッシュタグ行が見つからない場合は区切り線の前に挿入
+    return `${beforeDivider}\n\n${infoLines.join('\n')}\n\n━${dividerAndAfter}`;
+  }
+
+  // 区切り線がない場合：ハッシュタグ行の前に挿入
+  const hashtagLinePattern = /\n(#[^\n]+)\s*$/;
+  const hashtagMatch = postContent.match(hashtagLinePattern);
+
+  if (hashtagMatch) {
+    const bodyPart = postContent.slice(0, hashtagMatch.index);
+    const hashtagPart = hashtagMatch[1];
+    return `${bodyPart}\n\n${infoLines.join('\n')}\n${hashtagPart}`;
+  }
+
+  // ハッシュタグも区切り線もない場合は末尾に追記
+  return `${postContent}\n\n${infoLines.join('\n')}`;
 }
 
 /**
