@@ -437,16 +437,27 @@ ${Object.entries(templates.custom_fields || {})
     }
   }
 
-  // ハッシュタグ指示
+  // ハッシュタグ指示（優先順位: テンプレ固定タグ → 関連タグ → 集合知タグ）
   const categoryHint = store.category ? `業種「${store.category}」` : '';
+  const templateHashtags = templates.hashtags || [];
   let hashtagInstruction = '';
+
   if (imageDescription) {
+    const fixedTagNote = templateHashtags.length > 0
+      ? `\n【固定ハッシュタグ（必ず先頭に含める）】\n${templateHashtags.join(' ')}\n上記の後に以下を追加:`
+      : '';
     const collectiveTagNote = dbTags && dbTags.length > 0
       ? `\n追加可能な業種タグ（上記の後に1-3個追加してよい）: ${dbTags.join(', ')}`
       : '';
-    hashtagInstruction = `\n【ハッシュタグ（厳守）】\n順番: ①写真に実際に写っているもの・${categoryHint}に直結するタグ（3-5個）→ ②業種の定番タグ（1-3個）\n絶対NG：写真に写っていないもののタグ、#instagood #japan #photooftheday などの汎用タグ${collectiveTagNote}`;
+    hashtagInstruction = `\n【ハッシュタグ（厳守）】${fixedTagNote}\n順番: ${templateHashtags.length > 0 ? '①固定タグ（上記）→ ' : ''}②写真に実際に写っているもの・${categoryHint}に直結するタグ（3-5個）→ ③業種の定番タグ（1-3個）\n絶対NG：写真に写っていないもののタグ、#instagood #japan #photooftheday などの汎用タグ${collectiveTagNote}`;
   } else if (!collectiveIntelligenceSection) {
-    hashtagInstruction = `\n【ハッシュタグ（必須）】\n${categoryHint}この投稿内容に最も合うタグを5-8個。#instagood #japan など汎用タグは使わない。`;
+    const fixedTagNote = templateHashtags.length > 0
+      ? `\n【固定ハッシュタグ（必ず先頭に含める）】\n${templateHashtags.join(' ')}\n上記の後に関連タグを追加:`
+      : '';
+    hashtagInstruction = `\n【ハッシュタグ（必須）】${fixedTagNote}\n${categoryHint}この投稿内容に最も合うタグを合計5-8個。#instagood #japan など汎用タグは使わない。`;
+  } else if (templateHashtags.length > 0) {
+    // 集合知セクションがある場合でも固定タグを優先して追記
+    hashtagInstruction = `\n【固定ハッシュタグ（最優先・必ず先頭に含める）】\n${templateHashtags.join(' ')}\n上記を先頭に置き、集合知タグと関連タグを後ろに追加すること。`;
   }
 
   // 画像分析結果セクション
@@ -579,11 +590,20 @@ ${Object.entries(templates.custom_fields || {})
     }
   }
 
-  // ハッシュタグは常にAIが投稿内容を見て自由生成
+  // ハッシュタグ（優先順位: テンプレ固定タグ → 関連タグ → 集合知タグ）
+  const templateHashtags = templates.hashtags || [];
   let fallbackHashtags = '';
+
   if (!collectiveIntelligenceSection) {
     const categoryHint = store.category ? `業種は「${store.category}」。` : '';
-    fallbackHashtags = `\n【ハッシュタグ（必須）】\n${categoryHint}この投稿内容を直接読んで、内容に最も合うInstagramハッシュタグを5-8個付ける。業種タグと投稿内容タグを両方含めること。#instagood #japan #photooftheday などの汎用タグは使わない。`;
+    if (templateHashtags.length > 0) {
+      fallbackHashtags = `\n【ハッシュタグ（必須）】\n以下の固定タグを必ず先頭に含める:\n${templateHashtags.join(' ')}\nその後に${categoryHint}この投稿内容に合うタグを追加して合計5-8個にする。#instagood #japan などの汎用タグは使わない。`;
+    } else {
+      fallbackHashtags = `\n【ハッシュタグ（必須）】\n${categoryHint}この投稿内容を直接読んで、内容に最も合うInstagramハッシュタグを5-8個付ける。業種タグと投稿内容タグを両方含めること。#instagood #japan #photooftheday などの汎用タグは使わない。`;
+    }
+  } else if (templateHashtags.length > 0) {
+    // 集合知セクションがある場合でも固定タグを優先
+    fallbackHashtags = `\n【固定ハッシュタグ（最優先・必ず先頭に含める）】\n${templateHashtags.join(' ')}\n上記を先頭に置き、集合知タグを後ろに追加すること。`;
   }
 
   const characterSection = buildCharacterSection(store);

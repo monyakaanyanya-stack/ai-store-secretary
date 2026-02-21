@@ -664,8 +664,15 @@ async function handleTemplateHelp(user, replyToken) {
 【複数まとめて登録】
 テンプレート: 住所:大阪市中央区〇〇,営業時間:11:00〜19:00,電話:06-1234-5678
 
+【ハッシュタグを固定登録】
+毎回必ず使いたいタグをあらかじめ登録できます。
+テンプレート: ハッシュタグ:#カフェ #コーヒー #おうちカフェ
+
+※ 登録したタグが最初に使われ、
+　その後に内容に合うタグ・業種タグが追加されます
+
 ━━━━━━━━━━━
-登録後は投稿のたびに自動で末尾に含まれます。
+登録後は投稿のたびに自動で反映されます。
 
 「設定確認」→ 現在のテンプレートを確認
 「テンプレート削除」→ テンプレートを削除`;
@@ -698,6 +705,9 @@ async function handleTemplate(user, templateData, replyToken) {
         templates.住所 = value;
       } else if (key === '営業時間') {
         templates.営業時間 = value;
+      } else if (key === 'ハッシュタグ' || key === 'hashtag' || key === 'タグ') {
+        // ハッシュタグはスペース区切りで配列として保存
+        templates.hashtags = value.split(/\s+/).filter(t => t.startsWith('#'));
       } else {
         templates.custom_fields = templates.custom_fields || {};
         templates.custom_fields[key] = value;
@@ -739,10 +749,11 @@ async function handleShowSettings(user, replyToken) {
     let message = `📋 現在の設定\n\n【店舗名】${store.name}\n【業種】${store.category || '未設定'}\n【こだわり】${store.strength || '未設定'}\n【口調】${store.tone || '未設定'}\n【投稿長】${lengthInfo.description} (${lengthInfo.range})\n`;
 
     const templates = config.templates || {};
-    if (templates.住所 || templates.営業時間 || Object.keys(templates.custom_fields || {}).length > 0) {
+    if (templates.住所 || templates.営業時間 || templates.hashtags?.length > 0 || Object.keys(templates.custom_fields || {}).length > 0) {
       message += '\n【テンプレート】\n';
       if (templates.住所) message += `住所: ${templates.住所}\n`;
       if (templates.営業時間) message += `営業時間: ${templates.営業時間}\n`;
+      if (templates.hashtags?.length > 0) message += `ハッシュタグ: ${templates.hashtags.join(' ')}\n`;
       Object.entries(templates.custom_fields || {}).forEach(([k, v]) => {
         message += `${k}: ${v}\n`;
       });
@@ -840,7 +851,7 @@ async function handleTemplateDeletePrompt(user, replyToken) {
     const templates = store.config?.templates || {};
 
     // テンプレートがない場合
-    if (!templates.住所 && !templates.営業時間 && !Object.keys(templates.custom_fields || {}).length) {
+    if (!templates.住所 && !templates.営業時間 && !templates.hashtags?.length && !Object.keys(templates.custom_fields || {}).length) {
       return await replyText(replyToken, '削除できるテンプレートがありません。');
     }
 
@@ -848,6 +859,7 @@ async function handleTemplateDeletePrompt(user, replyToken) {
     const fields = [];
     if (templates.住所) fields.push('住所');
     if (templates.営業時間) fields.push('営業時間');
+    if (templates.hashtags?.length > 0) fields.push('ハッシュタグ');
     if (templates.custom_fields) {
       Object.keys(templates.custom_fields).forEach(key => {
         fields.push(`${key}`);
@@ -911,6 +923,12 @@ async function handleTemplateDelete(user, fieldToDelete, replyToken) {
       delete templates.営業時間;
       deleted = true;
       deletedFields.push('営業時間');
+    }
+
+    if ((fieldToDelete === 'ハッシュタグ' || fieldToDelete === 'タグ') && templates.hashtags?.length > 0) {
+      delete templates.hashtags;
+      deleted = true;
+      deletedFields.push('ハッシュタグ');
     }
 
     // カスタムフィールド削除
