@@ -6,8 +6,8 @@ import { replyText } from '../services/lineService.js';
 import { updatePostContent, supabase } from '../services/supabaseService.js';
 import { appendTemplateFooter } from '../utils/promptBuilder.js';
 
-// スタイル名マッピング
-const STYLE_MAP = { A: '質感', B: '空気', C: '記憶' };
+// スタイル名マッピング（Ver.17.0）
+const STYLE_MAP = { A: '時間の肖像', B: '誠実の肖像', C: '光の肖像' };
 
 /**
  * 案選択を処理

@@ -1022,8 +1022,8 @@ describe('Scenario 27: 第4次監査 LOW修正（L1-L9）', async () => {
   });
 });
 
-// ==================== Scenario 28: Ver.13.0 質感と呼吸の完成形 ====================
-describe('Scenario 28: Ver.13.0 質感と呼吸の完成形', async () => {
+// ==================== Scenario 28: Ver.17.0 肖像と免罪符 ====================
+describe('Scenario 28: Ver.17.0 肖像と免罪符', async () => {
   it('describeImage に機材レベル判定（6項目目）がある', async () => {
     const fs = await import('node:fs');
     const content = fs.readFileSync(
@@ -1047,7 +1047,6 @@ describe('Scenario 28: Ver.13.0 質感と呼吸の完成形', async () => {
   });
 
   it('parseEquipmentLevel のロジックが正しい', () => {
-    // imageHandler内部関数の再現
     function parseEquipmentLevel(imageDescription) {
       if (!imageDescription) return 'snapshot';
       const lower = imageDescription.toLowerCase();
@@ -1066,14 +1065,12 @@ describe('Scenario 28: Ver.13.0 質感と呼吸の完成形', async () => {
     const { buildImagePostPrompt } = await import('../src/utils/promptBuilder.js');
     const store = { name: 'テスト店', tone: 'カジュアル', config: {} };
 
-    // snapshot（デフォルト）
     const promptSnap = buildImagePostPrompt(store, {}, null, null, '', 'テスト画像説明', 'snapshot');
     assert.ok(promptSnap.includes('Snapshot'),
       'Snapshot prompt should include Snapshot section');
     assert.ok(promptSnap.includes('身体感覚'),
       'Snapshot prompt should mention physical sensations');
 
-    // signature
     const promptSig = buildImagePostPrompt(store, {}, null, null, '', 'テスト画像説明', 'signature');
     assert.ok(promptSig.includes('Signature'),
       'Signature prompt should include Signature section');
@@ -1081,49 +1078,53 @@ describe('Scenario 28: Ver.13.0 質感と呼吸の完成形', async () => {
       'Signature prompt should mention minimal words');
   });
 
-  it('Ver.13.0 の共通の掟がプロンプトに含まれる', async () => {
+  it('Ver.17.0 のライティング・ルールがプロンプトに含まれる', async () => {
     const { buildImagePostPrompt } = await import('../src/utils/promptBuilder.js');
     const store = { name: 'テスト店', tone: 'フレンドリー', config: {} };
     const prompt = buildImagePostPrompt(store, {}, null, null, '', 'テスト画像', 'snapshot');
 
-    assert.ok(prompt.includes('共通の掟（Ver. 13.0）'),
-      'Should include Ver.13.0 header');
-    assert.ok(prompt.includes('不規則な呼吸'),
+    assert.ok(prompt.includes('断言と余韻（Ver. 17.0）'),
+      'Should include Ver.17.0 header');
+    assert.ok(prompt.includes('事実を肖像に変える'),
+      'Should include portrait transformation rule');
+    assert.ok(prompt.includes('「説明」の排除'),
+      'Should include description elimination rule');
+    assert.ok(prompt.includes('完結した独白'),
+      'Should include complete monologue rule');
+    assert.ok(prompt.includes('不揃いな呼吸'),
       'Should include irregular breathing rule');
-    assert.ok(prompt.includes('五感の翻訳'),
-      'Should include five-sense translation rule');
-    assert.ok(prompt.includes('80点＋20点'),
-      'Should include 80+20 rule');
   });
 
-  it('Ver.13.0 の出力形式に案A・案B・案Cの3案が含まれる', async () => {
+  it('Ver.17.0 の出力形式に3つの肖像が含まれる', async () => {
     const { buildImagePostPrompt } = await import('../src/utils/promptBuilder.js');
     const store = { name: 'テスト店', tone: '丁寧', config: {} };
     const prompt = buildImagePostPrompt(store, {}, null, null, '', 'テスト画像', 'snapshot');
 
-    assert.ok(prompt.includes('[ 案A：質感 ]'),
-      'Output format should include [ 案A：質感 ]');
-    assert.ok(prompt.includes('[ 案B：空気 ]'),
-      'Output format should include [ 案B：空気 ]');
-    assert.ok(prompt.includes('[ 案C：記憶 ]'),
-      'Output format should include [ 案C：記憶 ]');
+    assert.ok(prompt.includes('[ 案A：時間の肖像 ]'),
+      'Output format should include [ 案A：時間の肖像 ]');
+    assert.ok(prompt.includes('[ 案B：誠実の肖像 ]'),
+      'Output format should include [ 案B：誠実の肖像 ]');
+    assert.ok(prompt.includes('[ 案C：光の肖像 ]'),
+      'Output format should include [ 案C：光の肖像 ]');
     assert.ok(prompt.includes('3案を出力'),
       'Should instruct 3 proposals');
+    assert.ok(prompt.includes('80点の免罪符'),
+      'Should include 80点の免罪符 section');
     assert.ok(!prompt.includes('店主へのバトン'),
       'Should NOT include baton placeholder');
   });
 
-  it('旧スタイルのアイデンティティ文言が削除されている', async () => {
+  it('Ver.17.0 のアイデンティティ: 良き理解者', async () => {
     const { buildImagePostPrompt } = await import('../src/utils/promptBuilder.js');
     const store = { name: 'テスト店', tone: 'カジュアル', config: {} };
     const prompt = buildImagePostPrompt(store, {}, null, null, '', 'テスト画像', 'snapshot');
 
     assert.ok(!prompt.includes('世界中を旅してきた写真家'),
       'Old identity should be removed');
-    assert.ok(!prompt.includes('言葉の平易化'),
-      'Old writing rule should be removed');
-    assert.ok(prompt.includes('店主の眼を借りた写真家'),
+    assert.ok(prompt.includes('良き理解者'),
       'New identity should be present');
+    assert.ok(prompt.includes('80点の正解'),
+      'Should mention 80-point correctness');
   });
 });
 
@@ -1197,80 +1198,80 @@ describe('Scenario 29: 案A/B/C選択 + スタイル学習', async () => {
   });
 
   it('extractSelectedProposal が案Aを正しく抽出する', () => {
-    const content = `[ 案A：質感 ]
-手触り。ざらっとした表面。
-硬い、確かな感触。
+    const content = `[ 案A：時間の肖像 ]
+これは猫の記録ではない。
+今日という日がもう二度と戻らないことを教える、時間の肖像。
 
-#コーヒー #質感
+#コーヒー #時間
 
-[ 案B：空気 ]
-朝の光。窓辺に漂う湯気。
-温度が、伝わる。
+[ 案B：誠実の肖像 ]
+この写真の正解は、整えられたニットの皺にある。
+無造作に見えて、そこには確かな意思が写り込んでいる。
 
-#コーヒー #朝
+#コーヒー #誠実
 
-[ 案C：記憶 ]
-この香り。どこかで嗅いだ。
-冬の朝、あの場所。
+[ 案C：光の肖像 ]
+窓から差し込む光が、すべてを等しく照らす。
+言葉になる前の、ただ静かなだけの温度。
 
-#コーヒー #記憶
+#コーヒー #光
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📸 Photo Advice
-いいアドバイス
+📸 80点の免罪符
+このアングルは80点の正解です。
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
 
     const resultA = extractSelectedProposal(content, 'A');
-    assert.ok(resultA.includes('手触り'), 'Should contain proposal A text');
-    assert.ok(resultA.includes('#コーヒー #質感'), 'Should contain proposal A hashtags');
-    assert.ok(!resultA.includes('朝の光'), 'Should NOT contain proposal B text');
-    assert.ok(!resultA.includes('この香り'), 'Should NOT contain proposal C text');
-    assert.ok(resultA.includes('Photo Advice'), 'Should include Photo Advice');
+    assert.ok(resultA.includes('時間の肖像'), 'Should contain proposal A text');
+    assert.ok(resultA.includes('#コーヒー #時間'), 'Should contain proposal A hashtags');
+    assert.ok(!resultA.includes('ニットの皺'), 'Should NOT contain proposal B text');
+    assert.ok(!resultA.includes('窓から差し込む'), 'Should NOT contain proposal C text');
+    assert.ok(resultA.includes('80点の免罪符'), 'Should include 80点の免罪符');
   });
 
   it('extractSelectedProposal が案Bを正しく抽出する', () => {
-    const content = `[ 案A：質感 ]
-手触り。
+    const content = `[ 案A：時間の肖像 ]
+時間の肖像。
 
 #タグA
 
-[ 案B：空気 ]
-朝の光。
+[ 案B：誠実の肖像 ]
+誠実の肖像。
 
 #タグB
 
-[ 案C：記憶 ]
-この香り。
+[ 案C：光の肖像 ]
+光の肖像。
 
 #タグC
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📸 Photo Advice
+📸 80点の免罪符
 アドバイス
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
 
     const resultB = extractSelectedProposal(content, 'B');
-    assert.ok(resultB.includes('朝の光'), 'Should contain proposal B text');
-    assert.ok(!resultB.includes('手触り'), 'Should NOT contain proposal A text');
-    assert.ok(!resultB.includes('この香り'), 'Should NOT contain proposal C text');
-    assert.ok(resultB.includes('Photo Advice'), 'Should include Photo Advice');
+    assert.ok(resultB.includes('誠実の肖像'), 'Should contain proposal B text');
+    assert.ok(!resultB.includes('時間の肖像'), 'Should NOT contain proposal A text');
+    assert.ok(!resultB.includes('光の肖像'), 'Should NOT contain proposal C text');
+    assert.ok(resultB.includes('80点の免罪符'), 'Should include 80点の免罪符');
   });
 
   it('extractSelectedProposal が案Cを正しく抽出する', () => {
-    const content = `[ 案A：質感 ]
+    const content = `[ 案A：時間の肖像 ]
 テキストA
 #タグA
 
-[ 案B：空気 ]
+[ 案B：誠実の肖像 ]
 テキストB
 #タグB
 
-[ 案C：記憶 ]
+[ 案C：光の肖像 ]
 テキストC
 #タグC
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📸 Photo Advice
+📸 80点の免罪符
 アドバイス
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
 
