@@ -1096,7 +1096,7 @@ describe('Scenario 28: Ver.13.0 質感と呼吸の完成形', async () => {
       'Should include 80+20 rule');
   });
 
-  it('Ver.13.0 の出力形式に案A・案Bの2案が含まれる', async () => {
+  it('Ver.13.0 の出力形式に案A・案B・案Cの3案が含まれる', async () => {
     const { buildImagePostPrompt } = await import('../src/utils/promptBuilder.js');
     const store = { name: 'テスト店', tone: '丁寧', config: {} };
     const prompt = buildImagePostPrompt(store, {}, null, null, '', 'テスト画像', 'snapshot');
@@ -1105,8 +1105,10 @@ describe('Scenario 28: Ver.13.0 質感と呼吸の完成形', async () => {
       'Output format should include [ 案A：質感 ]');
     assert.ok(prompt.includes('[ 案B：空気 ]'),
       'Output format should include [ 案B：空気 ]');
-    assert.ok(prompt.includes('必ず案Aと案Bの2案を出力'),
-      'Should instruct 2 proposals');
+    assert.ok(prompt.includes('[ 案C：記憶 ]'),
+      'Output format should include [ 案C：記憶 ]');
+    assert.ok(prompt.includes('3案を出力'),
+      'Should instruct 3 proposals');
     assert.ok(!prompt.includes('店主へのバトン'),
       'Should NOT include baton placeholder');
   });
