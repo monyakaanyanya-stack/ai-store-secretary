@@ -1158,6 +1158,26 @@ describe('Scenario 29: 案A/B/C選択 + スタイル学習', async () => {
     return proposalText + photoAdvice;
   }
 
+  function cleanJapaneseSpaces(text) {
+    if (!text) return text;
+    return text
+      .replace(/([\u3000-\u9FFF\uF900-\uFAFF])[ ]{1,2}(?=[\u3000-\u9FFF\uF900-\uFAFF\u0021-\u007E])/g, '$1')
+      .replace(/([\u3000-\u9FFF\uF900-\uFAFF])[ ]{1,2}(?=[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}✨🌸💫🎵])/gu, '$1');
+  }
+
+  it('cleanJapaneseSpaces が不自然な半角スペースを除去する', () => {
+    assert.equal(cleanJapaneseSpaces('マット な手触り'), 'マットな手触り');
+    assert.equal(cleanJapaneseSpaces('温度差 ✨'), '温度差✨');
+    assert.equal(cleanJapaneseSpaces('確か な重み'), '確かな重み');
+    assert.equal(cleanJapaneseSpaces('琥珀色 のとろみ'), '琥珀色のとろみ');
+    // 英単語間のスペースは保持
+    assert.equal(cleanJapaneseSpaces('Diptyque, Byredo'), 'Diptyque, Byredo');
+    assert.equal(cleanJapaneseSpaces('Hello World'), 'Hello World');
+    // null/undefined安全
+    assert.equal(cleanJapaneseSpaces(null), null);
+    assert.equal(cleanJapaneseSpaces(''), '');
+  });
+
   it('normalizeSelection が正しく変換する', () => {
     assert.equal(normalizeSelection('A'), 'A');
     assert.equal(normalizeSelection('a'), 'A');

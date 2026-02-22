@@ -25,10 +25,13 @@ export async function handleProposalSelection(user, store, latestPost, input, re
   }
 
   // 2. 選択した案を抽出
-  const extracted = extractSelectedProposal(latestPost.content, selection);
-  if (!extracted) {
+  const rawExtracted = extractSelectedProposal(latestPost.content, selection);
+  if (!rawExtracted) {
     return await replyText(replyToken, `案${selection}の抽出に失敗しました。もう一度画像を送ってお試しください。`);
   }
+
+  // 2.5. 日本語テキスト内の不自然な半角スペースを除去
+  const extracted = cleanJapaneseSpaces(rawExtracted);
 
   // 3. テンプレートフッター適用 + 投稿内容を上書き
   const finalContent = appendTemplateFooter(extracted, store);
@@ -63,6 +66,21 @@ export function normalizeSelection(input) {
   if (['B', '2'].includes(cleaned)) return 'B';
   if (['C', '3'].includes(cleaned)) return 'C';
   return null;
+}
+
+/**
+ * 日本語テキスト内の不自然な半角スペースを除去
+ * Claude API が稀に日本語文字間に挿入する不要なスペースを除去する
+ * 例: "マット な手触り" → "マットな手触り"、"温度差 ✨" → "温度差✨"
+ * ※ 英単語間のスペース（"Diptyque, Byredo"）は保持
+ */
+export function cleanJapaneseSpaces(text) {
+  if (!text) return text;
+  return text
+    // 日本語文字（ひらがな・カタカナ・漢字・句読点）の後ろの不要スペース
+    .replace(/([\u3000-\u9FFF\uF900-\uFAFF])[ ]{1,2}(?=[\u3000-\u9FFF\uF900-\uFAFF\u0021-\u007E])/g, '$1')
+    // 日本語文字と絵文字の間の不要スペース
+    .replace(/([\u3000-\u9FFF\uF900-\uFAFF])[ ]{1,2}(?=[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}✨🌸💫🎵])/gu, '$1');
 }
 
 /**
