@@ -385,6 +385,8 @@ async function getMonthlyReportCount(userId, storeId) {
 
 /**
  * pending_reportsにメトリクスを保存
+ * C4注記: 現在未使用（handleEngagementReportが最新投稿に直接適用するため）
+ * マルチ投稿選択フロー実装時に有効化する予定
  * C15修正: 既存の awaiting_post_selection を先にクリーンアップ（競合防止）
  */
 async function savePendingReport(userId, storeId, metrics) {

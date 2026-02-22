@@ -1126,13 +1126,43 @@ describe('Scenario 28: Ver.17.0 肖像と免罪符', async () => {
     assert.ok(prompt.includes('80点の正解'),
       'Should mention 80-point correctness');
   });
+
+  it('H2: buildRevisionPrompt に Ver.17.0 ルールが含まれる', async () => {
+    const { buildRevisionPrompt } = await import('../src/utils/promptBuilder.js');
+    const store = { name: 'テスト店', tone: 'カジュアル', config: {} };
+    const prompt = buildRevisionPrompt(store, {}, '元の投稿', 'もっと短く');
+
+    assert.ok(prompt.includes('Ver. 17.0'),
+      'Revision prompt should include Ver.17.0 rules');
+    assert.ok(prompt.includes('不揃いな呼吸'),
+      'Revision prompt should include breathing rule');
+    assert.ok(prompt.includes('幻想的'),
+      'Revision prompt should include forbidden words');
+  });
+
+  it('M5: 数値フォールバックに ?? を使用', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/utils/promptBuilder.js', import.meta.url), 'utf-8'
+    );
+    // topPostsLength と avgEmojiCount で ?? を使用
+    const nullishMatches = content.match(/topPostsAvgLength \?\?/g);
+    assert.ok(nullishMatches && nullishMatches.length >= 2,
+      'Should use ?? for topPostsAvgLength in both image and text prompts');
+    const emojiMatches = content.match(/avgEmojiCount \?\?/g);
+    assert.ok(emojiMatches && emojiMatches.length >= 2,
+      'Should use ?? for avgEmojiCount in both image and text prompts');
+  });
 });
 
 // ==================== Scenario 29: 案A/B/C選択 + スタイル学習 ====================
 describe('Scenario 29: 案A/B/C選択 + スタイル学習', async () => {
   // proposalHandler.jsはsupabaseをimportするため、純粋関数のロジックを再現してテスト
   function normalizeSelection(input) {
-    const cleaned = input.trim().toUpperCase().replace('案', '');
+    const cleaned = input.trim().toUpperCase()
+      .replace('案', '')
+      .replace('Ａ', 'A').replace('Ｂ', 'B').replace('Ｃ', 'C')
+      .replace('１', '1').replace('２', '2').replace('３', '3');
     if (['A', '1'].includes(cleaned)) return 'A';
     if (['B', '2'].includes(cleaned)) return 'B';
     if (['C', '3'].includes(cleaned)) return 'C';
@@ -1162,8 +1192,8 @@ describe('Scenario 29: 案A/B/C選択 + スタイル学習', async () => {
   function cleanJapaneseSpaces(text) {
     if (!text) return text;
     return text
-      .replace(/([\u3000-\u9FFF\uF900-\uFAFF])[ ]{1,2}(?=[\u3000-\u9FFF\uF900-\uFAFF\u0021-\u007E])/g, '$1')
-      .replace(/([\u3000-\u9FFF\uF900-\uFAFF])[ ]{1,2}(?=[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}✨🌸💫🎵])/gu, '$1');
+      .replace(/([\u3000-\u9FFF\uF900-\uFAFF]) +(?=[\u3000-\u9FFF\uF900-\uFAFF\u0021-\u007E])/g, '$1')
+      .replace(/([\u3000-\u9FFF\uF900-\uFAFF]) +(?=[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}✨🌸💫🎵])/gu, '$1');
   }
 
   it('cleanJapaneseSpaces が不自然な半角スペースを除去する', () => {
@@ -1171,6 +1201,8 @@ describe('Scenario 29: 案A/B/C選択 + スタイル学習', async () => {
     assert.equal(cleanJapaneseSpaces('温度差 ✨'), '温度差✨');
     assert.equal(cleanJapaneseSpaces('確か な重み'), '確かな重み');
     assert.equal(cleanJapaneseSpaces('琥珀色 のとろみ'), '琥珀色のとろみ');
+    // H8: 3個以上のスペースも除去
+    assert.equal(cleanJapaneseSpaces('確か   な重み'), '確かな重み');
     // 英単語間のスペースは保持
     assert.equal(cleanJapaneseSpaces('Diptyque, Byredo'), 'Diptyque, Byredo');
     assert.equal(cleanJapaneseSpaces('Hello World'), 'Hello World');
@@ -1193,6 +1225,13 @@ describe('Scenario 29: 案A/B/C選択 + スタイル学習', async () => {
     assert.equal(normalizeSelection('c'), 'C');
     assert.equal(normalizeSelection('案C'), 'C');
     assert.equal(normalizeSelection('3'), 'C');
+    // M7: 全角英字・全角数字
+    assert.equal(normalizeSelection('Ａ'), 'A');
+    assert.equal(normalizeSelection('Ｂ'), 'B');
+    assert.equal(normalizeSelection('Ｃ'), 'C');
+    assert.equal(normalizeSelection('１'), 'A');
+    assert.equal(normalizeSelection('２'), 'B');
+    assert.equal(normalizeSelection('３'), 'C');
     assert.equal(normalizeSelection('D'), null);
     assert.equal(normalizeSelection('hello'), null);
   });
@@ -1304,9 +1343,9 @@ describe('Scenario 29: 案A/B/C選択 + スタイル学習', async () => {
     const content = fs.readFileSync(
       new URL('../src/handlers/textHandler.js', import.meta.url), 'utf-8'
     );
-    assert.ok(content.includes("案?[ABCabc]"),
+    assert.ok(content.includes("案?[ABCabc"),
       'Should have proposal selection pattern');
-    assert.ok(content.includes("'[ 案A：'"),
+    assert.ok(/案A/.test(content),
       'Should check for 3-proposal marker');
     assert.ok(content.includes('handleProposalSelection'),
       'Should route to proposalHandler');

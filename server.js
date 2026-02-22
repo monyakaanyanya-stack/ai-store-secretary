@@ -24,7 +24,11 @@ if (missingVars.length > 0) {
   process.exit(1);
 }
 
-// SUPABASE_SERVICE_ROLE_KEY がなければ警告（フォールバックあり）
+// C3: Supabaseキーの検証（少なくとも1つ必須）
+if (!process.env.SUPABASE_SERVICE_ROLE_KEY && !process.env.SUPABASE_ANON_KEY) {
+  console.error('[Server] SUPABASE_SERVICE_ROLE_KEY と SUPABASE_ANON_KEY の両方が未設定です');
+  process.exit(1);
+}
 if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
   console.warn('[Server] SUPABASE_SERVICE_ROLE_KEY が未設定。SUPABASE_ANON_KEY にフォールバックします（RLS制限あり）');
 }

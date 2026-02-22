@@ -8,7 +8,7 @@ import {
 } from '../services/supabaseService.js';
 import { buildRevisionPrompt } from '../utils/promptBuilder.js';
 import { aggregateLearningData } from '../utils/learningData.js';
-import { applyFeedbackToProfile } from '../services/personalizationEngine.js';
+import { applyFeedbackToProfile, getOrCreateLearningProfile } from '../services/personalizationEngine.js';
 import {
   analyzeFeedbackWithClaude,
   updateAdvancedProfile,
@@ -109,8 +109,7 @@ export async function handleFeedback(user, feedback, replyToken) {
 
     console.log(`[Feedback] 修正完了: store=${store.name}, method=${learningMethod}`);
 
-    // 学習プロファイルを取得して学習回数・学習内容を確認
-    const { getOrCreateLearningProfile } = await import('../services/personalizationEngine.js');
+    // M8: 学習プロファイルを取得して学習回数・学習内容を確認（static import済み）
     const profile = await getOrCreateLearningProfile(store.id);
     const profileData = profile?.profile_data || {};
 

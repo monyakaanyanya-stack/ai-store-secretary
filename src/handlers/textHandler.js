@@ -123,12 +123,44 @@ export async function handleTextMessage(user, text, replyToken) {
 
   // フィードバック: 「直し:」で始まる
   if (trimmed.startsWith('直し:') || trimmed.startsWith('直し:')) {
+    // H4: 3案が未選択の場合はまず案を選ぶよう促す
+    if (user.current_store_id) {
+      const storeForCheck = await getStore(user.current_store_id);
+      if (storeForCheck) {
+        const { data: checkPost } = await supabase
+          .from('post_history')
+          .select('content')
+          .eq('store_id', storeForCheck.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        if (checkPost?.content && /\[\s*案A[：:]/.test(checkPost.content)) {
+          return await replyText(replyToken, '先にA / B / C のいずれかを選んでから修正指示を送ってください✉️');
+        }
+      }
+    }
     const feedback = trimmed.replace(/^直し[:：]\s*/, '');
     return await handleFeedback(user, feedback, replyToken);
   }
 
   // エンゲージメント報告: 「報告:」で始まる
   if (trimmed.startsWith('報告:') || trimmed.startsWith('報告:')) {
+    // H5: 3案が未選択の場合はまず案を選ぶよう促す
+    if (user.current_store_id) {
+      const storeForCheck = await getStore(user.current_store_id);
+      if (storeForCheck) {
+        const { data: checkPost } = await supabase
+          .from('post_history')
+          .select('content')
+          .eq('store_id', storeForCheck.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        if (checkPost?.content && /\[\s*案A[：:]/.test(checkPost.content)) {
+          return await replyText(replyToken, '先にA / B / C のいずれかを選んでから報告してください✉️');
+        }
+      }
+    }
     return await handleEngagementReport(user, trimmed, replyToken);
   }
 
@@ -266,8 +298,8 @@ ${contactEmail}
     return await handleCharacterSettingsSave(user, trimmed, replyToken);
   }
 
-  // 案選択: A, B, C, 案A, 案B, 案C, a, b, c, 1, 2, 3
-  if (/^(案?[ABCabc]|[1-3])$/i.test(trimmed)) {
+  // M1: 案選択: A, B, C, 案A, 案B, 案C, a, b, c, 1, 2, 3, 全角Ａ/Ｂ/Ｃ/１/２/３
+  if (/^(案?[ABCabc１２３ＡＢＣａｂｃ]|[1-3])$/i.test(trimmed)) {
     if (user.current_store_id) {
       const store = await getStore(user.current_store_id);
       if (store) {
@@ -278,8 +310,8 @@ ${contactEmail}
           .order('created_at', { ascending: false })
           .limit(1)
           .single();
-        // 直近の投稿が3案フォーマットの場合のみ処理
-        if (latestPost?.content?.includes('[ 案A：')) {
+        // M2: 直近の投稿が3案フォーマットの場合のみ処理（柔軟なマーカー検出）
+        if (latestPost?.content && /\[\s*案A[：:]/.test(latestPost.content)) {
           const { handleProposalSelection } = await import('./proposalHandler.js');
           return await handleProposalSelection(user, store, latestPost, trimmed, replyToken);
         }

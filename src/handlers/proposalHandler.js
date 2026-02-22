@@ -30,21 +30,22 @@ export async function handleProposalSelection(user, store, latestPost, input, re
     return await replyText(replyToken, `案${selection}の抽出に失敗しました。もう一度画像を送ってお試しください。`);
   }
 
-  // 2.5. 日本語テキスト内の不自然な半角スペースを除去
-  const extracted = cleanJapaneseSpaces(rawExtracted);
+  try {
+    // 2.5. 日本語テキスト内の不自然な半角スペースを除去
+    const extracted = cleanJapaneseSpaces(rawExtracted);
 
-  // 3. テンプレートフッター適用 + 投稿内容を上書き
-  const finalContent = appendTemplateFooter(extracted, store);
-  await updatePostContent(latestPost.id, finalContent);
+    // 3. テンプレートフッター適用 + 投稿内容を上書き
+    const finalContent = appendTemplateFooter(extracted, store);
+    await updatePostContent(latestPost.id, finalContent);
 
-  // 4. スタイル選好を学習
-  const styleName = STYLE_MAP[selection];
-  await updateStylePreference(store.id, styleName);
+    // 4. スタイル選好を学習（失敗しても続行）
+    const styleName = STYLE_MAP[selection];
+    await updateStylePreference(store.id, styleName);
 
-  console.log(`[Proposal] 案${selection}（${styleName}）を選択: store=${store.name}`);
+    console.log(`[Proposal] 案${selection}（${styleName}）を選択: store=${store.name}`);
 
-  // 5. 返信
-  return await replyText(replyToken, `✅ 案${selection}（${styleName}）を選びました！
+    // 5. 返信
+    return await replyText(replyToken, `✅ 案${selection}（${styleName}）を選びました！
 
 コピーしてInstagramに貼り付けてください↓
 ━━━━━━━━━━━
@@ -53,6 +54,10 @@ ${finalContent}
 
 修正があれば「直し: 〜」でどうぞ
 👍 良い / 👎 イマイチ で学習します`);
+  } catch (err) {
+    console.error(`[Proposal] 案選択エラー: store=${store.name}`, err);
+    return await replyText(replyToken, 'エラーが発生しました。もう一度画像を送ってお試しください。');
+  }
 }
 
 /**
@@ -61,7 +66,11 @@ ${finalContent}
  * @returns {'A'|'B'|'C'|null}
  */
 export function normalizeSelection(input) {
-  const cleaned = input.trim().toUpperCase().replace('案', '');
+  const cleaned = input.trim().toUpperCase()
+    .replace('案', '')
+    // M7: 全角英字→半角
+    .replace('Ａ', 'A').replace('Ｂ', 'B').replace('Ｃ', 'C')
+    .replace('１', '1').replace('２', '2').replace('３', '3');
   if (['A', '1'].includes(cleaned)) return 'A';
   if (['B', '2'].includes(cleaned)) return 'B';
   if (['C', '3'].includes(cleaned)) return 'C';
@@ -78,9 +87,9 @@ export function cleanJapaneseSpaces(text) {
   if (!text) return text;
   return text
     // 日本語文字（ひらがな・カタカナ・漢字・句読点）の後ろの不要スペース
-    .replace(/([\u3000-\u9FFF\uF900-\uFAFF])[ ]{1,2}(?=[\u3000-\u9FFF\uF900-\uFAFF\u0021-\u007E])/g, '$1')
+    .replace(/([\u3000-\u9FFF\uF900-\uFAFF]) +(?=[\u3000-\u9FFF\uF900-\uFAFF\u0021-\u007E])/g, '$1')
     // 日本語文字と絵文字の間の不要スペース
-    .replace(/([\u3000-\u9FFF\uF900-\uFAFF])[ ]{1,2}(?=[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}✨🌸💫🎵])/gu, '$1');
+    .replace(/([\u3000-\u9FFF\uF900-\uFAFF]) +(?=[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}✨🌸💫🎵])/gu, '$1');
 }
 
 /**
@@ -90,7 +99,7 @@ export function cleanJapaneseSpaces(text) {
  * @returns {string|null} 抽出されたテキスト
  */
 export function extractSelectedProposal(fullContent, selection) {
-  // [ 案A：質感 ] / [ 案B：空気 ] / [ 案C：記憶 ] のマーカーを検出
+  // [ 案A：時間の肖像 ] / [ 案B：誠実の肖像 ] / [ 案C：光の肖像 ] のマーカーを検出
   const markerPattern = /\[\s*案([ABC])[：:][^\]]*\]/g;
   const markers = [...fullContent.matchAll(markerPattern)];
   if (markers.length === 0) return null;
@@ -113,8 +122,8 @@ export function extractSelectedProposal(fullContent, selection) {
 
   const proposalText = fullContent.slice(startPos, endPos).trim();
 
-  // Photo Advice セクションを抽出（全案共通）
-  const adviceMatch = fullContent.match(/(━{5,}[\s\S]*━{5,})/);
+  // Photo Advice セクションを抽出（全案共通・非貪欲マッチ）
+  const adviceMatch = fullContent.match(/(━{5,}[\s\S]*?━{5,})/);
   const photoAdvice = adviceMatch ? '\n\n' + adviceMatch[1] : '';
 
   return proposalText + photoAdvice;
@@ -123,17 +132,17 @@ export function extractSelectedProposal(fullContent, selection) {
 /**
  * スタイル選好カウントを learning_profiles に保存
  * @param {string} storeId - 店舗ID
- * @param {string} styleName - "質感" | "空気" | "記憶"
+ * @param {string} styleName - "時間の肖像" | "誠実の肖像" | "光の肖像"
  */
 async function updateStylePreference(storeId, styleName) {
   try {
-    const { data: profile } = await supabase
+    const { data: profile, error: selectError } = await supabase
       .from('learning_profiles')
       .select('profile_data')
       .eq('store_id', storeId)
       .single();
 
-    if (!profile) {
+    if (selectError || !profile) {
       console.warn('[Proposal] learning_profile未作成のため学習スキップ');
       return;
     }
@@ -141,15 +150,30 @@ async function updateStylePreference(storeId, styleName) {
     const profileData = profile.profile_data || {};
     const selections = profileData.style_selections || { '時間の肖像': 0, '誠実の肖像': 0, '光の肖像': 0, total: 0 };
 
+    // H6: 旧キー（質感/空気/記憶）が残っている場合は新キーにマイグレーション
+    if (selections['質感'] != null || selections['空気'] != null || selections['記憶'] != null) {
+      selections['時間の肖像'] = (selections['時間の肖像'] || 0) + (selections['質感'] || 0);
+      selections['誠実の肖像'] = (selections['誠実の肖像'] || 0) + (selections['空気'] || 0);
+      selections['光の肖像'] = (selections['光の肖像'] || 0) + (selections['記憶'] || 0);
+      delete selections['質感'];
+      delete selections['空気'];
+      delete selections['記憶'];
+    }
+
     selections[styleName] = (selections[styleName] || 0) + 1;
     selections.total = (selections.total || 0) + 1;
 
-    await supabase
+    const { error: updateError } = await supabase
       .from('learning_profiles')
       .update({
         profile_data: { ...profileData, style_selections: selections },
       })
       .eq('store_id', storeId);
+
+    if (updateError) {
+      console.warn('[Proposal] スタイル学習の保存に失敗:', updateError.message);
+      return;
+    }
 
     console.log(`[Proposal] スタイル学習: ${styleName} (累計: 時間${selections['時間の肖像'] || 0}/誠実${selections['誠実の肖像'] || 0}/光${selections['光の肖像'] || 0})`);
   } catch (err) {

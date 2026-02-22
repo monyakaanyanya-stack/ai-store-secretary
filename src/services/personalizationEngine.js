@@ -197,7 +197,7 @@ export async function getPersonalizationPromptAddition(storeId) {
     if (sorted.length > 0 && sorted[0][1] > 0) {
       const topStyle = sorted[0][0];
       const topPct = Math.round((sorted[0][1] / styleSelections.total) * 100);
-      additions.push(`・好みの切り口: ${topStyle}（${topPct}%） → 案Aをこの傾向に寄せること`);
+      additions.push(`・好みの切り口: ${topStyle}（${topPct}%） → 3案のうち1案をこの傾向に寄せること`);
     }
   }
 

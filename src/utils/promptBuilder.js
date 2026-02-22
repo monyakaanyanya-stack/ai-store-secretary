@@ -194,6 +194,8 @@ export const POST_LENGTH_MAP = {
   long: { range: '400-500文字', description: '長文' },
 };
 
+// L5: import文は本来先頭に置くべきだが、ESMがhoistするため実害はない
+// 次回リファクタ時にファイル先頭に移動すること
 import { getHashtagsForCategory } from '../config/categoryDictionary.js';
 
 function getToneName(tone) {
@@ -295,9 +297,9 @@ export function buildImagePostPrompt(store, learningData, lengthOverride = null,
       dbTags.push(...staticTags.slice(0, 5));
     }
 
-    // 保存強度が高い投稿の文字数（メイン指標）
-    const topPostsLength = category?.topPostsAvgLength || group?.topPostsAvgLength;
-    const topSaveIntensity = category?.topPostsAvgSaveIntensity || group?.topPostsAvgSaveIntensity;
+    // M5: 保存強度が高い投稿の文字数（メイン指標）— ?? で 0 を正しく扱う
+    const topPostsLength = category?.topPostsAvgLength ?? group?.topPostsAvgLength;
+    const topSaveIntensity = category?.topPostsAvgSaveIntensity ?? group?.topPostsAvgSaveIntensity;
     if (topPostsLength) {
       const intensityNote = topSaveIntensity != null
         ? `（保存強度 ${topSaveIntensity.toFixed(2)} の投稿群）`
@@ -305,8 +307,8 @@ export function buildImagePostPrompt(store, learningData, lengthOverride = null,
       insights.push(`【文字数（必須）】\n保存されやすい投稿${intensityNote}の平均文字数: ${topPostsLength}文字\n※ この文字数を目安に作成してください`);
     }
 
-    const avgEmojiCount = category?.avgEmojiCount || group?.avgEmojiCount;
-    if (avgEmojiCount !== undefined) {
+    const avgEmojiCount = category?.avgEmojiCount ?? group?.avgEmojiCount;
+    if (avgEmojiCount !== undefined && avgEmojiCount !== null) {
       insights.push(`【絵文字（必須）】\n同業種の平均絵文字数: ${Math.round(avgEmojiCount)}個\n※ この数を目安に使用してください`);
     }
 
@@ -414,17 +416,17 @@ ${templateInfo}${characterSection}${imageDescriptionSection}${collectiveIntellig
 
 [ 案A：時間の肖像 ]
 （今日という日の二度と戻らない一瞬を切り取る。）
-${hashtagInstruction ? '\n上記のハッシュタグルールに従うこと。' : ''}
+${hashtagInstruction ? '上記のハッシュタグルールに従うこと。' : ''}
 #タグ1 #タグ2 #タグ3 #タグ4 #タグ5
 
 [ 案B：誠実の肖像 ]
 （店主のこだわりや姿勢が、写真のどこに宿っているかを指摘し、正解として肯定する。）
-
+${hashtagInstruction ? '上記のハッシュタグルールに従うこと。' : ''}
 #タグ1 #タグ2 #タグ3 #タグ4 #タグ5
 
 [ 案C：光の肖像 ]
 （光と影がもたらす感情の揺らぎを綴る。物理現象ではなく、心の風景としての描写。）
-
+${hashtagInstruction ? '上記のハッシュタグルールに従うこと。' : ''}
 #タグ1 #タグ2 #タグ3 #タグ4 #タグ5
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -493,9 +495,9 @@ export function buildTextPostPrompt(store, learningData, userText, lengthOverrid
       insights.push(`【ハッシュタグ（必須）】\n以下は同業種で高エンゲージメントのハッシュタグです。3-5個を必ず使用:\n${dbTags.join(', ')}`);
     }
 
-    // 文字数（保存強度が高い投稿ベース）
-    const topPostsLength = category?.topPostsAvgLength || group?.topPostsAvgLength;
-    const topSaveIntensity = category?.topPostsAvgSaveIntensity || group?.topPostsAvgSaveIntensity;
+    // M5: 文字数（保存強度が高い投稿ベース）— ?? で 0 を正しく扱う
+    const topPostsLength = category?.topPostsAvgLength ?? group?.topPostsAvgLength;
+    const topSaveIntensity = category?.topPostsAvgSaveIntensity ?? group?.topPostsAvgSaveIntensity;
     if (topPostsLength) {
       const intensityNote = topSaveIntensity != null
         ? `（保存強度 ${topSaveIntensity.toFixed(2)} の投稿群）`
@@ -504,8 +506,8 @@ export function buildTextPostPrompt(store, learningData, userText, lengthOverrid
     }
 
     // 絵文字（優先度3）
-    const avgEmojiCount = category?.avgEmojiCount || group?.avgEmojiCount;
-    if (avgEmojiCount !== undefined) {
+    const avgEmojiCount = category?.avgEmojiCount ?? group?.avgEmojiCount;
+    if (avgEmojiCount !== undefined && avgEmojiCount !== null) {
       insights.push(`【絵文字（必須）】\n同業種の平均絵文字数: ${Math.round(avgEmojiCount)}個\n※ この数を目安に使用してください`);
     }
 
@@ -701,10 +703,16 @@ export function buildRevisionPrompt(store, learningData, originalPost, feedback,
   const toneData = getToneData(store.tone);
   const characterSection = buildCharacterSection(store);
 
-  return `あなたは${store.name}のInstagram担当者です。以下の投稿を修正してください。
+  return `あなたは${store.name}の「良き理解者」です。以下の投稿を修正してください。
+
+【ライティング・ルール（Ver. 17.0）】
+- 事実を肖像に変える: 画面に見えているものを説明しない。その裏にある「理由」を綴る。
+- 完結した独白: 店主への指示は不要。AIの言葉だけで文章を完結させる。
+- 不揃いな呼吸: 接続詞を捨て、名詞止めや短い文で構成する。
+- 絵文字: キャプション全体で最大2個まで。
 
 【絶対に使わない言葉（AI丸出しになるのでNG）】
-${toneData.forbidden_words.join(', ')}
+${toneData.forbidden_words.join(', ')}, 幻想的, 素敵, 魅力的, 素晴らしい, 完璧, 最高, 美しい, ですね, なのですね
 ${advancedPersonalization}${characterSection}
 【元の投稿】
 ${originalPost}
