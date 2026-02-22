@@ -116,13 +116,14 @@ export async function getInstagramAccount(storeId) {
 
   if (!data) return null;
 
-  // トークンを復号（暗号化されている場合）
+  // S6修正: 平文フォールバックを廃止（DB漏洩時のトークン露出防止）
   if (data.access_token) {
     try {
       data.access_token = decrypt(data.access_token);
-    } catch {
-      // 暗号化されていない旧データの場合はそのまま使用
-      console.warn('[Instagram] トークン復号失敗: 暗号化されていない旧データの可能性があります');
+    } catch (decryptErr) {
+      console.error('[Instagram] トークン復号失敗:', decryptErr.message);
+      console.error('[Instagram] 再連携が必要です。/instagram connect で再設定してください。');
+      return null;
     }
   }
 

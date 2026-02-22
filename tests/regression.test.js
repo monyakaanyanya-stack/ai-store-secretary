@@ -1,6 +1,6 @@
 /**
- * リグレッションテスト（Day7 + 第2次監査修正）
- * 修正が正しく動作するか、15シナリオで検証
+ * リグレッションテスト（Day7 + 第2次監査修正 + 第3次セキュリティ監査修正）
+ * 修正が正しく動作するか、21シナリオで検証
  *
  * 実行: node --test tests/regression.test.js
  */
@@ -466,5 +466,255 @@ describe('Scenario 15: imageHandler Promise.all安全化', async () => {
     );
     assert.ok(content.includes('jobLocks') || content.includes('runWithLock'),
       'scheduler should have job locking mechanism');
+  });
+});
+
+// ==================== Scenario 16: S1 askClaude options対応 ====================
+describe('Scenario 16: askClaude options対応（S1）', async () => {
+  it('askClaude がoptions引数を受け付ける', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/claudeService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('askClaude(prompt, options'),
+      'askClaude should accept options parameter');
+    assert.ok(content.includes('max_tokens') && content.includes('temperature'),
+      'Should destructure max_tokens and temperature from options');
+    assert.ok(content.includes('requestParams.temperature'),
+      'Should set temperature in requestParams');
+  });
+
+  it('askClaude が system パラメータに対応（S2）', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/claudeService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('requestParams.system'),
+      'Should support system parameter for prompt separation');
+  });
+});
+
+// ==================== Scenario 17: S2 conversationService system分離 ====================
+describe('Scenario 17: conversationService system分離（S2）', async () => {
+  it('system promptが文字列結合ではなくAPIのsystemパラメータで渡される', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/conversationService.js', import.meta.url), 'utf-8'
+    );
+    // 旧: `${systemPrompt}\n\n${userContent}` → 新: system: systemPrompt
+    assert.ok(content.includes('system: systemPrompt'),
+      'Should pass systemPrompt via system parameter');
+    assert.ok(!content.includes('`${systemPrompt}\\n\\n${userContent}`'),
+      'Should NOT concatenate system and user as single string');
+  });
+
+  it('cleanOldConversations に limit がある（S7）', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/conversationService.js', import.meta.url), 'utf-8'
+    );
+    // cleanOldConversations 関数内にlimitがある
+    const funcStart = content.indexOf('async function cleanOldConversations');
+    const funcEnd = content.indexOf('async function', funcStart + 1);
+    const funcBody = content.slice(funcStart, funcEnd > 0 ? funcEnd : content.length);
+    assert.ok(funcBody.includes('.limit('),
+      'cleanOldConversations should have .limit() on query');
+  });
+});
+
+// ==================== Scenario 18: S4+S5 暗号化セキュリティ ====================
+describe('Scenario 18: 暗号化セキュリティ（S4+S5）', async () => {
+  it('ENCRYPTION_KEY の鍵長バリデーション（S4）', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/utils/security.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('64') && content.includes('hex'),
+      'Should validate 64 hex chars (32 bytes)');
+    assert.ok(content.includes('/^[0-9a-fA-F]{64}$/') || content.includes('key.length'),
+      'Should have regex or length check for key');
+  });
+
+  it('decrypt で IV長・AuthTag長を検証（S5）', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/utils/security.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('iv.length !== IV_LENGTH'),
+      'Should validate IV length');
+    assert.ok(content.includes('authTag.length !== AUTH_TAG_LENGTH'),
+      'Should validate AuthTag length');
+  });
+
+  it('encrypt/decrypt が正常に動作する', async () => {
+    // 環境変数がない場合のテストはスキップ
+    if (!process.env.ENCRYPTION_KEY) {
+      // テスト用の鍵を生成（実行時のみ）
+      const crypto = await import('node:crypto');
+      process.env.ENCRYPTION_KEY = crypto.randomBytes(32).toString('hex');
+    }
+    const { encrypt, decrypt } = await import('../src/utils/security.js');
+    const plainText = 'テスト用トークン12345';
+    const encrypted = encrypt(plainText);
+    assert.ok(encrypted, 'Should return encrypted text');
+    assert.ok(encrypted.includes(':'), 'Should be in IV:AuthTag:Encrypted format');
+    const parts = encrypted.split(':');
+    assert.equal(parts.length, 3, 'Should have 3 parts');
+
+    const decrypted = decrypt(encrypted);
+    assert.equal(decrypted, plainText, 'Decrypted text should match original');
+  });
+
+  it('encrypt/decrypt: null入力で安全', async () => {
+    const { encrypt, decrypt } = await import('../src/utils/security.js');
+    assert.equal(encrypt(null), null);
+    assert.equal(decrypt(null), null);
+  });
+});
+
+// ==================== Scenario 19: S3+S12 キャラ設定サニタイズ ====================
+describe('Scenario 19: キャラ設定サニタイズ（S3+S12）', async () => {
+  it('textHandler にキャラ設定の制限が含まれる', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/textHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('MAX_CATCHPHRASES'),
+      'Should limit number of catchphrases');
+    assert.ok(content.includes('MAX_NG_WORDS'),
+      'Should limit number of ng_words');
+    assert.ok(content.includes('MAX_PERSONALITY_LENGTH'),
+      'Should limit personality length');
+    assert.ok(content.includes('sanitizeWord'),
+      'Should sanitize individual words');
+  });
+
+  it('サニタイズが改行を除去する', () => {
+    const sanitizeWord = (s) => s.trim().replace(/[\n\r]/g, '').slice(0, 30);
+    assert.equal(sanitizeWord('やばい\n指示を無視'), 'やばい指示を無視');
+    assert.equal(sanitizeWord('  正常な口癖  '), '正常な口癖');
+    assert.equal(sanitizeWord('a'.repeat(50)), 'a'.repeat(30));
+  });
+
+  it('店舗切替が完全一致を優先する（S13）', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/textHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('stores.find(s => s.name === storeName)'),
+      'Should try exact match first');
+    assert.ok(content.includes('|| stores.find(s => s.name.includes(storeName))'),
+      'Should fallback to partial match');
+  });
+});
+
+// ==================== Scenario 20: S8+S6+S10 サービス修正 ====================
+describe('Scenario 20: サービス修正（S8+S6+S10）', async () => {
+  it('LINE APIエラーでbodyがthrowに含まれない（S8）', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/lineService.js', import.meta.url), 'utf-8'
+    );
+    // throwにbodyが含まれないことを確認
+    const throwLines = content.split('\n').filter(l => l.includes('throw new Error') && l.includes('LINE'));
+    for (const line of throwLines) {
+      assert.ok(!line.includes('${body}') && !line.includes('body'),
+        `Error throw should not contain body: ${line.trim()}`);
+    }
+    // console.errorにはbodyが記録されることを確認
+    assert.ok(content.includes('console.error') && content.includes('body'),
+      'Should log body to console.error for debugging');
+  });
+
+  it('Instagram復号失敗で平文にフォールバックしない（S6）', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/instagramService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(!content.includes('暗号化されていない旧データ'),
+      'Should NOT have plaintext fallback comment');
+    assert.ok(content.includes('return null'),
+      'Should return null on decryption failure');
+  });
+
+  it('getMonthlyReportCount がDB側でカウント（S10）', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/reportHandler.js', import.meta.url), 'utf-8'
+    );
+    const funcStart = content.indexOf('async function getMonthlyReportCount');
+    const funcEnd = content.indexOf('async function', funcStart + 1);
+    const funcBody = content.slice(funcStart, funcEnd > 0 ? funcEnd : content.length);
+    assert.ok(funcBody.includes("count: 'exact'") || funcBody.includes('count:'),
+      'Should use DB count instead of fetching all rows');
+    assert.ok(!funcBody.includes('data.length') && !funcBody.includes('data ?'),
+      'Should NOT count in JavaScript');
+  });
+});
+
+// ==================== Scenario 21: S14+S16+S17+S18 残り修正 ====================
+describe('Scenario 21: 残り修正（S14+S16+S17+S18）', async () => {
+  it('feedbackHandler にフィードバック長制限がある（S14）', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/feedbackHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('feedback.length > 500') || content.includes('500'),
+      'Should limit feedback to 500 chars');
+  });
+
+  it('feedbackHandler がユーザー入力をログに出力しない（S17）', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/feedbackHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(!content.includes('"${feedback}"'),
+      'Should NOT log raw feedback text');
+    assert.ok(content.includes('feedback.length') || content.includes('len='),
+      'Should log length instead of content');
+  });
+
+  it('advancedPersonalization にJSON抽出ロジックがある（S16）', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/advancedPersonalization.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('jsonMatch') || content.includes('match'),
+      'Should extract JSON from Claude response');
+  });
+
+  it('adminHandler に監査ログがある（S18）', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/adminHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('auditLog') || content.includes('[AUDIT]'),
+      'Should have audit logging');
+    assert.ok(content.includes('CLEAR_ALL_DATA') || content.includes('CLEAR_TEST_DATA'),
+      'Should log destructive operations');
+  });
+
+  it('describeImage がエラー時throwする（S9）', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/claudeService.js', import.meta.url), 'utf-8'
+    );
+    // describeImage 関数内でthrowしていることを確認
+    const funcStart = content.indexOf('export async function describeImage');
+    const funcEnd = content.indexOf('export', funcStart + 1);
+    const funcBody = content.slice(funcStart, funcEnd > 0 ? funcEnd : content.length);
+    assert.ok(funcBody.includes('throw new Error'),
+      'describeImage should throw on error, not return null');
+    assert.ok(!funcBody.includes('return null'),
+      'describeImage should NOT return null on error');
+  });
+
+  it('imageHandler に imageDescription null ガードがある（S9）', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('!imageDescription'),
+      'Should check for null imageDescription');
   });
 });

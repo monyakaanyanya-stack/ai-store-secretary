@@ -21,9 +21,11 @@ export async function replyText(replyToken, text) {
     }),
   });
 
+  // S8修正: LINE APIレスポンスbodyの詳細をログに記録し、throwには含めない
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`LINE返信失敗: ${res.status} ${body}`);
+    console.error(`[LINE] 返信失敗 status=${res.status} body=${body.slice(0, 200)}`);
+    throw new Error(`LINE返信失敗: ${res.status}`);
   }
 }
 
@@ -43,9 +45,11 @@ export async function pushMessage(lineUserId, messages) {
     }),
   });
 
+  // S8修正: LINE APIレスポンスbodyの詳細をログに記録し、throwには含めない
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`LINEプッシュメッセージ送信失敗: ${res.status} ${body}`);
+    console.error(`[LINE] プッシュ送信失敗 status=${res.status} body=${body.slice(0, 200)}`);
+    throw new Error(`LINEプッシュメッセージ送信失敗: ${res.status}`);
   }
 }
 

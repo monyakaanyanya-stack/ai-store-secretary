@@ -12,10 +12,12 @@ const AUTH_TAG_LENGTH = 16;
 function getEncryptionKey() {
   const key = process.env.ENCRYPTION_KEY;
   if (!key) {
-    console.error('[Security] ENCRYPTION_KEY が設定されていません！トークンの暗号化ができません。');
-    throw new Error('ENCRYPTION_KEY が設定されていません。.env に 32バイトの16進数文字列を設定してください。');
+    throw new Error('ENCRYPTION_KEY が未設定です。.env に 64文字の16進数文字列を設定してください。');
   }
-  // 64文字の16進数文字列 → 32バイトのBuffer
+  // S4修正: 鍵長を検証（AES-256-GCM は 32バイト = 64文字の16進数が必須）
+  if (!/^[0-9a-fA-F]{64}$/.test(key)) {
+    throw new Error('ENCRYPTION_KEY は64文字の16進数文字列である必要があります（現在: ' + key.length + '文字）');
+  }
   return Buffer.from(key, 'hex');
 }
 
@@ -47,17 +49,29 @@ export function encrypt(plainText) {
  */
 export function decrypt(encryptedText) {
   if (!encryptedText) return null;
+  // S5修正: 入力型チェック
+  if (typeof encryptedText !== 'string') {
+    throw new Error('暗号化データは文字列である必要があります');
+  }
 
   const key = getEncryptionKey();
   const parts = encryptedText.split(':');
 
   if (parts.length !== 3) {
-    throw new Error('暗号化データの形式が不正です');
+    throw new Error('暗号化データの形式が不正です（IV:AuthTag:暗号文 の3部構成が必要）');
   }
 
   const iv = Buffer.from(parts[0], 'hex');
   const authTag = Buffer.from(parts[1], 'hex');
   const encrypted = parts[2];
+
+  // S5修正: IV長とAuthTag長を検証
+  if (iv.length !== IV_LENGTH) {
+    throw new Error(`IVの長さが不正です（期待: ${IV_LENGTH}バイト, 実際: ${iv.length}バイト）`);
+  }
+  if (authTag.length !== AUTH_TAG_LENGTH) {
+    throw new Error(`AuthTagの長さが不正です（期待: ${AUTH_TAG_LENGTH}バイト, 実際: ${authTag.length}バイト）`);
+  }
 
   const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
   decipher.setAuthTag(authTag);
@@ -135,6 +149,9 @@ export function checkDailyApiLimit(userId) {
  * 日次API呼び出しカウントを増加
  * @param {string} userId - ユーザー識別子
  */
+// S15修正: 最後のクリーンアップ日を記録（毎回イテレーションを避ける）
+let lastDailyCleanupDate = '';
+
 export function incrementDailyApiCount(userId) {
   const today = new Date().toISOString().slice(0, 10);
   const dailyKey = `daily:${userId}:${today}`;
@@ -142,10 +159,13 @@ export function incrementDailyApiCount(userId) {
   const count = DAILY_API_LIMIT_MAP.get(dailyKey) || 0;
   DAILY_API_LIMIT_MAP.set(dailyKey, count + 1);
 
-  // 前日のデータをクリーンアップ（メモリリーク防止）
-  for (const key of DAILY_API_LIMIT_MAP.keys()) {
-    if (!key.includes(today)) {
-      DAILY_API_LIMIT_MAP.delete(key);
+  // S15修正: 日付が変わったときだけクリーンアップ（毎回O(n)イテレーション防止）
+  if (lastDailyCleanupDate !== today) {
+    lastDailyCleanupDate = today;
+    for (const key of DAILY_API_LIMIT_MAP.keys()) {
+      if (!key.includes(today)) {
+        DAILY_API_LIMIT_MAP.delete(key);
+      }
     }
   }
 }

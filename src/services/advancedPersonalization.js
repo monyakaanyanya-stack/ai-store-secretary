@@ -74,7 +74,20 @@ ${feedback}
       temperature: 0.2,
     });
 
-    const analysis = JSON.parse(response);
+    // S16修正: JSON.parseを明示的にtry-catchし、Claude応答に余分なテキストがある場合も対応
+    let analysis;
+    try {
+      // JSONブロックだけを抽出（Claudeが前後にテキストを付けることがある）
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error('JSON部分が見つかりません');
+      }
+      analysis = JSON.parse(jsonMatch[0]);
+    } catch (parseErr) {
+      console.warn('[AdvancedPersonalization] JSON解析失敗（基本学習にフォールバック）:', parseErr.message);
+      return null;
+    }
+
     return analysis;
   } catch (err) {
     console.error('[AdvancedPersonalization] フィードバック分析エラー:', err.message);

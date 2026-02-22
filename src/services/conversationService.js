@@ -44,11 +44,13 @@ export async function getRecentConversations(userId, limit = 20) {
  */
 export async function cleanOldConversations(userId, keepLast = 40) {
   try {
+    // S7修正: .limit() を追加（大量履歴でのOOM防止）
     const { data: conversations } = await supabase
       .from('conversation_history')
       .select('id, created_at')
       .eq('user_id', userId)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(500);
 
     if (!conversations || conversations.length <= keepLast) {
       return; // 削除不要
@@ -95,7 +97,9 @@ export async function buildContextForUser(user, store) {
       context.push(`【最近の投稿】`);
       recentPosts.forEach((post, i) => {
         const date = new Date(post.created_at).toLocaleDateString('ja-JP');
-        context.push(`${i + 1}. (${date}) ${post.content.slice(0, 50)}...`);
+        // S19修正: 改行を除去して1行に収める
+        const preview = post.content.replace(/\n/g, ' ').slice(0, 50);
+        context.push(`${i + 1}. (${date}) ${preview}...`);
       });
     }
   }
@@ -175,11 +179,12 @@ ${historyText || 'なし'}
   const userContent = `ユーザーからの最新メッセージ:\n${sanitizedMessage}\n\n上記に対して、自然な会話で応答してください。`;
 
   try {
-    // システムプロンプトとユーザー入力を結合して渡す（分離済み）
-    const fullPrompt = `${systemPrompt}\n\n${userContent}`;
-    const response = await askClaude(fullPrompt, {
+    // S2修正: Claude APIのsystemパラメータで安全に分離
+    // （文字列結合ではなく、APIレベルでsystem/userを分離 → プロンプトインジェクション耐性向上）
+    const response = await askClaude(userContent, {
       max_tokens: 500,
       temperature: 0.7,
+      system: systemPrompt,
     });
 
     return response;

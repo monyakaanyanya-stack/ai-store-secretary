@@ -3,6 +3,13 @@ import { supabase } from '../services/supabaseService.js';
 import { getStore } from '../services/supabaseService.js';
 import { saveEngagementMetrics } from '../services/collectiveIntelligence.js';
 import { normalizeInput, safeParseInt } from '../utils/inputNormalizer.js';
+import { maskUserId } from '../utils/security.js';
+
+// S18修正: 管理者の破壊的操作を監査ログに記録
+function auditLog(adminUserId, action, details = '') {
+  const timestamp = new Date().toISOString();
+  console.log(`[AUDIT] ${timestamp} admin=${maskUserId(adminUserId)} action=${action} ${details}`);
+}
 
 /**
  * 管理者かどうかをチェック
@@ -80,6 +87,8 @@ export async function handleAdminClearData(user, replyToken) {
   }
 
   try {
+    auditLog(user.line_user_id, 'CLEAR_ALL_DATA', 'engagement_metrics全削除');
+
     const { error, count } = await supabase
       .from('engagement_metrics')
       .delete()
@@ -87,6 +96,7 @@ export async function handleAdminClearData(user, replyToken) {
 
     if (error) throw error;
 
+    auditLog(user.line_user_id, 'CLEAR_ALL_DATA_DONE', `削除件数=${count || 0}`);
     await replyText(replyToken, `✅ データベースクリア完了\n\n削除件数: ${count || 0}件`);
     return true;
   } catch (err) {
@@ -106,6 +116,8 @@ export async function handleAdminClearTestData(user, replyToken) {
   }
 
   try {
+    auditLog(user.line_user_id, 'CLEAR_TEST_DATA', 'store_id=nullのテストデータ削除');
+
     const { error, count } = await supabase
       .from('engagement_metrics')
       .delete()
@@ -113,6 +125,7 @@ export async function handleAdminClearTestData(user, replyToken) {
 
     if (error) throw error;
 
+    auditLog(user.line_user_id, 'CLEAR_TEST_DATA_DONE', `削除件数=${count || 0}`);
     await replyText(replyToken, `✅ テストデータクリア完了\n\n削除件数: ${count || 0}件`);
     return true;
   } catch (err) {

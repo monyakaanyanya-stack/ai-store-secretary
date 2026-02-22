@@ -350,7 +350,10 @@ ${contactEmail}
     const hasPreference = preferenceKeywords.some(kw => trimmed.includes(kw));
     if (hasPreference && trimmed.length > 5 && trimmed.length < 50) {
       // 重い分析は不要、基本学習（キーワードマッチ）だけ実行
-      applyFeedbackToProfile(user.current_store_id, trimmed, '').catch(() => {});
+      // S11修正: 空catchではなくエラーログを出力
+      applyFeedbackToProfile(user.current_store_id, trimmed, '').catch(err => {
+        console.warn('[TextHandler] 好み学習エラー（続行）:', err.message);
+      });
     }
   }
 
@@ -412,9 +415,9 @@ async function handleStoreSwitch(user, storeName, replyToken) {
       return await replyText(replyToken, '店舗がまだ登録されていません。\n\n1: 業種,店名,こだわり,口調\n\nの形式で登録してください。');
     }
 
-    const target = stores.find(s =>
-      s.name === storeName || s.name.includes(storeName)
-    );
+    // S13修正: 完全一致を優先し、部分一致はフォールバック（曖昧マッチ防止）
+    const target = stores.find(s => s.name === storeName)
+      || stores.find(s => s.name.includes(storeName));
 
     if (!target) {
       const list = stores.map((s, i) => `${i + 1}. ${s.name}`).join('\n');
@@ -1085,10 +1088,29 @@ async function handleCharacterSettingsSave(user, text, replyToken) {
       parsed[key] = value;
     }
 
+    // S3+S12修正: キャラクター設定のサニタイズ＋制限
+    // - 各項目の文字数・個数を制限（プロンプトインジェクション緩和）
+    // - 改行を除去（プロンプト構造の破壊を防止）
+    const MAX_CATCHPHRASES = 10;
+    const MAX_NG_WORDS = 10;
+    const MAX_WORD_LENGTH = 30;
+    const MAX_PERSONALITY_LENGTH = 100;
+
+    const sanitizeWord = (s) => s.trim().replace(/[\n\r]/g, '').slice(0, MAX_WORD_LENGTH);
+
+    const rawCatchphrases = parsed['口癖']
+      ? parsed['口癖'].split(/[、,，]/).map(sanitizeWord).filter(s => s)
+      : (store.config?.character_settings?.catchphrases || []);
+    const rawNgWords = parsed['NGワード']
+      ? parsed['NGワード'].split(/[、,，]/).map(sanitizeWord).filter(s => s)
+      : (store.config?.character_settings?.ng_words || []);
+    const rawPersonality = (parsed['個性'] || store.config?.character_settings?.personality || '')
+      .replace(/[\n\r]/g, ' ').slice(0, MAX_PERSONALITY_LENGTH);
+
     const character_settings = {
-      catchphrases: parsed['口癖'] ? parsed['口癖'].split(/[、,，]/).map(s => s.trim()).filter(s => s) : (store.config?.character_settings?.catchphrases || []),
-      ng_words: parsed['NGワード'] ? parsed['NGワード'].split(/[、,，]/).map(s => s.trim()).filter(s => s) : (store.config?.character_settings?.ng_words || []),
-      personality: parsed['個性'] || store.config?.character_settings?.personality || '',
+      catchphrases: rawCatchphrases.slice(0, MAX_CATCHPHRASES),
+      ng_words: rawNgWords.slice(0, MAX_NG_WORDS),
+      personality: rawPersonality,
     };
 
     const newConfig = {

@@ -41,6 +41,9 @@ export async function handleImageMessage(user, messageId, replyToken) {
         return defaultVal;
       });
 
+    // S9修正: describeImage の失敗を safeResolve ではなく明示的にハンドリング
+    // describeImage はエラー時 throw するようになったため、Promise.all が失敗する
+    // → catch ブロックでユーザーに適切なエラーメッセージを返せる
     const [
       imageDescription,
       learningData,
@@ -49,7 +52,7 @@ export async function handleImageMessage(user, messageId, replyToken) {
       advancedPersonalization,
       seasonalMemory,
     ] = await Promise.all([
-      describeImage(imageBase64), // 必須: これが失敗したらcatchブロックへ
+      describeImage(imageBase64), // 必須: 失敗時はcatchブロックへ（S9で throw に変更済み）
       safeResolve(aggregateLearningData(store.id), {}, 'learningData'),
       safeResolve(
         store.category ? getBlendedInsights(store.id, store.category) : Promise.resolve(null),
@@ -62,6 +65,11 @@ export async function handleImageMessage(user, messageId, replyToken) {
     console.log(`[Image] 画像分析結果: ${imageDescription?.slice(0, 100)}...`);
 
     const personalization = (basicPersonalization || '') + (advancedPersonalization || '') + (seasonalMemory || '');
+
+    // S9修正: imageDescription が万が一 null/undefined の場合のガード
+    if (!imageDescription) {
+      return await replyText(replyToken, '画像の分析に失敗しました。別の画像で再度お試しください。');
+    }
 
     // ステップ2: 画像分析結果を使ってテキストのみで投稿生成（画像への依存をなくす）
     const prompt = buildImagePostPrompt(store, learningData, null, blendedInsights, personalization, imageDescription);

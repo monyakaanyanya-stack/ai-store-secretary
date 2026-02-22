@@ -6,14 +6,34 @@ const MODEL = 'claude-sonnet-4-20250514';
 
 /**
  * テキストのみのリクエスト
+ * S1修正: options引数に対応（max_tokens, temperature, system等）
+ * S2対応: systemパラメータ分離に対応
  */
-export async function askClaude(prompt) {
+export async function askClaude(prompt, options = {}) {
   try {
-    const response = await client.messages.create({
+    const {
+      max_tokens = 1024,
+      temperature,
+      system,
+    } = options;
+
+    const requestParams = {
       model: MODEL,
-      max_tokens: 1024,
+      max_tokens,
       messages: [{ role: 'user', content: prompt }],
-    });
+    };
+
+    // temperatureが明示指定された場合のみ設定（未指定ならAPIデフォルト）
+    if (temperature !== undefined) {
+      requestParams.temperature = temperature;
+    }
+
+    // S2対応: systemパラメータで安全にシステムプロンプトを分離
+    if (system) {
+      requestParams.system = system;
+    }
+
+    const response = await client.messages.create(requestParams);
 
     return response.content[0].text;
   } catch (error) {
@@ -103,7 +123,8 @@ export async function describeImage(imageBase64, mediaType = 'image/jpeg') {
 
     return response.content[0].text;
   } catch (error) {
+    // S9修正: nullを返さずthrowする（呼び出し元で適切にハンドリング）
     console.error('[Claude] 画像分析エラー:', error.message);
-    return null;
+    throw new Error(`画像分析失敗: ${error.message}`);
   }
 }

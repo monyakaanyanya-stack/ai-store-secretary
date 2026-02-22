@@ -387,9 +387,10 @@ async function getMonthlyReportCount(userId, storeId) {
   // JST月初 → UTC に戻す（-9時間）
   const monthStartUTC = new Date(monthStartJST.getTime() - 9 * 60 * 60 * 1000);
 
-  const { data, error } = await supabase
+  // S10修正: 全件SELECTではなくDB側でカウント（データ転送削減）
+  const { count, error } = await supabase
     .from('engagement_metrics')
-    .select('id')
+    .select('id', { count: 'exact', head: true })
     .eq('store_id', storeId)
     .eq('status', '報告済')
     .gte('created_at', monthStartUTC.toISOString());
@@ -399,7 +400,7 @@ async function getMonthlyReportCount(userId, storeId) {
     return 0;
   }
 
-  return data ? data.length : 0;
+  return count || 0;
 }
 
 /**

@@ -23,6 +23,11 @@ export async function handleFeedback(user, feedback, replyToken) {
     return await replyText(replyToken, '店舗が選択されていません。先に店舗を登録してください。');
   }
 
+  // S14修正: フィードバックの長さ制限（Claude APIトークン浪費防止）
+  if (feedback.length > 500) {
+    return await replyText(replyToken, '修正指示が長すぎます。500文字以内でお願いします。');
+  }
+
   try {
     const store = await getStore(user.current_store_id);
     if (!store) {
@@ -45,7 +50,8 @@ export async function handleFeedback(user, feedback, replyToken) {
     // フィードバックが詳細な場合は高度な分析を使用
     if (feedback.length > 10) {
       // 詳細なフィードバック（10文字以上）→ Claude API分析
-      console.log(`[Feedback] 高度な学習を使用: "${feedback}"`);
+      // S17修正: ユーザー入力をログにそのまま出力しない（PII混入防止）
+      console.log(`[Feedback] 高度な学習を使用: len=${feedback.length}`);
       learningMethod = 'advanced';
 
       // Claude APIでフィードバックを分析
@@ -81,7 +87,8 @@ export async function handleFeedback(user, feedback, replyToken) {
       await updatePostContent(latestPost.id, revisedContent);
     } else {
       // 簡易フィードバック（👍👎など）→ キーワードマッチ
-      console.log(`[Feedback] 基本学習を使用: "${feedback}"`);
+      // S17修正: ユーザー入力をログにそのまま出力しない
+      console.log(`[Feedback] 基本学習を使用: len=${feedback.length}`);
       learningMethod = 'basic';
 
       // 基本的なパーソナライゼーション（キーワードマッチ）
