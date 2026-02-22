@@ -1108,8 +1108,8 @@ describe('Scenario 28: Ver.17.0 肖像と免罪符', async () => {
       'Output format should include [ 案C：光の肖像 ]');
     assert.ok(prompt.includes('3案を出力'),
       'Should instruct 3 proposals');
-    assert.ok(prompt.includes('80点の免罪符'),
-      'Should include 80点の免罪符 section');
+    assert.ok(prompt.includes('Photo Advice'),
+      'Should include Photo Advice section');
     assert.ok(!prompt.includes('店主へのバトン'),
       'Should NOT include baton placeholder');
   });
@@ -1217,7 +1217,7 @@ describe('Scenario 29: 案A/B/C選択 + スタイル学習', async () => {
 #コーヒー #光
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📸 80点の免罪符
+📸 Photo Advice
 このアングルは80点の正解です。
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
 
@@ -1226,7 +1226,7 @@ describe('Scenario 29: 案A/B/C選択 + スタイル学習', async () => {
     assert.ok(resultA.includes('#コーヒー #時間'), 'Should contain proposal A hashtags');
     assert.ok(!resultA.includes('ニットの皺'), 'Should NOT contain proposal B text');
     assert.ok(!resultA.includes('窓から差し込む'), 'Should NOT contain proposal C text');
-    assert.ok(resultA.includes('80点の免罪符'), 'Should include 80点の免罪符');
+    assert.ok(resultA.includes('Photo Advice'), 'Should include Photo Advice');
   });
 
   it('extractSelectedProposal が案Bを正しく抽出する', () => {
@@ -1246,7 +1246,7 @@ describe('Scenario 29: 案A/B/C選択 + スタイル学習', async () => {
 #タグC
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📸 80点の免罪符
+📸 Photo Advice
 アドバイス
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
 
@@ -1254,7 +1254,7 @@ describe('Scenario 29: 案A/B/C選択 + スタイル学習', async () => {
     assert.ok(resultB.includes('誠実の肖像'), 'Should contain proposal B text');
     assert.ok(!resultB.includes('時間の肖像'), 'Should NOT contain proposal A text');
     assert.ok(!resultB.includes('光の肖像'), 'Should NOT contain proposal C text');
-    assert.ok(resultB.includes('80点の免罪符'), 'Should include 80点の免罪符');
+    assert.ok(resultB.includes('Photo Advice'), 'Should include Photo Advice');
   });
 
   it('extractSelectedProposal が案Cを正しく抽出する', () => {
@@ -1271,7 +1271,7 @@ describe('Scenario 29: 案A/B/C選択 + スタイル学習', async () => {
 #タグC
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📸 80点の免罪符
+📸 Photo Advice
 アドバイス
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
 

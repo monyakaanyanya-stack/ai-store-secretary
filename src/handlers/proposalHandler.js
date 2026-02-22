@@ -1,6 +1,6 @@
 /**
- * 案選択ハンドラー（Ver.13.0）
- * 3案（質感/空気/記憶）から選択 → 確定 → スタイル学習
+ * 案選択ハンドラー（Ver.17.0）
+ * 3案（時間の肖像/誠実の肖像/光の肖像）から選択 → 確定 → スタイル学習
  */
 import { replyText } from '../services/lineService.js';
 import { updatePostContent, supabase } from '../services/supabaseService.js';
@@ -139,7 +139,7 @@ async function updateStylePreference(storeId, styleName) {
     }
 
     const profileData = profile.profile_data || {};
-    const selections = profileData.style_selections || { 質感: 0, 空気: 0, 記憶: 0, total: 0 };
+    const selections = profileData.style_selections || { '時間の肖像': 0, '誠実の肖像': 0, '光の肖像': 0, total: 0 };
 
     selections[styleName] = (selections[styleName] || 0) + 1;
     selections.total = (selections.total || 0) + 1;
@@ -151,7 +151,7 @@ async function updateStylePreference(storeId, styleName) {
       })
       .eq('store_id', storeId);
 
-    console.log(`[Proposal] スタイル学習: ${styleName} (累計: 質感${selections.質感}/空気${selections.空気}/記憶${selections.記憶})`);
+    console.log(`[Proposal] スタイル学習: ${styleName} (累計: 時間${selections['時間の肖像'] || 0}/誠実${selections['誠実の肖像'] || 0}/光${selections['光の肖像'] || 0})`);
   } catch (err) {
     console.warn('[Proposal] スタイル学習エラー（続行）:', err.message);
   }
