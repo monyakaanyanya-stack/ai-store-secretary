@@ -171,7 +171,6 @@ export async function updatePostContent(postId, newContent) {
     .from('post_history')
     .update({
       content: newContent,
-      updated_at: new Date().toISOString(),
     })
     .eq('id', postId)
     .select()
