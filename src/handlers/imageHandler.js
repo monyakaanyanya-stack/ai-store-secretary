@@ -9,6 +9,19 @@ import { getAdvancedPersonalizationPrompt } from '../services/advancedPersonaliz
 import { getSeasonalMemoryPromptAddition } from '../services/seasonalMemoryService.js';
 
 /**
+ * 画像分析結果から機材レベルを抽出
+ * describeImage() の6項目目「機材レベル: Signature/Snapshot」を解析
+ * @param {string} imageDescription - 画像分析テキスト
+ * @returns {'signature' | 'snapshot'}
+ */
+function parseEquipmentLevel(imageDescription) {
+  if (!imageDescription) return 'snapshot';
+  const lower = imageDescription.toLowerCase();
+  if (lower.includes('signature')) return 'signature';
+  return 'snapshot';
+}
+
+/**
  * 画像メッセージ処理: 画像取得 → 画像分析 → 投稿生成 → 返信 → 履歴保存
  */
 export async function handleImageMessage(user, messageId, replyToken) {
@@ -71,8 +84,10 @@ export async function handleImageMessage(user, messageId, replyToken) {
       return await replyText(replyToken, '画像の分析に失敗しました。別の画像で再度お試しください。');
     }
 
-    // ステップ2: 画像分析結果を使ってテキストのみで投稿生成（画像への依存をなくす）
-    const prompt = buildImagePostPrompt(store, learningData, null, blendedInsights, personalization, imageDescription);
+    // ステップ2: 機材レベルを解析し、画像分析結果を使ってテキストのみで投稿生成
+    const equipmentLevel = parseEquipmentLevel(imageDescription);
+    console.log(`[Image] 機材レベル判定: ${equipmentLevel}`);
+    const prompt = buildImagePostPrompt(store, learningData, null, blendedInsights, personalization, imageDescription, equipmentLevel);
     const rawContent = await askClaude(prompt);
 
     // テンプレートの住所・営業時間などを末尾に固定追記（AIにアレンジさせない）

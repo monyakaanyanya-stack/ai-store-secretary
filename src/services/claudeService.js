@@ -95,7 +95,7 @@ export async function describeImage(imageBase64, mediaType = 'image/jpeg') {
   try {
     const response = await client.messages.create({
       model: MODEL,
-      max_tokens: 700,
+      max_tokens: 800,
       messages: [
         {
           role: 'user',
@@ -110,13 +110,14 @@ export async function describeImage(imageBase64, mediaType = 'image/jpeg') {
             },
             {
               type: 'text',
-              text: `あなたはプロの写真家です。この写真を以下の5項目で分析してください。
+              text: `あなたはプロの写真家です。この写真を以下の6項目で分析してください。
 
 - 主要な被写体: 何が写っているか具体的な名前で
 - 光の質と方向: 逆光・サイド光・柔らかい自然光・人工光など、光が被写体にどんな表情を与えているか
 - 色と質感: 温かみ・冷たさ・柔らかさ・透明感・艶など（実際に見えるもの）
 - 構図の特徴: ボケ・アングル（俯瞰/目線/見上げ）・余白の使い方・フレーミングの意図
 - 全体の雰囲気・空気感: 光と色から自然に生まれる感覚（叙情的に表現してよい）
+- 機材レベル: 階調の豊かさ・被写界深度の制御・ノイズの少なさ・ダイナミックレンジから推測し「Signature」（一眼レフ・中判カメラ等の高品質機材）か「Snapshot」（スマートフォン）のいずれかで回答
 
 【ルール】
 - 写真に実際に見えるものを根拠に分析する

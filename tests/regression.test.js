@@ -1,6 +1,6 @@
 /**
- * リグレッションテスト（Day7 + 第2次監査 + 第3次監査 + 第4次監査修正）
- * 修正が正しく動作するか、27シナリオで検証
+ * リグレッションテスト（Day7 + 第2次監査 + 第3次監査 + 第4次監査修正 + Ver.13.0）
+ * 修正が正しく動作するか、28シナリオで検証
  *
  * 実行: node --test tests/regression.test.js
  */
@@ -1019,5 +1019,106 @@ describe('Scenario 27: 第4次監査 LOW修正（L1-L9）', async () => {
     );
     assert.ok(!content.includes('`エラーが発生しました: ${err.message}`'),
       'Should NOT include err.message in user-facing reply');
+  });
+});
+
+// ==================== Scenario 28: Ver.13.0 質感と呼吸の完成形 ====================
+describe('Scenario 28: Ver.13.0 質感と呼吸の完成形', async () => {
+  it('describeImage に機材レベル判定（6項目目）がある', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/claudeService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('機材レベル'),
+      'describeImage prompt should include equipment level analysis');
+    assert.ok(content.includes('Signature') && content.includes('Snapshot'),
+      'Should have both Signature and Snapshot labels');
+  });
+
+  it('imageHandler に parseEquipmentLevel がある', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('function parseEquipmentLevel'),
+      'Should have parseEquipmentLevel function');
+    assert.ok(content.includes("return 'signature'") && content.includes("return 'snapshot'"),
+      'Should return signature or snapshot');
+  });
+
+  it('parseEquipmentLevel のロジックが正しい', () => {
+    // imageHandler内部関数の再現
+    function parseEquipmentLevel(imageDescription) {
+      if (!imageDescription) return 'snapshot';
+      const lower = imageDescription.toLowerCase();
+      if (lower.includes('signature')) return 'signature';
+      return 'snapshot';
+    }
+
+    assert.equal(parseEquipmentLevel(null), 'snapshot');
+    assert.equal(parseEquipmentLevel(''), 'snapshot');
+    assert.equal(parseEquipmentLevel('- 機材レベル: Snapshot'), 'snapshot');
+    assert.equal(parseEquipmentLevel('- 機材レベル: Signature'), 'signature');
+    assert.equal(parseEquipmentLevel('blah blah\n- 機材レベル: Signature（中判カメラ）'), 'signature');
+  });
+
+  it('buildImagePostPrompt が equipmentLevel 引数を受け取る', async () => {
+    const { buildImagePostPrompt } = await import('../src/utils/promptBuilder.js');
+    const store = { name: 'テスト店', tone: 'カジュアル', config: {} };
+
+    // snapshot（デフォルト）
+    const promptSnap = buildImagePostPrompt(store, {}, null, null, '', 'テスト画像説明', 'snapshot');
+    assert.ok(promptSnap.includes('Snapshot'),
+      'Snapshot prompt should include Snapshot section');
+    assert.ok(promptSnap.includes('身体感覚'),
+      'Snapshot prompt should mention physical sensations');
+
+    // signature
+    const promptSig = buildImagePostPrompt(store, {}, null, null, '', 'テスト画像説明', 'signature');
+    assert.ok(promptSig.includes('Signature'),
+      'Signature prompt should include Signature section');
+    assert.ok(promptSig.includes('最小限の言葉'),
+      'Signature prompt should mention minimal words');
+  });
+
+  it('Ver.13.0 の共通の掟がプロンプトに含まれる', async () => {
+    const { buildImagePostPrompt } = await import('../src/utils/promptBuilder.js');
+    const store = { name: 'テスト店', tone: 'フレンドリー', config: {} };
+    const prompt = buildImagePostPrompt(store, {}, null, null, '', 'テスト画像', 'snapshot');
+
+    assert.ok(prompt.includes('共通の掟（Ver. 13.0）'),
+      'Should include Ver.13.0 header');
+    assert.ok(prompt.includes('不規則な呼吸'),
+      'Should include irregular breathing rule');
+    assert.ok(prompt.includes('五感の翻訳'),
+      'Should include five-sense translation rule');
+    assert.ok(prompt.includes('80点＋20点'),
+      'Should include 80+20 rule');
+    assert.ok(prompt.includes('店主へのバトン'),
+      'Should include baton to shop owner');
+  });
+
+  it('Ver.13.0 の出力形式に「案A：質感」が含まれる', async () => {
+    const { buildImagePostPrompt } = await import('../src/utils/promptBuilder.js');
+    const store = { name: 'テスト店', tone: '丁寧', config: {} };
+    const prompt = buildImagePostPrompt(store, {}, null, null, '', 'テスト画像', 'snapshot');
+
+    assert.ok(prompt.includes('[ 案A：質感 ]'),
+      'Output format should include [ 案A：質感 ]');
+    assert.ok(prompt.includes('（店主へのバトン：……。ここに一言。）'),
+      'Output format should include baton placeholder');
+  });
+
+  it('旧スタイルのアイデンティティ文言が削除されている', async () => {
+    const { buildImagePostPrompt } = await import('../src/utils/promptBuilder.js');
+    const store = { name: 'テスト店', tone: 'カジュアル', config: {} };
+    const prompt = buildImagePostPrompt(store, {}, null, null, '', 'テスト画像', 'snapshot');
+
+    assert.ok(!prompt.includes('世界中を旅してきた写真家'),
+      'Old identity should be removed');
+    assert.ok(!prompt.includes('言葉の平易化'),
+      'Old writing rule should be removed');
+    assert.ok(prompt.includes('店主の眼を借りた写真家'),
+      'New identity should be present');
   });
 });

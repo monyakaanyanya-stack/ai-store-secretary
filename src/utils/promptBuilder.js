@@ -265,7 +265,7 @@ function buildCharacterSection(store) {
 /**
  * 画像から投稿を生成するプロンプト
  */
-export function buildImagePostPrompt(store, learningData, lengthOverride = null, blendedInsights = null, personalization = '', imageDescription = null) {
+export function buildImagePostPrompt(store, learningData, lengthOverride = null, blendedInsights = null, personalization = '', imageDescription = null, equipmentLevel = 'snapshot') {
   const postLength = lengthOverride || store.config?.post_length || 'medium';
   const lengthInfo = getPostLengthInfo(postLength);
   const toneData = getToneData(store.tone);
@@ -368,17 +368,28 @@ export function buildImagePostPrompt(store, learningData, lengthOverride = null,
 
   const characterSection = buildCharacterSection(store);
 
+  // Ver.13.0: 機材レベルに応じた「眼差し」の微調整
+  const equipmentSection = equipmentLevel === 'signature'
+    ? `\n## 2a. 眼差しの調整：Signature（高品質機材）
+言葉をさらに削る。階調や光の溶け方など、機材が捉えた「事実」を最小限の言葉で肯定する。
+語る必要はない。写真がすべてを語っている——その姿勢で。`
+    : `\n## 2a. 眼差しの調整：Snapshot（スマホ）
+写りきっていない「質感」を、言葉で鋭く補完する。
+デジタルな軽さに、身体感覚（温度・重み・手触り）をぶつけて「重み」を作る。
+画面の中では届かない感覚を、言葉で引き寄せる。`;
+
   return `
 ## 1. アイデンティティ
-あなたは世界中を旅してきた写真家であり、${store.name}の店主の良き伴走者です。
-専門用語を並べるのではなく、「なぜそれが魅力的なのか」を、誰にでも伝わる「手触りのある言葉」で言語化する案内人です。
+あなたは${store.name}の店主の眼を借りた写真家。
+商品の手触り、光の温度、影の形。それだけを見ている。
+営業トークは要らない。事実と気配だけで語る。
 
-## 2. ライティング・ルール
-- **言葉の平易化**: 「真俯瞰」→「真上からのアングル」、「筆致」→「筆の跡」、「階調」→「色の重なり」など、日常的な言葉に置き換える。
-- **絵文字の厳格制限**: キャプション全体で絵文字は最大2個まで。
-- **「〜ですね」の制限**: キャプション内では「〜だ」「〜ます」を基本とし、情緒的なポエムや店主の日記風の感想は書かない。
-- **物理的根拠から入る**: 「柔らかい光」「ざらっとした質感」など、目に見える事実から書き始める。
-- **余白**: 最後は体言止めか、読み手の想像に委ねる一文で終わらせる。
+## 2. 共通の掟（Ver. 13.0）
+- **不規則な呼吸**: 接続詞を捨てる。一文を不揃いにする。名詞止めで放り出す。
+- **五感の翻訳**: 営業用語を排除。オイルの光沢、鼻先の温度、影の鋭さ——目と指先で感じるものだけ。「音」の描写は禁止。
+- **80点＋20点**: 完結させない。店主が最後に言葉を乗せるための「余白」を必ず残す。最後に「（店主へのバトン：……。一言だけ。）」を添える。
+- **絵文字**: キャプション全体で最大2個まで。
+${equipmentSection}
 
 ## 3. 絶対に使わない言葉
 ${toneData.forbidden_words.join(', ')}, 幻想的, 素敵, 魅力的, 素晴らしい, 完璧, 最高, 美しい, ですね, なのですね
@@ -401,8 +412,12 @@ ${templateInfo}${characterSection}${imageDescriptionSection}${collectiveIntellig
 
 【出力形式】
 
-（写真に見える具体的な事実から書き始め、そこから立ち昇る気配や魅力を綴る。体言止めを混ぜてリズムを作る。情緒的なポエムや日記風にならない。宣伝文句は一切入れない。）${hashtagInstruction ? '\n上記のハッシュタグルールに従うこと。' : ''}
+[ 案A：質感 ]
+（写真に見える具体的な事実から入る。名詞止め。不揃いな呼吸。
+五感で感じるものだけ。完結させず、店主への余白を残す。宣伝文句は一切入れない。）
 
+（店主へのバトン：……。ここに一言。）
+${hashtagInstruction ? '\n上記のハッシュタグルールに従うこと。' : ''}
 #タグ1 #タグ2 #タグ3 #タグ4 #タグ5
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
