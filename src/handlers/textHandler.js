@@ -266,6 +266,27 @@ ${contactEmail}
     return await handleCharacterSettingsSave(user, trimmed, replyToken);
   }
 
+  // 案選択: A, B, C, 案A, 案B, 案C, a, b, c, 1, 2, 3
+  if (/^(案?[ABCabc]|[1-3])$/i.test(trimmed)) {
+    if (user.current_store_id) {
+      const store = await getStore(user.current_store_id);
+      if (store) {
+        const { data: latestPost } = await supabase
+          .from('post_history')
+          .select('*')
+          .eq('store_id', store.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        // 直近の投稿が3案フォーマットの場合のみ処理
+        if (latestPost?.content?.includes('[ 案A：')) {
+          const { handleProposalSelection } = await import('./proposalHandler.js');
+          return await handleProposalSelection(user, store, latestPost, trimmed, replyToken);
+        }
+      }
+    }
+  }
+
   // 👍 良い評価
   if (trimmed === '👍') {
     return await handlePositiveFeedback(user, replyToken);

@@ -1,6 +1,6 @@
 /**
- * リグレッションテスト（Day7 + 第2次監査 + 第3次監査 + 第4次監査修正 + Ver.13.0）
- * 修正が正しく動作するか、28シナリオで検証
+ * リグレッションテスト（Day7 + 第2次監査 + 第3次監査 + 第4次監査修正 + Ver.13.0 + 案選択フロー）
+ * 修正が正しく動作するか、29シナリオで検証
  *
  * 実行: node --test tests/regression.test.js
  */
@@ -1124,5 +1124,181 @@ describe('Scenario 28: Ver.13.0 質感と呼吸の完成形', async () => {
       'Old writing rule should be removed');
     assert.ok(prompt.includes('店主の眼を借りた写真家'),
       'New identity should be present');
+  });
+});
+
+// ==================== Scenario 29: 案A/B/C選択 + スタイル学習 ====================
+describe('Scenario 29: 案A/B/C選択 + スタイル学習', async () => {
+  // proposalHandler.jsはsupabaseをimportするため、純粋関数のロジックを再現してテスト
+  function normalizeSelection(input) {
+    const cleaned = input.trim().toUpperCase().replace('案', '');
+    if (['A', '1'].includes(cleaned)) return 'A';
+    if (['B', '2'].includes(cleaned)) return 'B';
+    if (['C', '3'].includes(cleaned)) return 'C';
+    return null;
+  }
+
+  function extractSelectedProposal(fullContent, selection) {
+    const markerPattern = /\[\s*案([ABC])[：:][^\]]*\]/g;
+    const markers = [...fullContent.matchAll(markerPattern)];
+    if (markers.length === 0) return null;
+    const targetIdx = markers.findIndex(m => m[1] === selection);
+    if (targetIdx === -1) return null;
+    const startPos = markers[targetIdx].index + markers[targetIdx][0].length;
+    let endPos;
+    if (targetIdx + 1 < markers.length) {
+      endPos = markers[targetIdx + 1].index;
+    } else {
+      const dividerMatch = fullContent.slice(startPos).match(/\n━{5,}/);
+      endPos = dividerMatch ? startPos + dividerMatch.index : fullContent.length;
+    }
+    const proposalText = fullContent.slice(startPos, endPos).trim();
+    const adviceMatch = fullContent.match(/(━{5,}[\s\S]*━{5,})/);
+    const photoAdvice = adviceMatch ? '\n\n' + adviceMatch[1] : '';
+    return proposalText + photoAdvice;
+  }
+
+  it('normalizeSelection が正しく変換する', () => {
+    assert.equal(normalizeSelection('A'), 'A');
+    assert.equal(normalizeSelection('a'), 'A');
+    assert.equal(normalizeSelection('案A'), 'A');
+    assert.equal(normalizeSelection('案a'), 'A');
+    assert.equal(normalizeSelection('1'), 'A');
+    assert.equal(normalizeSelection('B'), 'B');
+    assert.equal(normalizeSelection('b'), 'B');
+    assert.equal(normalizeSelection('案B'), 'B');
+    assert.equal(normalizeSelection('2'), 'B');
+    assert.equal(normalizeSelection('C'), 'C');
+    assert.equal(normalizeSelection('c'), 'C');
+    assert.equal(normalizeSelection('案C'), 'C');
+    assert.equal(normalizeSelection('3'), 'C');
+    assert.equal(normalizeSelection('D'), null);
+    assert.equal(normalizeSelection('hello'), null);
+  });
+
+  it('extractSelectedProposal が案Aを正しく抽出する', () => {
+    const content = `[ 案A：質感 ]
+手触り。ざらっとした表面。
+硬い、確かな感触。
+
+#コーヒー #質感
+
+[ 案B：空気 ]
+朝の光。窓辺に漂う湯気。
+温度が、伝わる。
+
+#コーヒー #朝
+
+[ 案C：記憶 ]
+この香り。どこかで嗅いだ。
+冬の朝、あの場所。
+
+#コーヒー #記憶
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📸 Photo Advice
+いいアドバイス
+━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+
+    const resultA = extractSelectedProposal(content, 'A');
+    assert.ok(resultA.includes('手触り'), 'Should contain proposal A text');
+    assert.ok(resultA.includes('#コーヒー #質感'), 'Should contain proposal A hashtags');
+    assert.ok(!resultA.includes('朝の光'), 'Should NOT contain proposal B text');
+    assert.ok(!resultA.includes('この香り'), 'Should NOT contain proposal C text');
+    assert.ok(resultA.includes('Photo Advice'), 'Should include Photo Advice');
+  });
+
+  it('extractSelectedProposal が案Bを正しく抽出する', () => {
+    const content = `[ 案A：質感 ]
+手触り。
+
+#タグA
+
+[ 案B：空気 ]
+朝の光。
+
+#タグB
+
+[ 案C：記憶 ]
+この香り。
+
+#タグC
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📸 Photo Advice
+アドバイス
+━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+
+    const resultB = extractSelectedProposal(content, 'B');
+    assert.ok(resultB.includes('朝の光'), 'Should contain proposal B text');
+    assert.ok(!resultB.includes('手触り'), 'Should NOT contain proposal A text');
+    assert.ok(!resultB.includes('この香り'), 'Should NOT contain proposal C text');
+    assert.ok(resultB.includes('Photo Advice'), 'Should include Photo Advice');
+  });
+
+  it('extractSelectedProposal が案Cを正しく抽出する', () => {
+    const content = `[ 案A：質感 ]
+テキストA
+#タグA
+
+[ 案B：空気 ]
+テキストB
+#タグB
+
+[ 案C：記憶 ]
+テキストC
+#タグC
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📸 Photo Advice
+アドバイス
+━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+
+    const resultC = extractSelectedProposal(content, 'C');
+    assert.ok(resultC.includes('テキストC'), 'Should contain proposal C text');
+    assert.ok(!resultC.includes('テキストA'), 'Should NOT contain proposal A text');
+    assert.ok(!resultC.includes('テキストB'), 'Should NOT contain proposal B text');
+  });
+
+  it('extractSelectedProposal がマーカーなしでnullを返す', () => {
+    const result = extractSelectedProposal('通常の投稿テキスト', 'A');
+    assert.equal(result, null, 'Should return null for non-proposal content');
+  });
+
+  it('imageHandler の返信に案選択UIが含まれる', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('A / B / C と送ってください'),
+      'Reply should ask user to select A/B/C');
+    assert.ok(content.includes('3つの投稿案ができました'),
+      'Reply should mention 3 proposals');
+    assert.ok(!content.includes('appendTemplateFooter(rawContent'),
+      'Should NOT apply footer before selection');
+  });
+
+  it('textHandler にA/B/C ルーティングがある', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/textHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes("案?[ABCabc]"),
+      'Should have proposal selection pattern');
+    assert.ok(content.includes("'[ 案A：'"),
+      'Should check for 3-proposal marker');
+    assert.ok(content.includes('handleProposalSelection'),
+      'Should route to proposalHandler');
+  });
+
+  it('personalizationEngine にスタイル選好が含まれる', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/personalizationEngine.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('style_selections'),
+      'Should reference style_selections in profile data');
+    assert.ok(content.includes('好みの切り口'),
+      'Should add style preference to prompt');
   });
 });

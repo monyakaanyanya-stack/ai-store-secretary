@@ -90,11 +90,8 @@ export async function handleImageMessage(user, messageId, replyToken) {
     const prompt = buildImagePostPrompt(store, learningData, null, blendedInsights, personalization, imageDescription, equipmentLevel);
     const rawContent = await askClaude(prompt);
 
-    // テンプレートの住所・営業時間などを末尾に固定追記（AIにアレンジさせない）
-    const postContent = appendTemplateFooter(rawContent, store);
-
-    // 投稿履歴に保存
-    const savedPost = await savePostHistory(user.id, store.id, postContent);
+    // 3案の段階ではfooterを適用しない（案選択後にproposalHandlerで適用）
+    const savedPost = await savePostHistory(user.id, store.id, rawContent);
 
     // エンゲージメントメトリクスを保存（初期値）
     // C17修正: fire-and-forget にせずエラーをキャッチ（投稿自体は成功させる）
@@ -102,7 +99,7 @@ export async function handleImageMessage(user, messageId, replyToken) {
       try {
         await saveEngagementMetrics(store.id, store.category, {
           post_id: savedPost.id,
-          content: postContent,
+          content: rawContent,
         });
       } catch (metricsErr) {
         console.error('[Image] メトリクス初期保存エラー（投稿は成功）:', metricsErr.message);
@@ -111,21 +108,17 @@ export async function handleImageMessage(user, messageId, replyToken) {
 
     console.log(`[Image] 画像投稿生成完了: store=${store.name}`);
 
-    // コピペしやすい形式でフォーマット
-    const formattedReply = `✨ 投稿案ができました！
-
-以下をコピーしてInstagramに貼り付けてください↓
+    // 3案から選択を促すフォーマット
+    const formattedReply = `✨ 3つの投稿案ができました！
 ━━━━━━━━━━━
-${postContent}
+${rawContent}
 ━━━━━━━━━━━
 
-この投稿は良かったですか？
-👍 良い（「👍」と送信）
-👎 イマイチ（「👎」と送信）
-✏️ 修正する（「直し: 〜」で指示してください）
+どの案が理想に近いですか？
+A / B / C と送ってください✉️
+修正したい場合は「直し: 〜」でどうぞ
 
-※ 評価を送ると自動的に学習します！
-※ 「学習状況」と送ると学習内容を確認できます`;
+※ 選択するたびにあなたの好みを学習します📚`;
 
     await replyText(replyToken, formattedReply);
   } catch (err) {

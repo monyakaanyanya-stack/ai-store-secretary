@@ -188,6 +188,19 @@ export async function getPersonalizationPromptAddition(storeId) {
     additions.push(`・高エンゲージメント時の傾向: ${el.high_er_tone}`);
   }
 
+  // スタイル選好（案A/B/C の選択傾向）
+  const styleSelections = profileData.style_selections;
+  if (styleSelections && styleSelections.total >= 3) {
+    const sorted = Object.entries(styleSelections)
+      .filter(([k]) => k !== 'total')
+      .sort((a, b) => b[1] - a[1]);
+    if (sorted.length > 0 && sorted[0][1] > 0) {
+      const topStyle = sorted[0][0];
+      const topPct = Math.round((sorted[0][1] / styleSelections.total) * 100);
+      additions.push(`・好みの切り口: ${topStyle}（${topPct}%） → 案Aをこの傾向に寄せること`);
+    }
+  }
+
   if (additions.length === 0) return '';
 
   return `\n【パーソナライゼーション】\n${additions.join('\n')}`;
