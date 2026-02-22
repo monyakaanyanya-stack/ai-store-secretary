@@ -67,7 +67,7 @@ function analyzeEngagementData(data) {
     const intensity = post.save_intensity != null ? post.save_intensity
       : (post.likes_count > 0 ? (post.saves_count / post.likes_count) : 0);
 
-    if (post.hashtags) {
+    if (Array.isArray(post.hashtags)) {
       post.hashtags.forEach(tag => {
         if (!hashtagMetrics[tag]) hashtagMetrics[tag] = { intensities: [], count: 0 };
         hashtagMetrics[tag].intensities.push(intensity);
@@ -226,9 +226,19 @@ export async function saveEngagementMetrics(storeId, category, postData, metrics
   const normalizedCategory = normalizeCategory(category) || category;
   const categoryGroup = getCategoryGroup(normalizedCategory) ?? 'other';
 
+  // NaN防止: 数値フィールドをサニタイズ（NaNが入るとDB全体の集計が壊れる）
+  const safeLikes = Number.isFinite(metrics.likes_count) ? metrics.likes_count : 0;
+  const safeSaves = Number.isFinite(metrics.saves_count) ? metrics.saves_count : 0;
+  const safeComments = Number.isFinite(metrics.comments_count) ? metrics.comments_count : 0;
+  const safeReach = Number.isFinite(metrics.reach) ? metrics.reach : 0;
+  const safeReachActual = Number.isFinite(metrics.reach_actual) ? metrics.reach_actual : 0;
+  const safeEngRate = Number.isFinite(metrics.engagement_rate) ? metrics.engagement_rate : 0;
+  const safeSaveIntensity = Number.isFinite(metrics.save_intensity) ? metrics.save_intensity : 0;
+  const safeReactionIndex = Number.isFinite(metrics.reaction_index) ? metrics.reaction_index : 0;
+
   // ステータス判定：いいね or 保存が入っていれば「報告済」、なければ「未報告」
   // 未報告レコードは集合知・勝ちパターンの学習対象から除外される
-  const isReported = (metrics.likes_count > 0 || metrics.saves_count > 0);
+  const isReported = (safeLikes > 0 || safeSaves > 0);
 
   // データ準備
   const metricsData = {
@@ -240,14 +250,14 @@ export async function saveEngagementMetrics(storeId, category, postData, metrics
     hashtags: extractHashtags(postData.content),
     post_length: postData.content?.length || 0,
     emoji_count: countEmojis(postData.content),
-    likes_count: metrics.likes_count || 0,
-    saves_count: metrics.saves_count || 0,
-    comments_count: metrics.comments_count || 0,
-    reach: metrics.reach || 0,
-    reach_actual: metrics.reach_actual || 0,
-    engagement_rate: metrics.engagement_rate || 0,
-    save_intensity: metrics.save_intensity || 0,
-    reaction_index: metrics.reaction_index || 0,
+    likes_count: safeLikes,
+    saves_count: safeSaves,
+    comments_count: safeComments,
+    reach: safeReach,
+    reach_actual: safeReachActual,
+    engagement_rate: safeEngRate,
+    save_intensity: safeSaveIntensity,
+    reaction_index: safeReactionIndex,
     post_structure: analyzePostStructure(postData.content), // 投稿骨格を解析して保存
     post_time: new Date().toTimeString().slice(0, 8),
     day_of_week: new Date().getDay(),

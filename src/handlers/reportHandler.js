@@ -2,6 +2,7 @@ import { replyText } from '../services/lineService.js';
 import { getStore } from '../services/supabaseService.js';
 import { saveEngagementMetrics } from '../services/collectiveIntelligence.js';
 import { applyEngagementToProfile } from '../services/personalizationEngine.js';
+import { normalizeInput, safeParseInt } from '../utils/inputNormalizer.js';
 
 /**
  * エンゲージメント報告のパース
@@ -9,8 +10,11 @@ import { applyEngagementToProfile } from '../services/personalizationEngine.js';
  * 例: "報告: いいね120, 保存15, コメント5, リーチ:800"  ← リーチは任意
  */
 function parseEngagementReport(text) {
-  // "報告:" または "報告：" で始まるかチェック
-  if (!text.match(/^報告[：:]/)) {
+  // 全角コロン・全角数字を正規化
+  const normalized = normalizeInput(text);
+
+  // "報告:" で始まるかチェック（正規化済みなので半角のみ）
+  if (!normalized.match(/^報告:/)) {
     return null;
   }
 
@@ -21,21 +25,21 @@ function parseEngagementReport(text) {
     reach: null, // null = 入力なし（推定しない）
   };
 
-  // いいね数を抽出
-  const likesMatch = text.match(/(?:いいね|イイネ|like)[\s:：]*(\d+)/i);
-  if (likesMatch) result.likes = parseInt(likesMatch[1], 10);
+  // いいね数を抽出（NaN防止: safeParseInt使用）
+  const likesMatch = normalized.match(/(?:いいね|イイネ|like)[\s:]*(\d+)/i);
+  if (likesMatch) result.likes = safeParseInt(likesMatch[1], 0);
 
   // 保存数を抽出
-  const savesMatch = text.match(/(?:保存|save)[\s:：]*(\d+)/i);
-  if (savesMatch) result.saves = parseInt(savesMatch[1], 10);
+  const savesMatch = normalized.match(/(?:保存|save)[\s:]*(\d+)/i);
+  if (savesMatch) result.saves = safeParseInt(savesMatch[1], 0);
 
   // コメント数を抽出
-  const commentsMatch = text.match(/(?:コメント|comment)[\s:：]*(\d+)/i);
-  if (commentsMatch) result.comments = parseInt(commentsMatch[1], 10);
+  const commentsMatch = normalized.match(/(?:コメント|comment)[\s:]*(\d+)/i);
+  if (commentsMatch) result.comments = safeParseInt(commentsMatch[1], 0);
 
   // リーチ数を抽出（任意入力）
-  const reachMatch = text.match(/(?:リーチ|reach)[\s:：]*(\d+)/i);
-  if (reachMatch) result.reach = parseInt(reachMatch[1], 10);
+  const reachMatch = normalized.match(/(?:リーチ|reach)[\s:]*(\d+)/i);
+  if (reachMatch) result.reach = safeParseInt(reachMatch[1], null);
 
   return result;
 }
@@ -119,7 +123,7 @@ export async function handleEngagementReport(user, text, replyToken) {
     const latestPost = recentPosts[0];
 
     // 投稿内容のプレビュー
-    let postContent = latestPost.content.split('#')[0].trim().slice(0, 50);
+    let postContent = (latestPost.content || '').split('#')[0].trim().slice(0, 50);
 
     // 正直な指標を計算（いいね×10推定は使わない）
     const followerCount = parseInt(store.follower_count, 10) || null;
@@ -358,15 +362,18 @@ async function getLatestPostHistory(userId, storeId) {
 async function getMonthlyReportCount(userId, storeId) {
   const { supabase } = await import('../services/supabaseService.js');
 
-  // 今月の開始日を取得
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  // 今月の開始日をJST基準で取得（UTC+9）
+  const nowJST = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  const monthStartJST = new Date(Date.UTC(nowJST.getUTCFullYear(), nowJST.getUTCMonth(), 1));
+  // JST月初 → UTC に戻す（-9時間）
+  const monthStartUTC = new Date(monthStartJST.getTime() - 9 * 60 * 60 * 1000);
 
   const { data, error } = await supabase
     .from('engagement_metrics')
     .select('id')
     .eq('store_id', storeId)
-    .gte('created_at', monthStart.toISOString());
+    .eq('status', '報告済')
+    .gte('created_at', monthStartUTC.toISOString());
 
   if (error) {
     console.error('[Report] 報告回数取得エラー:', error.message);

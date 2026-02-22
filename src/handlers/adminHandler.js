@@ -2,6 +2,7 @@ import { replyText } from '../services/lineService.js';
 import { supabase } from '../services/supabaseService.js';
 import { getStore } from '../services/supabaseService.js';
 import { saveEngagementMetrics } from '../services/collectiveIntelligence.js';
+import { normalizeInput, safeParseInt } from '../utils/inputNormalizer.js';
 
 /**
  * 管理者かどうかをチェック
@@ -37,9 +38,8 @@ export async function handleAdminTestData(user, args, replyToken) {
     const testPosts = generateTestData(category, count);
 
     let inserted = 0;
+    let failed = 0;
     for (const post of testPosts) {
-      console.log('[Admin] テスト投稿データ:', post);
-
       const postData = {
         content: post.content,
       };
@@ -48,15 +48,17 @@ export async function handleAdminTestData(user, args, replyToken) {
         likes_count: post.likes,
         saves_count: post.saves,
         comments_count: post.comments,
-        reach: post.likes * 10,
+        reach: 0, // 推定値は使わない（実リーチのみ）
         engagement_rate: post.engagementRate,
       };
 
-      console.log('[Admin] postData:', postData);
-      console.log('[Admin] metricsData:', metricsData);
-
-      await saveEngagementMetrics(null, category, postData, metricsData);
-      inserted++;
+      const result = await saveEngagementMetrics(null, category, postData, metricsData);
+      if (result.success) {
+        inserted++;
+      } else {
+        failed++;
+        console.warn('[Admin] テストデータ保存失敗:', result.message);
+      }
     }
 
     await replyText(replyToken, `✅ テストデータ投入完了\n\n業種: ${category}\n件数: ${inserted}件`);
@@ -150,7 +152,7 @@ export async function handleAdminReportMode(user, replyToken) {
 リーチ: 450（省略可）
 
 送信すると集合知データに登録されます。
-リーチを省略した場合はいいね×10で自動計算します。`;
+リーチを省略した場合は0で保存されます（推定値は使いません）。`;
 
   await replyText(replyToken, message);
   return true;
@@ -165,8 +167,9 @@ export async function handleAdminReportSave(user, text, replyToken) {
   }
 
   try {
-    // テキストを行で分割してパース
-    const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+    // 全角コロン・全角数字を正規化してからパース
+    const normalized = normalizeInput(text);
+    const lines = normalized.split('\n').map(l => l.trim()).filter(l => l);
     const parsed = {};
 
     for (const line of lines) {
@@ -187,10 +190,19 @@ export async function handleAdminReportSave(user, text, replyToken) {
       return true;
     }
 
-    const likes = parseInt(likesStr, 10);
-    const saves = parseInt(parsed['保存'] || '0', 10);
-    const comments = parseInt(parsed['コメント'] || '0', 10);
-    const reach = parseInt(parsed['リーチ'] || String(likes * 10), 10);
+    const likes = safeParseInt(likesStr, -1);
+    const saves = safeParseInt(parsed['保存'], 0);
+    const comments = safeParseInt(parsed['コメント'], 0);
+
+    // NaN / 不正値チェック
+    if (likes < 0) {
+      await replyText(replyToken, `❌ いいね数が不正です: "${likesStr}"\n\n数値で入力してください（例: いいね: 45）`);
+      return true;
+    }
+
+    // リーチは入力があれば使用、なければ null（推定値は使わない）
+    const reachStr = parsed['リーチ'];
+    const reach = reachStr ? safeParseInt(reachStr, 0) : 0;
     const engagementRate = reach > 0 ? ((likes + saves + comments) / reach * 100) : 0;
 
     // ハッシュタグをパース
@@ -371,8 +383,8 @@ function generateTestData(category, count) {
     const likes = Math.floor(Math.random() * 200) + 50;
     const saves = Math.floor(Math.random() * 30) + 5;
     const comments = Math.floor(Math.random() * 10) + 1;
-    const reach = likes * 10;
-    const engagement = ((likes + saves + comments) / reach * 100).toFixed(2);
+    const reach = 0; // 推定値は使わない（実リーチのみ）
+    const engagement = 0; // リーチ不明時はER算出しない
 
     results.push({
       content: template.contents[idx],

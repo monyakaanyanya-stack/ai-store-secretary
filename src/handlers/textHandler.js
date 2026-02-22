@@ -29,6 +29,7 @@ import {
 } from '../services/conversationService.js';
 import { buildStoreParsePrompt, buildTextPostPrompt, POST_LENGTH_MAP, appendTemplateFooter } from '../utils/promptBuilder.js';
 import { aggregateLearningData } from '../utils/learningData.js';
+import { normalizeInput, safeParseInt } from '../utils/inputNormalizer.js';
 import { getBlendedInsights, saveEngagementMetrics } from '../services/collectiveIntelligence.js';
 import { getPersonalizationPromptAddition, getLearningStatus } from '../services/personalizationEngine.js';
 import { getAdvancedPersonalizationPrompt } from '../services/advancedPersonalization.js';
@@ -38,7 +39,8 @@ import { getSeasonalMemoryPromptAddition, getSeasonalMemoryStatus } from '../ser
  * テキストメッセージの振り分け処理
  */
 export async function handleTextMessage(user, text, replyToken) {
-  const trimmed = text.trim();
+  // 全角コロン「：」→半角「:」、全角数字「１２３」→半角「123」を最初に1回正規化
+  const trimmed = normalizeInput(text.trim());
 
   // Instagram コマンド
   if (trimmed.startsWith('/instagram')) {

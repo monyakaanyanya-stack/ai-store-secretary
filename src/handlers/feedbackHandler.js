@@ -155,6 +155,7 @@ ${revisedContent}
  */
 function extractLearningHints(feedback) {
   const hints = {};
+  if (!feedback) return hints;
   const lower = feedback.toLowerCase();
 
   // カジュアル/フォーマル系のキーワード検出
