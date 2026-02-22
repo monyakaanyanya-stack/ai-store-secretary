@@ -30,6 +30,7 @@ import {
 import { buildStoreParsePrompt, buildTextPostPrompt, POST_LENGTH_MAP, appendTemplateFooter } from '../utils/promptBuilder.js';
 import { aggregateLearningData } from '../utils/learningData.js';
 import { normalizeInput, safeParseInt } from '../utils/inputNormalizer.js';
+import { normalizeCategory } from '../config/categoryDictionary.js';
 import { getBlendedInsights, saveEngagementMetrics } from '../services/collectiveIntelligence.js';
 import { getPersonalizationPromptAddition, getLearningStatus } from '../services/personalizationEngine.js';
 import { getAdvancedPersonalizationPrompt } from '../services/advancedPersonalization.js';
@@ -293,6 +294,14 @@ ${contactEmail}
     return await handleDisableReminder(user, replyToken);
   }
 
+  // 投稿番号選択（pending_reportがある場合）
+  // ★ pending_follower_request より先にチェック：
+  //    pending_report中に数字がフォロワー数と誤解釈されるのを防止
+  const postSelectionHandled = await handlePostSelection(user, trimmed, replyToken);
+  if (postSelectionHandled) {
+    return; // 処理完了
+  }
+
   // pending_follower_request がある場合、数字のみの入力もフォロワー数として処理
   const numericMatch = trimmed.match(/^(\d+)$/);
   if (numericMatch) {
@@ -315,12 +324,6 @@ ${contactEmail}
     const length = lengthMap[lengthMatch[1]];
     const content = lengthMatch[2];
     return await handleTextPostGenerationWithLength(user, content, replyToken, length);
-  }
-
-  // 投稿番号選択（pending_reportがある場合）
-  const postSelectionHandled = await handlePostSelection(user, trimmed, replyToken);
-  if (postSelectionHandled) {
-    return; // 処理完了
   }
 
   // ========== 自然な会話機能 ==========
@@ -583,7 +586,8 @@ async function handleStoreUpdate(user, updateData, replyToken) {
       } else if (key === 'こだわり' || key === 'strength') {
         updates.strength = value;
       } else if (key === '業種' || key === 'category') {
-        updates.category = value;
+        // カテゴリー名を正規化（表記ゆれ吸収）
+        updates.category = normalizeCategory(value) || value;
       } else if (key === '口調' || key === 'tone') {
         const validTones = ['カジュアル', 'フレンドリー', '丁寧', 'friendly', 'professional', 'casual'];
         if (validTones.includes(value)) {

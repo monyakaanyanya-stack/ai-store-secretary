@@ -205,7 +205,7 @@ ${postContent}...
  */
 export async function handlePostSelection(user, postNumber, replyToken) {
   if (!user.current_store_id) {
-    return await replyText(replyToken, '店舗が選択されていません。');
+    return null; // 他のハンドラーに処理を委譲
   }
 
   try {
@@ -213,6 +213,16 @@ export async function handlePostSelection(user, postNumber, replyToken) {
     const pendingReport = await getPendingReport(user.id, user.current_store_id);
 
     if (!pendingReport) {
+      // 期限切れのpending_reportがあれば通知してクリーンアップ
+      const num = parseInt(postNumber, 10);
+      if (!isNaN(num) && num >= 1 && num <= 10) {
+        const expiredReport = await getExpiredPendingReport(user.id, user.current_store_id);
+        if (expiredReport) {
+          await cleanupExpiredReports(user.id, user.current_store_id);
+          await replyText(replyToken, '⏰ 投稿選択の期限が切れました。\n\nもう一度「報告: いいね○○, 保存○○, コメント○○」から始めてください。');
+          return true;
+        }
+      }
       return null; // pending_reportがない場合はこのハンドラーをスキップ
     }
 
@@ -475,5 +485,52 @@ async function completePendingReport(pendingReportId) {
 
   if (error) {
     console.error('[Report] pending_report完了エラー:', error.message);
+  }
+}
+
+/**
+ * 期限切れのpending_reportを取得（直近24時間以内に期限切れしたもの）
+ */
+async function getExpiredPendingReport(userId, storeId) {
+  const { supabase } = await import('../services/supabaseService.js');
+
+  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+  const { data, error } = await supabase
+    .from('pending_reports')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('store_id', storeId)
+    .eq('status', 'awaiting_post_selection')
+    .lte('expires_at', new Date().toISOString())
+    .gte('expires_at', oneDayAgo)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') return null;
+    return null;
+  }
+
+  return data;
+}
+
+/**
+ * 期限切れのpending_reportをクリーンアップ（expired → completed）
+ */
+async function cleanupExpiredReports(userId, storeId) {
+  const { supabase } = await import('../services/supabaseService.js');
+
+  const { error } = await supabase
+    .from('pending_reports')
+    .update({ status: 'expired' })
+    .eq('user_id', userId)
+    .eq('store_id', storeId)
+    .eq('status', 'awaiting_post_selection')
+    .lte('expires_at', new Date().toISOString());
+
+  if (error) {
+    console.error('[Report] 期限切れreportクリーンアップエラー:', error.message);
   }
 }

@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { normalizeCategory } from '../config/categoryDictionary.js';
 
 // RLS有効時はservice_roleキーを使用（anon keyではアクセス不可）
 // Supabase Dashboard > Project Settings > API > service_role key
@@ -49,6 +50,11 @@ export async function updateCurrentStore(userId, storeId) {
 // ==================== 店舗 ====================
 
 export async function createStore(userId, storeData) {
+  // カテゴリー名を正規化（表記ゆれ吸収: "ネイル"→"ネイルサロン" 等）
+  const normalizedCategory = storeData.category
+    ? normalizeCategory(storeData.category) || storeData.category
+    : null;
+
   const { data, error } = await supabase
     .from('stores')
     .insert({
@@ -56,7 +62,7 @@ export async function createStore(userId, storeData) {
       name: storeData.name,
       strength: storeData.strength,
       tone: storeData.tone,
-      category: storeData.category || null,
+      category: normalizedCategory,
       profit_margin: storeData.profit_margin || 0,
       config: storeData.config || {
         post_length: '中文',
@@ -95,14 +101,47 @@ export async function getStoresByUser(userId) {
 
 export async function deleteStore(storeId) {
   // 関連データを順番に削除してから店舗本体を削除
-  await supabase.from('post_history').delete().eq('store_id', storeId);
-  await supabase.from('learning_data').delete().eq('store_id', storeId);
-  await supabase.from('learning_profiles').delete().eq('store_id', storeId);
-  await supabase.from('follower_history').delete().eq('store_id', storeId);
-  await supabase.from('instagram_accounts').delete().eq('store_id', storeId);
+  // ※ DB側にON DELETE CASCADEがあるが、RLS環境での安全性のため明示的に削除
+  const errors = [];
 
+  // 1. users.current_store_id をクリア（FK SET NULLだが明示的に）
+  const { error: userErr } = await supabase
+    .from('users')
+    .update({ current_store_id: null })
+    .eq('current_store_id', storeId);
+  if (userErr) errors.push(`users: ${userErr.message}`);
+
+  // 2. 子テーブルを削除（依存関係の葉から順に）
+  const childTables = [
+    'pending_reports',
+    'engagement_metrics',
+    'post_history',
+    'learning_data',
+    'learning_profiles',
+    'follower_history',
+    'instagram_accounts',
+  ];
+
+  for (const table of childTables) {
+    const { error: childErr } = await supabase
+      .from(table)
+      .delete()
+      .eq('store_id', storeId);
+    if (childErr) {
+      // テーブルが存在しない場合は無視（未マイグレーション環境対応）
+      if (!childErr.message.includes('does not exist')) {
+        errors.push(`${table}: ${childErr.message}`);
+      }
+    }
+  }
+
+  // 3. 店舗本体を削除
   const { error } = await supabase.from('stores').delete().eq('id', storeId);
   if (error) throw new Error(`店舗削除失敗: ${error.message}`);
+
+  if (errors.length > 0) {
+    console.warn(`[Store] 関連データ削除で一部エラー（店舗自体は削除済み）: ${errors.join(', ')}`);
+  }
 }
 
 // ==================== 投稿履歴 ====================
@@ -120,6 +159,25 @@ export async function savePostHistory(userId, storeId, content, imageData = null
     .single();
 
   if (error) throw new Error(`投稿履歴保存失敗: ${error.message}`);
+  return data;
+}
+
+/**
+ * 投稿履歴のcontentを更新（修正版で上書き）
+ * フィードバック修正時に新レコードを作らず既存を更新する
+ */
+export async function updatePostContent(postId, newContent) {
+  const { data, error } = await supabase
+    .from('post_history')
+    .update({
+      content: newContent,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', postId)
+    .select()
+    .single();
+
+  if (error) throw new Error(`投稿内容更新失敗: ${error.message}`);
   return data;
 }
 
