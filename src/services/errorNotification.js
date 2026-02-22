@@ -113,6 +113,50 @@ export async function notifyValidationFlood(category, count) {
  * デイリーサマリーを送信（今後の実装）
  * @param {Object} summary - サマリーデータ
  */
+/**
+ * otherグループで人気カテゴリーを検出した場合に管理者に通知
+ * @param {Array<{category: string, storeCount: number}>} candidates - 昇格候補
+ */
+export async function notifyCategoryPromotion(candidates) {
+  if (!ENABLE_NOTIFICATIONS || !ADMIN_LINE_USER_ID || !LINE_CHANNEL_ACCESS_TOKEN) {
+    return;
+  }
+  if (!candidates || candidates.length === 0) return;
+
+  const list = candidates
+    .map(c => `  - ${c.category}（${c.storeCount}店舗）`)
+    .join('\n');
+
+  const message = `📋 カテゴリー昇格候補の検出
+
+以下の業種が「other」グループで一定数を超えました。
+辞書（categoryDictionary.js）への追加を検討してください。
+
+${list}
+
+追加すると:
+・業種専用ハッシュタグが提供される
+・適切なグループ集合知に参加できる
+・バリデーションルールが最適化される`;
+
+  try {
+    await fetch('https://api.line.me/v2/bot/message/push', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${LINE_CHANNEL_ACCESS_TOKEN}`,
+      },
+      body: JSON.stringify({
+        to: ADMIN_LINE_USER_ID,
+        messages: [{ type: 'text', text: message }],
+      }),
+    });
+    console.log('[ErrorNotification] カテゴリー昇格候補通知送信完了');
+  } catch (err) {
+    console.error('[ErrorNotification] カテゴリー昇格通知エラー:', err.message);
+  }
+}
+
 export async function notifyDailySummary(summary) {
   if (!ENABLE_NOTIFICATIONS || !ADMIN_LINE_USER_ID || !LINE_CHANNEL_ACCESS_TOKEN) {
     return;

@@ -1,8 +1,9 @@
 import cron from 'node-cron';
 import { sendDailyReminders } from './dailyReminderService.js';
 import { collectDailySummary } from './dailySummaryService.js';
-import { notifyDailySummary } from './errorNotification.js';
+import { notifyDailySummary, notifyCategoryPromotion } from './errorNotification.js';
 import { sendMonthlyFollowerRequests } from './monthlyFollowerService.js';
+import { detectPopularOtherCategories } from './collectiveIntelligence.js';
 
 /**
  * スケジューラー起動
@@ -50,8 +51,28 @@ export function startScheduler() {
     timezone: 'UTC'
   });
 
+  // 毎週月曜 朝9時（日本時間）に other カテゴリー昇格チェック
+  // JST 9:00 = UTC 0:00
+  cron.schedule('0 0 * * 1', async () => {
+    console.log('[Scheduler] カテゴリー昇格チェック実行開始');
+    try {
+      const candidates = await detectPopularOtherCategories(5);
+      if (candidates.length > 0) {
+        console.log('[Scheduler] 昇格候補:', candidates);
+        await notifyCategoryPromotion(candidates);
+      } else {
+        console.log('[Scheduler] 昇格候補なし');
+      }
+    } catch (error) {
+      console.error('[Scheduler] カテゴリー昇格チェックエラー:', error);
+    }
+  }, {
+    timezone: 'UTC'
+  });
+
   console.log('[Scheduler] スケジューラー起動完了');
   console.log('  - デイリーリマインダー: 毎日 UTC 1:00 (JST 10:00)');
   console.log('  - デイリーサマリー: 毎日 UTC 14:59 (JST 23:59)');
   console.log('  - 月次フォロワー数収集: 毎月1日 UTC 1:00 (JST 10:00)');
+  console.log('  - カテゴリー昇格チェック: 毎週月曜 UTC 0:00 (JST 9:00)');
 }

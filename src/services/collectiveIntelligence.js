@@ -156,7 +156,7 @@ function analyzeEngagementData(data) {
  * @returns {Object} - ブレンドされた集合知
  */
 export async function getBlendedInsights(storeId, category) {
-  const categoryGroup = getCategoryGroup(category);
+  const categoryGroup = getCategoryGroup(category) ?? 'other';
 
   // 自店舗の学習データ（50%）
   const ownData = await getOwnStoreInsights(storeId);
@@ -165,7 +165,7 @@ export async function getBlendedInsights(storeId, category) {
   const categoryData = await getCategoryInsights(category);
 
   // 大グループの集合知（20%）
-  const groupData = categoryGroup ? await getGroupInsights(categoryGroup) : getDefaultInsights();
+  const groupData = await getGroupInsights(categoryGroup);
 
   return {
     own: ownData,
@@ -224,7 +224,7 @@ function getDefaultInsights() {
 export async function saveEngagementMetrics(storeId, category, postData, metrics = {}) {
   // ラベルを正規化（表記ゆれ吸収: "cafe"→"カフェ", "カフェ "→"カフェ"）
   const normalizedCategory = normalizeCategory(category) || category;
-  const categoryGroup = getCategoryGroup(normalizedCategory);
+  const categoryGroup = getCategoryGroup(normalizedCategory) ?? 'other';
 
   // ステータス判定：いいね or 保存が入っていれば「報告済」、なければ「未報告」
   // 未報告レコードは集合知・勝ちパターンの学習対象から除外される
@@ -375,4 +375,35 @@ function countEmojis(text) {
   const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu;
   const matches = text.match(emojiRegex);
   return matches ? matches.length : 0;
+}
+
+/**
+ * 'other' グループ内で店舗数が閾値を超えたカテゴリーを検出
+ * @param {number} threshold - 店舗数の閾値（デフォルト5）
+ * @returns {Array<{category: string, storeCount: number}>} - 昇格候補リスト
+ */
+export async function detectPopularOtherCategories(threshold = 5) {
+  const { data, error } = await supabase
+    .from('engagement_metrics')
+    .select('category, store_id')
+    .eq('category_group', 'other');
+
+  if (error || !data) {
+    console.error('[CollectiveIntelligence] other カテゴリー検出エラー:', error?.message);
+    return [];
+  }
+
+  // カテゴリーごとにユニーク店舗数をカウント
+  const categoryStores = {};
+  for (const row of data) {
+    if (!categoryStores[row.category]) {
+      categoryStores[row.category] = new Set();
+    }
+    categoryStores[row.category].add(row.store_id);
+  }
+
+  return Object.entries(categoryStores)
+    .filter(([, stores]) => stores.size >= threshold)
+    .map(([category, stores]) => ({ category, storeCount: stores.size }))
+    .sort((a, b) => b.storeCount - a.storeCount);
 }
