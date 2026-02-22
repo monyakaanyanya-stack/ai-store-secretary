@@ -1094,19 +1094,21 @@ describe('Scenario 28: Ver.13.0 質感と呼吸の完成形', async () => {
       'Should include five-sense translation rule');
     assert.ok(prompt.includes('80点＋20点'),
       'Should include 80+20 rule');
-    assert.ok(prompt.includes('店主へのバトン'),
-      'Should include baton to shop owner');
   });
 
-  it('Ver.13.0 の出力形式に「案A：質感」が含まれる', async () => {
+  it('Ver.13.0 の出力形式に案A・案Bの2案が含まれる', async () => {
     const { buildImagePostPrompt } = await import('../src/utils/promptBuilder.js');
     const store = { name: 'テスト店', tone: '丁寧', config: {} };
     const prompt = buildImagePostPrompt(store, {}, null, null, '', 'テスト画像', 'snapshot');
 
     assert.ok(prompt.includes('[ 案A：質感 ]'),
       'Output format should include [ 案A：質感 ]');
-    assert.ok(prompt.includes('（店主へのバトン：……。ここに一言。）'),
-      'Output format should include baton placeholder');
+    assert.ok(prompt.includes('[ 案B：空気 ]'),
+      'Output format should include [ 案B：空気 ]');
+    assert.ok(prompt.includes('必ず案Aと案Bの2案を出力'),
+      'Should instruct 2 proposals');
+    assert.ok(!prompt.includes('店主へのバトン'),
+      'Should NOT include baton placeholder');
   });
 
   it('旧スタイルのアイデンティティ文言が削除されている', async () => {
