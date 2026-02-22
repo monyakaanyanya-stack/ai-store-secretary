@@ -357,8 +357,11 @@ ${contactEmail}
     }
   }
 
-  // 古い会話履歴をクリーンアップ（最新40件を保持）
-  await cleanOldConversations(user.id, 40);
+  // M10修正: cleanOldConversationsを毎メッセージではなく確率的に実行
+  // 約10回に1回のみ実行（毎回SELECTクエリが走るのを防止）
+  if (Math.random() < 0.1) {
+    await cleanOldConversations(user.id, 40);
+  }
 
   // 自然な会話で応答
   const store = user.current_store_id ? await getStore(user.current_store_id) : null;
@@ -614,11 +617,18 @@ async function handleStoreUpdate(user, updateData, replyToken) {
       );
     }
 
+    // L7修正: allow-listフィルタ（将来の回帰防止）
+    const ALLOWED_UPDATE_FIELDS = ['name', 'category', 'strength', 'tone'];
+    const safeUpdates = {};
+    for (const key of ALLOWED_UPDATE_FIELDS) {
+      if (updates[key] !== undefined) safeUpdates[key] = updates[key];
+    }
+
     // データベース更新
     const { error } = await supabase
       .from('stores')
       .update({
-        ...updates,
+        ...safeUpdates,
         updated_at: new Date().toISOString()
       })
       .eq('id', store.id);
@@ -1165,45 +1175,7 @@ async function handleLearningStatus(user, replyToken) {
   }
 }
 
-// ==================== ヘルプ ====================
-
-const HELP_TEXT = `📖 AI店舗秘書の使い方
-
-【店舗登録】
-1: 店名,こだわり,口調
-例: 1: ベーカリー幸福堂,天然酵母の手作りパン,フレンドリー
-
-口調は以下から選べます:
-カジュアル（タメ口） / フレンドリー（親しみやすい） / 丁寧（丁寧）
-
-【投稿生成】
-・画像を送信 → 画像から投稿案を作成
-・テキストを送信 → テキストから投稿案を作成
-・超短文で: 〇〇 → 超短い投稿を作成（50-80文字）
-・短文で: 〇〇 → 短い投稿を作成（100-150文字）
-・長文で: 〇〇 → 長い投稿を作成（400-500文字）
-
-【投稿修正】
-直し: もっとカジュアルに
-
-【設定】
-・長さ: 超短文 / 短文 / 中文 / 長文 → デフォルトの投稿長を設定
-・テンプレート: 住所:〇〇,営業時間:〇〇 → 投稿末尾に自動で含まれる情報を登録
-　例）テンプレート: 住所:東京都渋谷区〇〇,営業時間:10:00-20:00
-　住所・営業時間以外も登録可（例: 電話:03-xxxx-xxxx）
-・テンプレート: #カフェ #コーヒー #おうちカフェ → 毎回必ず使うタグを登録
-　登録したタグが先頭に入り、その後に内容に合うタグが追加されます
-・テンプレート削除 → テンプレート削除（対話形式）
-・設定確認 → 現在の設定を表示
-・学習状況 → AI学習の進捗を確認
-
-【店舗管理】
-・店舗一覧 → 登録済み店舗を表示
-・切替: 店舗名 → 別の店舗に切り替え
-・店舗更新 → 店舗情報を変更（対話形式）
-
-【ヘルプ】
-・ヘルプ → この説明を表示`;
+// L1修正: 旧HELP_TEXT削除 — handleHelpMenu/handleHelpCategoryに移行済み
 
 // ==================== 👍 良い評価のハンドラー ====================
 
@@ -1226,8 +1198,7 @@ async function handlePositiveFeedback(user, replyToken) {
       return await replyText(replyToken, 'まだ投稿がありません。');
     }
 
-    // パーソナライゼーションエンジンに学習させる
-    const { applyFeedbackToProfile } = await import('../services/personalizationEngine.js');
+    // L3修正: static importを使用（冗長なdynamic import削除）
     await applyFeedbackToProfile(store.id, '👍 良い投稿として学習', latestPost.content);
 
     console.log(`[Feedback] 👍 良い評価: store=${store.name}`);
@@ -1259,8 +1230,7 @@ async function handleNegativeFeedback(user, replyToken) {
       return await replyText(replyToken, 'まだ投稿がありません。');
     }
 
-    // パーソナライゼーションエンジンに学習させる（逆方向）
-    const { applyFeedbackToProfile } = await import('../services/personalizationEngine.js');
+    // L3修正: static importを使用（冗長なdynamic import削除）
     await applyFeedbackToProfile(store.id, '👎 イマイチな投稿として学習', latestPost.content);
 
     console.log(`[Feedback] 👎 イマイチ評価: store=${store.name}`);

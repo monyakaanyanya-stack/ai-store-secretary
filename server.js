@@ -108,6 +108,12 @@ async function processEvent(event) {
 
   if (event.type !== 'message') return;
 
+  // L8修正: event.messageのnullチェック（malformed webhookペイロード対策）
+  if (!event.message) {
+    console.warn(`[Event] messageが存在しないメッセージイベントをスキップ: user=${maskUserId(lineUserId)}`);
+    return;
+  }
+
   const replyToken = event.replyToken;
 
   // ==================== レート制限チェック ====================

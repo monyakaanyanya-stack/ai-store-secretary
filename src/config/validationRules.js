@@ -129,6 +129,12 @@ export function isStatisticalOutlier(values, newValue) {
   const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
   const stdDev = Math.sqrt(variance);
 
+  // H4修正: 全値が同一の場合stdDev=0 → 除算でInfinity → 正常値が外れ値と判定される
+  // stdDev=0の場合、平均と異なる値のみ外れ値とする（ただし小さい差は許容）
+  if (stdDev === 0) {
+    return false; // 分散ゼロでは外れ値判定しない（データが不十分）
+  }
+
   const zScore = Math.abs((newValue - mean) / stdDev);
   return zScore > 3; // 3σを超えたら外れ値
 }

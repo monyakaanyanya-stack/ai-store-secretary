@@ -35,6 +35,10 @@ export async function askClaude(prompt, options = {}) {
 
     const response = await client.messages.create(requestParams);
 
+    // M12修正: content配列が空の場合のガード
+    if (!response.content || response.content.length === 0) {
+      throw new Error('Claude APIから空のレスポンスが返されました');
+    }
     return response.content[0].text;
   } catch (error) {
     console.error('[Claude] API エラー:', error.message);
@@ -72,6 +76,10 @@ export async function askClaudeWithImage(prompt, imageBase64, mediaType = 'image
       ],
     });
 
+    // M12修正: content配列が空の場合のガード
+    if (!response.content || response.content.length === 0) {
+      throw new Error('Claude Vision APIから空のレスポンスが返されました');
+    }
     return response.content[0].text;
   } catch (error) {
     console.error('[Claude] Vision API エラー:', error.message);
@@ -121,6 +129,10 @@ export async function describeImage(imageBase64, mediaType = 'image/jpeg') {
       ],
     });
 
+    // M12修正: content配列が空の場合のガード
+    if (!response.content || response.content.length === 0) {
+      throw new Error('Claude画像分析APIから空のレスポンスが返されました');
+    }
     return response.content[0].text;
   } catch (error) {
     // S9修正: nullを返さずthrowする（呼び出し元で適切にハンドリング）

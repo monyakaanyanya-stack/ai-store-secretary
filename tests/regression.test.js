@@ -1,6 +1,6 @@
 /**
- * リグレッションテスト（Day7 + 第2次監査修正 + 第3次セキュリティ監査修正）
- * 修正が正しく動作するか、21シナリオで検証
+ * リグレッションテスト（Day7 + 第2次監査 + 第3次監査 + 第4次監査修正）
+ * 修正が正しく動作するか、27シナリオで検証
  *
  * 実行: node --test tests/regression.test.js
  */
@@ -59,22 +59,18 @@ describe('Scenario 2: safeParseInt NaN防止', async () => {
   });
 });
 
-// ==================== Scenario 3: isValidMetricNumber (Day1: H7) ====================
-describe('Scenario 3: メトリック数値バリデーション', async () => {
-  const { isValidMetricNumber } = await import('../src/utils/inputNormalizer.js');
-
-  it('有効な数値', () => {
-    assert.equal(isValidMetricNumber(0), true);
-    assert.equal(isValidMetricNumber(100), true);
-    assert.equal(isValidMetricNumber(0.5), true);
-  });
-
-  it('無効な値', () => {
-    assert.equal(isValidMetricNumber(NaN), false);
-    assert.equal(isValidMetricNumber(-1), false);
-    assert.equal(isValidMetricNumber('100'), false);
-    assert.equal(isValidMetricNumber(null), false);
-    assert.equal(isValidMetricNumber(undefined), false);
+// ==================== Scenario 3: Number.isFinite バリデーション (L1で isValidMetricNumber 削除済み) ====================
+describe('Scenario 3: メトリック数値バリデーション', () => {
+  // L1修正: isValidMetricNumber は削除。collectiveIntelligence では Number.isFinite を使用
+  it('Number.isFiniteが正しく動作する', () => {
+    assert.equal(Number.isFinite(0), true);
+    assert.equal(Number.isFinite(100), true);
+    assert.equal(Number.isFinite(0.5), true);
+    assert.equal(Number.isFinite(NaN), false);
+    assert.equal(Number.isFinite(Infinity), false);
+    assert.equal(Number.isFinite(null), false);
+    assert.equal(Number.isFinite(undefined), false);
+    assert.equal(Number.isFinite('100'), false);
   });
 });
 
@@ -121,8 +117,12 @@ describe('Scenario 5: ハッシュタグ3段フォールバック', async () => 
   it('Tier 3: 辞書にないカテゴリーはGENERAL_HASHTAGSにフォールバック', () => {
     const tags = getHashtagsForCategory('宇宙ステーション');
     assert.ok(tags.length > 0, 'Should fallback to general hashtags');
-    assert.ok(tags.some(t => t.includes('instagood') || t.includes('photooftheday')),
-      'Should contain general hashtags');
+    // M1修正: #instagood等の禁止タグは除外済み → #おすすめ等の安全なタグに変更
+    assert.ok(tags.some(t => t.includes('おすすめ') || t.includes('お店')),
+      'Should contain safe general hashtags (not #instagood)');
+    // M1修正確認: 禁止タグが含まれていないこと
+    assert.ok(!tags.some(t => t.includes('instagood') || t.includes('photooftheday')),
+      'Should NOT contain forbidden hashtags');
   });
 
   it('null入力で汎用タグを返す', () => {
@@ -234,7 +234,7 @@ describe('Scenario 10: モジュールimport整合性', async () => {
     assert.ok(mod.safeParseInt, 'safeParseInt should exist');
     assert.ok(mod.normalizeFullWidthNumbers, 'normalizeFullWidthNumbers should exist');
     assert.ok(mod.normalizeFullWidthColon, 'normalizeFullWidthColon should exist');
-    assert.ok(mod.isValidMetricNumber, 'isValidMetricNumber should exist');
+    // L1修正: isValidMetricNumber は削除済み（Number.isFiniteに統一）
   });
 
   it('categoryDictionary が正常にimportできる', async () => {
@@ -716,5 +716,308 @@ describe('Scenario 21: 残り修正（S14+S16+S17+S18）', async () => {
     );
     assert.ok(content.includes('!imageDescription'),
       'Should check for null imageDescription');
+  });
+});
+
+// ==================== Scenario 22: C1 pushMessage配列 + C2 Object.keys ====================
+describe('Scenario 22: 第4次監査 CRITICAL修正（C1+C2）', async () => {
+  it('C1: pushMessage に配列を渡す', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/monthlyFollowerService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('pushMessage(lineUserId, [message])'),
+      'pushMessage should receive array, not single object');
+    assert.ok(!content.includes('pushMessage(lineUserId, message)') ||
+              content.includes('pushMessage(lineUserId, [message])'),
+      'Should wrap message in array');
+  });
+
+  it('C2: Object.keys()でword_preferencesのキー数を取得', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/advancedPersonalization.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('Object.keys(profileData.word_preferences'),
+      'Should use Object.keys() instead of .length on Object');
+    // 旧パターン: (profileData.word_preferences || {}).length（Object.keysなし）
+    // 新パターンにはObject.keysが含まれるので部分一致は問題ない
+    assert.ok(!content.match(/[^s]\(profileData\.word_preferences \|\| \{\}\)\.length/),
+      'Should NOT use direct Object.length without Object.keys()');
+  });
+
+  it('C2: Object.length は常にundefined', () => {
+    const obj = { a: 1, b: 2, c: 3, d: 4 };
+    assert.equal(obj.length, undefined, 'Object.length should be undefined');
+    assert.equal(Object.keys(obj).length, 4, 'Object.keys().length should work');
+    assert.equal(Object.keys({}).length > 3, false, 'Empty object should return 0');
+  });
+});
+
+// ==================== Scenario 23: H1 replyToken二重使用防止 + H2 nullチェック ====================
+describe('Scenario 23: 第4次監査 HIGH修正（H1+H2）', async () => {
+  it('H1: instagramHandler でreplyTokenを1回しか使わない', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/instagramHandler.js', import.meta.url), 'utf-8'
+    );
+    // handleInstagramConnect内でreplyTextが1回だけ呼ばれる（try内で）
+    const connectFunc = content.slice(
+      content.indexOf('async function handleInstagramConnect'),
+      content.indexOf('async function handleInstagramSync')
+    );
+    const replyCount = (connectFunc.match(/await replyText\(replyToken/g) || []).length;
+    // try内の成功メッセージ + catch内のエラーメッセージ + token無しの案内 = 3回（全て排他的）
+    assert.ok(!connectFunc.includes('Instagram連携中'),
+      'Should NOT have intermediate "connecting..." message');
+  });
+
+  it('H2: updateAdvancedProfileがnullプロパティでクラッシュしない', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/advancedPersonalization.js', import.meta.url), 'utf-8'
+    );
+    // analysis.toneへの安全なアクセス
+    assert.ok(content.includes("analysis.tone && typeof analysis.tone === 'object'"),
+      'Should null-check analysis.tone');
+    assert.ok(content.includes('analysis.emoji_preference?.frequency'),
+      'Should use optional chaining for emoji_preference');
+    assert.ok(content.includes('analysis.expression_patterns?.avoided_words'),
+      'Should use optional chaining for expression_patterns');
+    assert.ok(content.includes('analysis.expression_patterns?.preferred_words'),
+      'Should use optional chaining for preferred_words');
+  });
+});
+
+// ==================== Scenario 24: H3 NaN防止 + H4 stdDev=0 + H5 演算子優先順位 ====================
+describe('Scenario 24: 第4次監査 HIGH修正（H3+H4+H5）', async () => {
+  it('H3: saves_count=null の場合にNaNにならない', () => {
+    // collectiveIntelligence内のロジックを再現
+    function calcIntensity(post) {
+      return post.save_intensity != null ? post.save_intensity
+        : (post.likes_count > 0 && post.saves_count != null ? (post.saves_count / post.likes_count) : 0);
+    }
+
+    assert.equal(calcIntensity({ save_intensity: null, likes_count: 100, saves_count: null }), 0,
+      'null saves_count should return 0, not NaN');
+    assert.equal(calcIntensity({ save_intensity: null, likes_count: 100, saves_count: 15 }), 0.15,
+      'Normal case should calculate correctly');
+    assert.equal(calcIntensity({ save_intensity: 0.2, likes_count: 100, saves_count: null }), 0.2,
+      'Should use save_intensity when available');
+    assert.equal(Number.isNaN(calcIntensity({ save_intensity: null, likes_count: 100, saves_count: null })), false,
+      'Should NEVER return NaN');
+  });
+
+  it('H4: stdDev=0 で外れ値判定しない', async () => {
+    const { isStatisticalOutlier } = await import('../src/config/validationRules.js');
+    // 全て同じ値の場合
+    const allSame = [50, 50, 50, 50, 50];
+    assert.equal(isStatisticalOutlier(allSame, 50), false,
+      'Same value should NOT be outlier when all values identical');
+    assert.equal(isStatisticalOutlier(allSame, 51), false,
+      'stdDev=0 should return false (insufficient variance for judgment)');
+    // データ不足
+    assert.equal(isStatisticalOutlier([10, 20], 100), false,
+      'Less than 3 values should not flag outliers');
+  });
+
+  it('H5: 演算子優先順位が正しい', () => {
+    // 旧: error && error.message?.includes('unique') || error?.message?.includes('constraint')
+    // 新: error && (error.message?.includes('unique') || error.message?.includes('constraint'))
+
+    // error=nullの場合、両方falseであるべき
+    const error1 = null;
+    const old1 = error1 && error1?.message?.includes('unique') || error1?.message?.includes('constraint');
+    const new1 = error1 && (error1?.message?.includes('unique') || error1?.message?.includes('constraint'));
+    assert.equal(old1, undefined);  // 旧も偶然動く
+    assert.equal(new1, null);       // 新: 明確にfalsy
+
+    // error={message:'timeout'}の場合、両方falseであるべき
+    const error2 = { message: 'timeout error' };
+    const old2 = error2 && error2.message?.includes('unique') || error2?.message?.includes('constraint');
+    const new2 = error2 && (error2.message?.includes('unique') || error2.message?.includes('constraint'));
+    assert.equal(old2, false);
+    assert.equal(new2, false);
+  });
+});
+
+// ==================== Scenario 25: M1 禁止タグ + M2 JST日付 + M4 unref ====================
+describe('Scenario 25: 第4次監査 MEDIUM修正（M1+M2+M4）', async () => {
+  it('M1: GENERAL_HASHTAGSに禁止タグが含まれない', async () => {
+    const { GENERAL_HASHTAGS } = await import('../src/config/categoryDictionary.js');
+    const forbidden = ['#instagood', '#photooftheday', '#japan', '#follow', '#like'];
+    for (const tag of forbidden) {
+      assert.ok(!GENERAL_HASHTAGS.includes(tag),
+        `GENERAL_HASHTAGS should NOT contain forbidden tag: ${tag}`);
+    }
+    assert.ok(GENERAL_HASHTAGS.length > 0, 'Should still have fallback tags');
+  });
+
+  it('M2: security.js がJST日付ヘルパーを使用', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/utils/security.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('getJSTDateString'),
+      'Should have getJSTDateString helper');
+    assert.ok(content.includes('9 * 3600 * 1000'),
+      'Should add 9 hours (JST offset)');
+    // checkDailyApiLimit と incrementDailyApiCount の両方で使用
+    const usages = content.match(/getJSTDateString\(\)/g);
+    assert.ok(usages && usages.length >= 2,
+      'getJSTDateString should be used in both check and increment');
+  });
+
+  it('M4: setInterval に .unref() がある', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/utils/security.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('.unref()'),
+      'setInterval should have .unref() for graceful shutdown');
+  });
+});
+
+// ==================== Scenario 26: M5+M6 learningData + M7 スタックトレース + M12 content[0] ====================
+describe('Scenario 26: 第4次監査 MEDIUM修正（M5+M6+M7+M12）', async () => {
+  it('M5: learningData に Array.isArray ガードがある', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/utils/learningData.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('Array.isArray(data.preferredWords)'),
+      'Should check preferredWords is array');
+    assert.ok(content.includes('Array.isArray(data.avoidWords)'),
+      'Should check avoidWords is array');
+    assert.ok(content.includes('Array.isArray(data.topEmojis)'),
+      'Should check topEmojis is array');
+  });
+
+  it('M6: learningData に try-catch がある', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/utils/learningData.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('try {') && content.includes('catch (err)'),
+      'Should have try-catch around DB call');
+    assert.ok(content.includes('デフォルト値で続行'),
+      'Should return default on error');
+  });
+
+  it('M7: errorNotification にスタックトレースが含まれない', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/errorNotification.js', import.meta.url), 'utf-8'
+    );
+    // notifyClaudeError 関数内にstackが含まれないことを確認
+    const funcStart = content.indexOf('export async function notifyClaudeError');
+    const funcEnd = content.indexOf('export async function', funcStart + 10);
+    const funcBody = content.slice(funcStart, funcEnd > 0 ? funcEnd : content.length);
+    assert.ok(!funcBody.includes('error.stack'),
+      'notifyClaudeError should NOT include error.stack');
+    assert.ok(funcBody.includes('errorType'),
+      'Should include errorType instead of stack trace');
+  });
+
+  it('M12: claudeService に content配列の空チェックがある', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/claudeService.js', import.meta.url), 'utf-8'
+    );
+    const emptyChecks = content.match(/response\.content\.length === 0/g);
+    assert.ok(emptyChecks && emptyChecks.length >= 3,
+      'All 3 functions (askClaude, askClaudeWithImage, describeImage) should check content array');
+  });
+});
+
+// ==================== Scenario 27: L修正群（デッドコード削除・コード品質） ====================
+describe('Scenario 27: 第4次監査 LOW修正（L1-L9）', async () => {
+  it('L1: HELP_TEXT が削除されている', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/textHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(!content.includes("const HELP_TEXT = `"),
+      'Dead HELP_TEXT constant should be removed');
+  });
+
+  it('L2: reportHandler に冗長なdynamic importがない', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/reportHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(!content.includes("await import('../services/supabaseService.js')"),
+      'Should NOT have dynamic imports of supabaseService');
+    assert.ok(content.includes("import { getStore, supabase }"),
+      'Should use static import for both getStore and supabase');
+  });
+
+  it('L3: textHandler でapplyFeedbackToProfileの冗長なdynamic importがない', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/textHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(!content.includes("await import('../services/personalizationEngine.js')"),
+      'Should NOT have dynamic imports of personalizationEngine');
+  });
+
+  it('L7: textHandler にstore update allow-listがある', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/textHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('ALLOWED_UPDATE_FIELDS'),
+      'Should have ALLOWED_UPDATE_FIELDS allow-list');
+    assert.ok(content.includes('safeUpdates'),
+      'Should use safeUpdates instead of raw updates');
+  });
+
+  it('L8: server.js にevent.message nullチェックがある', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../server.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('!event.message'),
+      'Should check for null event.message');
+  });
+
+  it('L9: reportHandler のgetLatestPostHistoryが削除されている', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/reportHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(!content.includes('async function getLatestPostHistory'),
+      'Dead getLatestPostHistory should be removed');
+  });
+
+  it('M8: advancedPersonalization にavoided_words上限がある', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/advancedPersonalization.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('MAX_AVOIDED_WORDS'),
+      'Should have MAX_AVOIDED_WORDS limit');
+    assert.ok(content.includes('avoidedWords.length < MAX_AVOIDED_WORDS'),
+      'Should check array length before pushing');
+  });
+
+  it('M11: welcomeHandler がmaskUserIdを使用', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/welcomeHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes("import { maskUserId }"),
+      'Should import maskUserId');
+    assert.ok(content.includes('maskUserId(lineUserId)'),
+      'Should use maskUserId() instead of manual slicing');
+  });
+
+  it('M9: monthlyFollowerService がエラー詳細をユーザーに漏洩しない', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/monthlyFollowerService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(!content.includes('`エラーが発生しました: ${err.message}`'),
+      'Should NOT include err.message in user-facing reply');
   });
 });

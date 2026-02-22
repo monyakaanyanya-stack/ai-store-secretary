@@ -254,29 +254,5 @@ export function extractWinningPattern(posts, minCount = 10) {
   };
 }
 
-/**
- * hook_typeを日本語に変換
- */
-export function hookTypeToJapanese(hookType) {
-  const map = {
-    emotion: '感情・本音先行（「やばい」「好き」など）',
-    question: '問いかけ（「〜知ってる？」など）',
-    taigen_dome: '体言止め（短い名詞で余白）',
-    fact: '事実・お知らせ先行',
-    unknown: '様々',
-  };
-  return map[hookType] || hookType;
-}
-
-/**
- * CTA位置を日本語に変換
- */
-export function ctaPositionToJapanese(pos) {
-  const map = {
-    none: 'CTAなし',
-    early: '冒頭',
-    middle: '中盤',
-    end: '末尾',
-  };
-  return map[pos] || pos;
-}
+// L1修正: hookTypeToJapanese, ctaPositionToJapanese 削除
+// promptBuilder.js に同等の内部関数（buildHookTypeJapanese, buildCTAPositionJapanese）があり重複していた

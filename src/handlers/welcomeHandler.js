@@ -1,3 +1,6 @@
+// M11修正: maskUserIdを使って統一的にマスク
+import { maskUserId } from '../utils/security.js';
+
 const LINE_API_BASE = 'https://api.line.me/v2/bot';
 const CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN;
 
@@ -62,7 +65,8 @@ InstagramやX用の魅力的な投稿文に！
       throw new Error(`LINEプッシュ失敗: ${res.status} ${body}`);
     }
 
-    console.log(`[Welcome] ウェルカムメッセージ送信完了: ${lineUserId.slice(0, 4)}****`);
+    // M11修正: 手動マスクではなくmaskUserId()を使用
+    console.log(`[Welcome] ウェルカムメッセージ送信完了: ${maskUserId(lineUserId)}`);
   } catch (err) {
     console.error('[Welcome] ウェルカムメッセージ送信エラー:', err.message);
   }

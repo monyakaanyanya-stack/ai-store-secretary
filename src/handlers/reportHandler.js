@@ -1,5 +1,6 @@
 import { replyText } from '../services/lineService.js';
-import { getStore } from '../services/supabaseService.js';
+// L2修正: supabaseをstatic importに統一（8箇所のdynamic importを削除）
+import { getStore, supabase } from '../services/supabaseService.js';
 import { saveEngagementMetrics } from '../services/collectiveIntelligence.js';
 import { applyEngagementToProfile } from '../services/personalizationEngine.js';
 import { normalizeInput, safeParseInt } from '../utils/inputNormalizer.js';
@@ -352,34 +353,13 @@ function extractHashtags(text) {
   return matches || [];
 }
 
-/**
- * 最新の投稿履歴を取得（supabaseServiceに追加予定）
- */
-async function getLatestPostHistory(userId, storeId) {
-  const { supabase } = await import('../services/supabaseService.js');
-
-  const { data, error } = await supabase
-    .from('post_history')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('store_id', storeId)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .single();
-
-  if (error) {
-    console.log('[Report] 最新投稿履歴なし');
-    return null;
-  }
-
-  return data;
-}
+// L9修正: getLatestPostHistory削除（getRecentPostHistory(userId, storeId, 1)と重複）
 
 /**
  * 今月の報告回数を取得
  */
 async function getMonthlyReportCount(userId, storeId) {
-  const { supabase } = await import('../services/supabaseService.js');
+  // L2修正: static importを使用
 
   // 今月の開始日をJST基準で取得（UTC+9）
   const nowJST = new Date(Date.now() + 9 * 60 * 60 * 1000);
@@ -408,7 +388,7 @@ async function getMonthlyReportCount(userId, storeId) {
  * C15修正: 既存の awaiting_post_selection を先にクリーンアップ（競合防止）
  */
 async function savePendingReport(userId, storeId, metrics) {
-  const { supabase } = await import('../services/supabaseService.js');
+  // L2修正: static importを使用
 
   // 既存の awaiting_post_selection を expired に変更（競合防止）
   await supabase
@@ -444,7 +424,7 @@ async function savePendingReport(userId, storeId, metrics) {
  * 最近の投稿履歴を取得（複数件）
  */
 async function getRecentPostHistory(userId, storeId, limit = 5) {
-  const { supabase } = await import('../services/supabaseService.js');
+  // L2修正: static importを使用
 
   const { data, error } = await supabase
     .from('post_history')
@@ -466,7 +446,7 @@ async function getRecentPostHistory(userId, storeId, limit = 5) {
  * ユーザーのpending_reportを取得
  */
 async function getPendingReport(userId, storeId) {
-  const { supabase } = await import('../services/supabaseService.js');
+  // L2修正: static importを使用
 
   const { data, error } = await supabase
     .from('pending_reports')
@@ -495,7 +475,7 @@ async function getPendingReport(userId, storeId) {
  * pending_reportを完了にする
  */
 async function completePendingReport(pendingReportId) {
-  const { supabase } = await import('../services/supabaseService.js');
+  // L2修正: static importを使用
 
   const { error } = await supabase
     .from('pending_reports')
@@ -511,7 +491,7 @@ async function completePendingReport(pendingReportId) {
  * 期限切れのpending_reportを取得（直近24時間以内に期限切れしたもの）
  */
 async function getExpiredPendingReport(userId, storeId) {
-  const { supabase } = await import('../services/supabaseService.js');
+  // L2修正: static importを使用
 
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
@@ -539,7 +519,7 @@ async function getExpiredPendingReport(userId, storeId) {
  * 期限切れのpending_reportをクリーンアップ（expired → completed）
  */
 async function cleanupExpiredReports(userId, storeId) {
-  const { supabase } = await import('../services/supabaseService.js');
+  // L2修正: static importを使用
 
   const { error } = await supabase
     .from('pending_reports')

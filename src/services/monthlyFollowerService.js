@@ -80,7 +80,8 @@ async function sendFollowerRequestToUser(lineUserId) {
 ※ 7日以内に回答してください`
   };
 
-  await pushMessage(lineUserId, message);
+  // C1修正: pushMessageは配列を要求（LINE Push APIの仕様）
+  await pushMessage(lineUserId, [message]);
 }
 
 /**
@@ -131,7 +132,9 @@ export async function handleFollowerCountResponse(user, followerCount, replyToke
 ありがとうございました！`);
   } catch (err) {
     console.error('[MonthlyFollower] フォロワー数保存エラー:', err.message);
-    await replyText(replyToken, `エラーが発生しました: ${err.message}`);
+    // M9修正: 内部エラーメッセージをユーザーに漏洩しない
+    console.error('[MonthlyFollower] フォロワー数保存エラー詳細:', err.message);
+    await replyText(replyToken, 'エラーが発生しました。しばらくしてから再度お試しください。');
   }
 }
 

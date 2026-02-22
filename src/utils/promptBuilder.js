@@ -597,10 +597,11 @@ export function appendTemplateFooter(postContent, store) {
     if (hashtagMatch) {
       const bodyPart = beforeDivider.slice(0, hashtagMatch.index);
       const hashtagPart = hashtagMatch[1];
-      return `${bodyPart}\n\n${infoLines.join('\n')}\n${hashtagPart}\n\n━${dividerAndAfter}`;
+      // L5修正: 余分な━を追加しない（dividerAndAfterには既に━が含まれている）
+      return `${bodyPart}\n\n${infoLines.join('\n')}\n${hashtagPart}\n\n${dividerAndAfter}`;
     }
     // ハッシュタグ行が見つからない場合は区切り線の前に挿入
-    return `${beforeDivider}\n\n${infoLines.join('\n')}\n\n━${dividerAndAfter}`;
+    return `${beforeDivider}\n\n${infoLines.join('\n')}\n\n${dividerAndAfter}`;
   }
 
   // 区切り線がない場合：ハッシュタグ行の前に挿入

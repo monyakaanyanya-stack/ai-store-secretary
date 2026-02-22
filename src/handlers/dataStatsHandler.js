@@ -12,10 +12,11 @@ export async function handleDataStats(user, replyToken) {
       .from('engagement_metrics')
       .select('*', { count: 'exact', head: true });
 
-    // 業種別のデータ件数
+    // M3修正: 全行取得をやめ、limitを設けてOOM防止
     const { data: categoryStats } = await supabase
       .from('engagement_metrics')
       .select('category')
+      .limit(5000)
       .order('category');
 
     // 業種ごとにカウント

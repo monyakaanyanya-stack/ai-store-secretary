@@ -4,7 +4,14 @@ import { getLearningDataByStore } from '../services/supabaseService.js';
  * 店舗の学習データを集約して、プロンプトで使える形に整形する
  */
 export async function aggregateLearningData(storeId) {
-  const records = await getLearningDataByStore(storeId);
+  // M6修正: DB呼び出しにtry-catchを追加（一部の呼び出し元にエラーハンドリングがない）
+  let records;
+  try {
+    records = await getLearningDataByStore(storeId);
+  } catch (err) {
+    console.warn('[LearningData] 学習データ取得失敗（デフォルト値で続行）:', err.message);
+    return { preferredWords: [], avoidWords: [], topEmojis: [] };
+  }
 
   const result = {
     preferredWords: [],
@@ -12,19 +19,20 @@ export async function aggregateLearningData(storeId) {
     topEmojis: [],
   };
 
-  if (records.length === 0) return result;
+  if (!records || records.length === 0) return result;
 
   // フィードバックから傾向を抽出
   for (const record of records) {
     const data = record.data || {};
 
-    if (data.preferredWords) {
+    // M5修正: Array.isArrayチェック（DBの値が壊れている場合のガード）
+    if (Array.isArray(data.preferredWords)) {
       result.preferredWords.push(...data.preferredWords);
     }
-    if (data.avoidWords) {
+    if (Array.isArray(data.avoidWords)) {
       result.avoidWords.push(...data.avoidWords);
     }
-    if (data.topEmojis) {
+    if (Array.isArray(data.topEmojis)) {
       result.topEmojis.push(...data.topEmojis);
     }
   }

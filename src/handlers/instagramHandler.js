@@ -88,8 +88,7 @@ async function handleInstagramConnect(user, token, replyToken) {
   }
 
   try {
-    await replyText(replyToken, '⏳ Instagram連携中...\n\nアカウント情報を確認しています。');
-
+    // H1修正: replyTokenは1回しか使えないため、中間メッセージを削除し結果のみ返す
     const { account, accountInfo } = await connectInstagramAccount(user.current_store_id, token);
 
     await replyText(replyToken, `✅ Instagram連携完了！
@@ -110,8 +109,7 @@ async function handleInstagramConnect(user, token, replyToken) {
 
 async function handleInstagramSync(user, replyToken) {
   try {
-    await replyText(replyToken, '⏳ Instagram データを同期中...\n\n少々お待ちください。');
-
+    // H1修正: replyTokenは1回しか使えないため、中間メッセージを削除し結果のみ返す
     const synced = await syncInstagramPosts(user.current_store_id, 25);
 
     await replyText(replyToken, `✅ 同期完了！\n\n新規取得: ${synced}件\n\n統計を確認するには:\n/instagram stats`);

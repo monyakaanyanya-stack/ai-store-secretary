@@ -113,48 +113,60 @@ export async function updateAdvancedProfile(storeId, analysis) {
 
   const profileData = profile.profile_data || {};
 
+  // H2修正: Claude応答が不完全な場合に備え、各プロパティをnullチェック
+
   // 口調の累積学習（重み付け平均）
   const toneAdj = profileData.tone_adjustments || {};
-  Object.entries(analysis.tone).forEach(([key, value]) => {
-    if (value !== 0) {
-      const current = toneAdj[key] || 0;
-      // 新しい値を加重平均で反映（最近のフィードバックに重みを置く）
-      toneAdj[key] = current * 0.7 + value * 0.3;
-    }
-  });
+  if (analysis.tone && typeof analysis.tone === 'object') {
+    Object.entries(analysis.tone).forEach(([key, value]) => {
+      if (value !== 0) {
+        const current = toneAdj[key] || 0;
+        // 新しい値を加重平均で反映（最近のフィードバックに重みを置く）
+        toneAdj[key] = current * 0.7 + value * 0.3;
+      }
+    });
+  }
 
   // 絵文字の好み
-  if (analysis.emoji_preference.frequency) {
+  if (analysis.emoji_preference?.frequency) {
     profileData.emoji_style = analysis.emoji_preference.frequency;
   }
 
   // 文章長の好み
   const lengthPrefs = profileData.length_preferences || {};
-  if (analysis.length_preference.prefer_short !== 0) {
-    lengthPrefs.prefer_short = (lengthPrefs.prefer_short || 0) + analysis.length_preference.prefer_short;
-  }
-  if (analysis.length_preference.prefer_long !== 0) {
-    lengthPrefs.prefer_long = (lengthPrefs.prefer_long || 0) + analysis.length_preference.prefer_long;
-  }
-  if (analysis.length_preference.target_chars) {
-    lengthPrefs.target_chars = analysis.length_preference.target_chars;
+  if (analysis.length_preference) {
+    if (analysis.length_preference.prefer_short !== 0) {
+      lengthPrefs.prefer_short = (lengthPrefs.prefer_short || 0) + analysis.length_preference.prefer_short;
+    }
+    if (analysis.length_preference.prefer_long !== 0) {
+      lengthPrefs.prefer_long = (lengthPrefs.prefer_long || 0) + analysis.length_preference.prefer_long;
+    }
+    if (analysis.length_preference.target_chars) {
+      lengthPrefs.target_chars = analysis.length_preference.target_chars;
+    }
   }
 
   // 表現パターン
   const wordPrefs = profileData.word_preferences || {};
 
+  // M8修正: avoided_wordsにサイズ上限（50件）を設定
+  const MAX_AVOIDED_WORDS = 50;
   // 避けるべき単語
   const avoidedWords = profileData.avoided_words || [];
-  analysis.expression_patterns.avoided_words.forEach(word => {
-    if (!avoidedWords.includes(word)) {
-      avoidedWords.push(word);
-    }
-  });
+  if (Array.isArray(analysis.expression_patterns?.avoided_words)) {
+    analysis.expression_patterns.avoided_words.forEach(word => {
+      if (!avoidedWords.includes(word) && avoidedWords.length < MAX_AVOIDED_WORDS) {
+        avoidedWords.push(word);
+      }
+    });
+  }
 
   // 好まれる単語
-  analysis.expression_patterns.preferred_words.forEach(word => {
-    wordPrefs[word] = (wordPrefs[word] || 0) + 5;
-  });
+  if (Array.isArray(analysis.expression_patterns?.preferred_words)) {
+    analysis.expression_patterns.preferred_words.forEach(word => {
+      wordPrefs[word] = (wordPrefs[word] || 0) + 5;
+    });
+  }
 
   // 語尾・文体スタイル（最重要：次回投稿に直接反映される）
   if (analysis.writing_style) {
@@ -203,20 +215,24 @@ export async function updateAdvancedProfile(storeId, analysis) {
 
   // ハッシュタグスタイル
   const hashtagPrefs = profileData.hashtag_preferences || {};
-  if (analysis.hashtag_preference.quantity !== 0) {
-    hashtagPrefs.quantity_adjustment = (hashtagPrefs.quantity_adjustment || 0) + analysis.hashtag_preference.quantity;
-  }
-  if (analysis.hashtag_preference.style) {
-    hashtagPrefs.style = analysis.hashtag_preference.style;
+  if (analysis.hashtag_preference) {
+    if (analysis.hashtag_preference.quantity !== 0) {
+      hashtagPrefs.quantity_adjustment = (hashtagPrefs.quantity_adjustment || 0) + analysis.hashtag_preference.quantity;
+    }
+    if (analysis.hashtag_preference.style) {
+      hashtagPrefs.style = analysis.hashtag_preference.style;
+    }
   }
 
   // CTAの好み
   const ctaPrefs = profileData.cta_preferences || {};
-  if (analysis.call_to_action.strength !== 0) {
-    ctaPrefs.strength = (ctaPrefs.strength || 0) + analysis.call_to_action.strength;
-  }
-  if (analysis.call_to_action.style) {
-    ctaPrefs.style = analysis.call_to_action.style;
+  if (analysis.call_to_action) {
+    if (analysis.call_to_action.strength !== 0) {
+      ctaPrefs.strength = (ctaPrefs.strength || 0) + analysis.call_to_action.strength;
+    }
+    if (analysis.call_to_action.style) {
+      ctaPrefs.style = analysis.call_to_action.style;
+    }
   }
 
   // 学習サマリーを保存
@@ -399,7 +415,8 @@ export async function calculateLearningAccuracy(storeId) {
 
   // データの充実度ボーナス
   if (Object.keys(profileData.tone_adjustments || {}).length > 0) score += 10;
-  if ((profileData.word_preferences || {}).length > 3) score += 10;
+  // C2修正: Objectに.lengthは存在しない → Object.keys()を使用
+  if (Object.keys(profileData.word_preferences || {}).length > 3) score += 10;
   if ((profileData.avoided_words || []).length > 0) score += 5;
   if (profileData.emoji_style) score += 5;
   if (profileData.length_preferences?.target_chars) score += 10;

@@ -132,8 +132,13 @@ export function checkRateLimit(userId) {
  * @param {string} userId - ユーザー識別子
  * @returns {{ allowed: boolean, remaining: number }}
  */
+// M2修正: JST日付を使用するヘルパー（サービスは日本向け、UTCだと午前9時リセットになる）
+function getJSTDateString() {
+  return new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+}
+
 export function checkDailyApiLimit(userId) {
-  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const today = getJSTDateString(); // M2修正: UTC→JST
   const dailyKey = `daily:${userId}:${today}`;
 
   const count = DAILY_API_LIMIT_MAP.get(dailyKey) || 0;
@@ -153,7 +158,7 @@ export function checkDailyApiLimit(userId) {
 let lastDailyCleanupDate = '';
 
 export function incrementDailyApiCount(userId) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getJSTDateString(); // M2修正: UTC→JST
   const dailyKey = `daily:${userId}:${today}`;
 
   const count = DAILY_API_LIMIT_MAP.get(dailyKey) || 0;
@@ -171,7 +176,8 @@ export function incrementDailyApiCount(userId) {
 }
 
 // 定期的にレート制限マップをクリーンアップ（メモリリーク防止）
-setInterval(() => {
+// M4修正: .unref()でNode.jsプロセスの正常終了を妨げない
+const cleanupInterval = setInterval(() => {
   const now = Date.now();
   for (const [key, timestamps] of rateLimitMap.entries()) {
     const valid = timestamps.filter(t => now - t < RATE_LIMIT_WINDOW_MS);
@@ -182,6 +188,7 @@ setInterval(() => {
     }
   }
 }, 5 * 60 * 1000); // 5分ごと
+cleanupInterval.unref();
 
 // ==================== PII マスキング ====================
 

@@ -48,11 +48,4 @@ export function safeParseInt(str, defaultValue = 0) {
   return isNaN(parsed) ? defaultValue : parsed;
 }
 
-/**
- * 数値が有効か（NaNでなく、0以上か）チェック
- * @param {*} value - チェック対象
- * @returns {boolean}
- */
-export function isValidMetricNumber(value) {
-  return typeof value === 'number' && !isNaN(value) && value >= 0;
-}
+// L1修正: isValidMetricNumber削除（未使用 — collectiveIntelligenceではNumber.isFiniteで検証済み）

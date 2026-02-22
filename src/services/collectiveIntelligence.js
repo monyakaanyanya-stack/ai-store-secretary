@@ -63,9 +63,9 @@ function analyzeEngagementData(data) {
   // ハッシュタグの保存強度分析（使用回数ではなく保存強度で判定）
   const hashtagMetrics = {};
   data.forEach(post => {
-    // save_intensityがある投稿を優先、なければいいね数が正の投稿を使用
+    // H3修正: saves_countがnullの場合のNaN防止（null/N = NaN → 集計が壊れる）
     const intensity = post.save_intensity != null ? post.save_intensity
-      : (post.likes_count > 0 ? (post.saves_count / post.likes_count) : 0);
+      : (post.likes_count > 0 && post.saves_count != null ? (post.saves_count / post.likes_count) : 0);
 
     if (Array.isArray(post.hashtags)) {
       post.hashtags.forEach(tag => {
@@ -112,17 +112,17 @@ function analyzeEngagementData(data) {
     .slice(0, 3)
     .map(([hour]) => parseInt(hour));
 
-  // 保存強度の平均（メイン指標）
+  // 保存強度の平均（メイン指標）— H3修正: NaN防止
   const avgSaveIntensity = data.reduce((sum, post) => {
     const si = post.save_intensity != null ? post.save_intensity
-      : (post.likes_count > 0 ? post.saves_count / post.likes_count : 0);
+      : (post.likes_count > 0 && post.saves_count != null ? post.saves_count / post.likes_count : 0);
     return sum + si;
   }, 0) / data.length;
 
-  // 上位20件の保存強度平均
+  // 上位20件の保存強度平均 — H3修正: NaN防止
   const topPostsAvgSaveIntensity = topPosts.reduce((sum, post) => {
     const si = post.save_intensity != null ? post.save_intensity
-      : (post.likes_count > 0 ? post.saves_count / post.likes_count : 0);
+      : (post.likes_count > 0 && post.saves_count != null ? post.saves_count / post.likes_count : 0);
     return sum + si;
   }, 0) / topPosts.length;
 
@@ -334,8 +334,8 @@ export async function saveEngagementMetrics(storeId, category, postData, metrics
       .upsert(metricsData, { onConflict: 'post_id', ignoreDuplicates: false });
     error = upsertError;
 
-    // upsert未対応の場合のフォールバック: 従来のselect→update/insert
-    if (error && error.message?.includes('unique') || error?.message?.includes('constraint')) {
+    // H5修正: 演算子優先順位バグ修正（&&が||より先に評価されていた）
+    if (error && (error.message?.includes('unique') || error.message?.includes('constraint'))) {
       console.warn('[CollectiveIntelligence] upsert失敗、フォールバック:', error.message);
       const { data: existing } = await supabase
         .from('engagement_metrics')

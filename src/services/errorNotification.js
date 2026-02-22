@@ -67,9 +67,11 @@ ${contextStr || 'なし'}`;
  * @param {string} userId - ユーザーID
  */
 export async function notifyClaudeError(error, userId) {
+  // M7修正: スタックトレース（ファイルパス等）をLINEメッセージに含めない
+  // ファイルパスや関数名は内部実装の情報漏洩になる
   await notifyCriticalError('Claude API エラー', error.message, {
-    userId,
-    stack: error.stack?.split('\n').slice(0, 3).join('\n') || 'スタックトレースなし',
+    userId: userId ? (userId.slice(0, 4) + '****') : 'unknown',
+    errorType: error.constructor?.name || 'Error',
   });
 }
 
