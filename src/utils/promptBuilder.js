@@ -194,128 +194,7 @@ export const POST_LENGTH_MAP = {
   long: { range: '400-500文字', description: '長文' },
 };
 
-// カテゴリー別人気ハッシュタグ（参考情報）
-const POPULAR_HASHTAGS_BY_CATEGORY = {
-  nail_salon: [
-    '#ネイル', '#ネイルデザイン', '#ジェルネイル', '#ネイルアート',
-    '#ネイルサロン', '#nails', '#naildesign', '#gelnails', '#nailart',
-    '#ネイル好きな人と繋がりたい', '#セルフネイル', '#春ネイル', '#秋ネイル',
-    '#冬ネイル', '#夏ネイル', '#ワンカラーネイル', '#フレンチネイル'
-  ],
-  cafe: [
-    '#カフェ', '#カフェ巡り', '#おしゃれカフェ', '#カフェスタグラム',
-    '#cafe', '#cafestagram', '#カフェ好きな人と繋がりたい',
-    '#コーヒー', '#スイーツ', '#ランチ', '#coffee', '#sweets',
-    '#カフェタイム', '#カフェ好き', '#おうちカフェ'
-  ],
-  beauty_salon: [
-    '#美容室', '#ヘアスタイル', '#ヘアアレンジ', '#hair', '#hairstyle',
-    '#ヘアカラー', '#haircolor', '#ショートヘア', '#ボブ', '#ロングヘア',
-    '#美容師', '#hairstylist', '#ヘアケア', '#ヘアセット', '#トリートメント'
-  ],
-  restaurant: [
-    '#レストラン', '#グルメ', '#ランチ', '#ディナー', '#foodstagram',
-    '#instafood', '#food', '#料理', '#美味しい', '#foodie',
-    '#食べスタグラム', '#グルメ好きな人と繋がりたい', '#お店', '#飲食店'
-  ],
-  fashion: [
-    '#ファッション', '#コーデ', '#今日のコーデ', '#ootd', '#fashion',
-    '#coordinate', '#おしゃれさんと繋がりたい', '#お洒落',
-    '#春コーデ', '#秋コーデ', '#プチプラコーデ', '#カジュアルコーデ'
-  ],
-  bakery: [
-    '#パン', '#ベーカリー', '#パン屋', '#bakery', '#bread', '#パン好き',
-    '#パン屋さん', '#手作りパン', '#天然酵母', '#パン屋さん巡り',
-    '#パンスタグラム', '#パン好きな人と繋がりたい'
-  ],
-  esthetic_salon: [
-    '#小顔矯正', '#肌質改善', '#自分磨き', '#ハーブピーリング',
-    '#毛穴ケア', '#美白ケア', '#痩身エステ', '#ブライダルエステ',
-    '#美意識向上', '#アンチエイジング', '#美容好きさんと繋がりたい'
-  ],
-  eyelash_salon: [
-    '#まつげエクステ', '#まつエク', '#マツエク', '#まつ毛パーマ',
-    '#ラッシュリフト', '#パリジェンヌラッシュリフト', '#アイラッシュ',
-    '#マツパ', '#フラットラッシュ', '#ボリュームラッシュ'
-  ],
-  relaxation_salon: [
-    '#リラクゼーション', '#マッサージ', '#癒し', '#疲労回復',
-    '#もみほぐし', '#アロママッサージ', '#リフレッシュ',
-    '#リラックス', '#整体', '#ボディケア'
-  ],
-  sweets_shop: [
-    '#スイーツ部', '#映えスイーツ', '#ご褒美スイーツ', '#今日のおやつ',
-    '#デパ地下スイーツ', '#期間限定スイーツ', '#手土産スイーツ',
-    '#自分へのご褒美', '#断面萌え', '#ケーキ屋さん'
-  ],
-  yoga_fitness: [
-    '#ヨガライフ', '#ヨガジョ', '#宅トレ', '#ボディメイク',
-    '#ヘルシーライフ', '#朝ヨガ', '#夜ヨガ',
-    '#マインドフルネス', '#瞑想', '#ダイエット記録'
-  ],
-  photographer: [
-    '#ポートレート', '#写真好きな人と繋がりたい', '#ファインダー越しの私の世界',
-    '#出張撮影', '#家族写真', '#ウェディングフォト',
-    '#宣材写真', '#撮影依頼受付中', '#キリトリセカイ'
-  ],
-  vintage_clothing: [
-    '#古着', '#古着コーデ', '#古着屋', '#ヴィンテージ', '#vintage',
-    '#古着好きな人と繋がりたい', '#古着女子', '#古着男子', '#古着ファッション'
-  ],
-  accessory_shop: [
-    '#アクセサリー', '#ハンドメイドアクセサリー', '#ピアス', '#イヤリング',
-    '#ネックレス', '#リング', '#韓国アクセサリー', '#天然石アクセサリー'
-  ],
-  flower_shop: [
-    '#花屋', '#花のある暮らし', '#フラワーアレンジメント',
-    '#ブーケ', '#花束', '#生花', '#ドライフラワー',
-    '#花好きな人と繋がりたい', '#季節の花'
-  ],
-  general: [
-    '#instagood', '#photooftheday', '#instagram', '#いいね',
-    '#フォロー', '#follow', '#like', '#japan', '#japanese',
-    '#日本', '#おすすめ', '#新作', '#お知らせ'
-  ]
-};
-
-/**
- * 日本語カテゴリー名を英語キーに変換
- */
-function mapCategoryToHashtagKey(category) {
-  const mapping = {
-    // 美容系
-    'ネイルサロン': 'nail_salon', 'ネイル': 'nail_salon',
-    '美容室': 'beauty_salon', 'ヘアサロン': 'beauty_salon',
-    'エステサロン': 'esthetic_salon', 'エステ': 'esthetic_salon',
-    'まつげエクステ': 'eyelash_salon', 'まつエク': 'eyelash_salon', 'アイラッシュサロン': 'eyelash_salon',
-    'リラクゼーションサロン': 'relaxation_salon', 'マッサージサロン': 'relaxation_salon', 'マッサージ': 'relaxation_salon',
-    // 飲食系
-    'カフェ': 'cafe', 'レストラン': 'restaurant',
-    'ベーカリー': 'bakery', 'パン屋': 'bakery',
-    'スイーツ店': 'sweets_shop', 'ケーキ屋': 'sweets_shop',
-    'バー': 'restaurant', '居酒屋': 'restaurant',
-    // 小売系
-    'アパレル': 'fashion', '雑貨店': 'fashion', 'セレクトショップ': 'fashion',
-    '古着屋': 'vintage_clothing',
-    'アクセサリーショップ': 'accessory_shop',
-    '花屋': 'flower_shop',
-    // サービス系
-    'ヨガスタジオ': 'yoga_fitness', 'フィットネスジム': 'yoga_fitness', 'ダンススクール': 'yoga_fitness',
-    'フォトグラファー': 'photographer', '写真スタジオ': 'photographer',
-  };
-
-  return mapping[category] || 'general';
-}
-
-/**
- * カテゴリーに基づいて人気ハッシュタグを取得
- */
-function getPopularHashtagsByCategory(category) {
-  if (!category) return POPULAR_HASHTAGS_BY_CATEGORY.general;
-
-  const key = mapCategoryToHashtagKey(category);
-  return POPULAR_HASHTAGS_BY_CATEGORY[key] || POPULAR_HASHTAGS_BY_CATEGORY.general;
-}
+import { getHashtagsForCategory } from '../config/categoryDictionary.js';
 
 function getToneName(tone) {
   const toneData = TONE_MAP[tone] || TONE_MAP.casual;
@@ -409,6 +288,11 @@ export function buildImagePostPrompt(store, learningData, lengthOverride = null,
     if (group && group.sampleSize > 0) {
       dbTags.push(...group.topHashtags.slice(0, 2));
     }
+    // DBデータがない場合は辞書の静的タグにフォールバック
+    if (dbTags.length === 0 && store.category) {
+      const staticTags = getHashtagsForCategory(store.category);
+      dbTags.push(...staticTags.slice(0, 5));
+    }
 
     // 保存強度が高い投稿の文字数（メイン指標）
     const topPostsLength = category?.topPostsAvgLength || group?.topPostsAvgLength;
@@ -467,7 +351,10 @@ export function buildImagePostPrompt(store, learningData, lengthOverride = null,
     const fixedTagNote = templateHashtags.length > 0
       ? `\n【固定ハッシュタグ（必ず先頭に含める）】\n${templateHashtags.join(' ')}\n上記の後に関連タグを追加:`
       : '';
-    hashtagInstruction = `\n【ハッシュタグ（必須）】${fixedTagNote}\n${categoryHint}この投稿内容に最も合うタグを合計5-8個。#instagood #japan など汎用タグは使わない。`;
+    const staticTagNote = dbTags && dbTags.length > 0
+      ? `\n以下の業種タグから3-5個を必ず使用: ${dbTags.join(', ')}`
+      : '';
+    hashtagInstruction = `\n【ハッシュタグ（必須）】${fixedTagNote}\n${categoryHint}この投稿内容に最も合うタグを合計5-8個。#instagood #japan など汎用タグは使わない。${staticTagNote}`;
   } else if (templateHashtags.length > 0) {
     // 集合知セクションがある場合でも固定タグを優先して追記
     hashtagInstruction = `\n【固定ハッシュタグ（最優先・必ず先頭に含める）】\n${templateHashtags.join(' ')}\n上記を先頭に置き、集合知タグと関連タグを後ろに追加すること。`;
@@ -571,6 +458,11 @@ export function buildTextPostPrompt(store, learningData, userText, lengthOverrid
     }
     if (group && group.sampleSize > 0) {
       dbTags.push(...group.topHashtags.slice(0, 2));
+    }
+    // DBデータがない場合は辞書の静的タグにフォールバック
+    if (dbTags.length === 0 && store.category) {
+      const staticTags = getHashtagsForCategory(store.category);
+      dbTags.push(...staticTags.slice(0, 5));
     }
 
     if (dbTags.length > 0) {

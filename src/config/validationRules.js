@@ -1,6 +1,9 @@
 /**
  * カテゴリー別のバリデーションルール
+ * カテゴリー固有ルールは categoryDictionary.js (SSOT) に統合済み
  */
+
+import { getValidationForCategory } from './categoryDictionary.js';
 
 // 全カテゴリー共通のデフォルト基準値
 export const DEFAULT_VALIDATION_RULES = {
@@ -14,55 +17,13 @@ export const DEFAULT_VALIDATION_RULES = {
   hashtags_count: { min: 0, max: 30 },
 };
 
-// カテゴリー別のカスタムルール（必要に応じて拡張）
-export const CATEGORY_SPECIFIC_RULES = {
-  // 美容系（エンゲージメントが高い傾向）
-  ネイルサロン: {
-    likes_count: { min: 0, max: 10000 },
-    engagement_rate: { min: 0, max: 50 },
-  },
-  美容室: {
-    likes_count: { min: 0, max: 10000 },
-    engagement_rate: { min: 0, max: 50 },
-  },
-  エステサロン: {
-    likes_count: { min: 0, max: 8000 },
-    engagement_rate: { min: 0, max: 40 },
-  },
-
-  // 飲食系
-  カフェ: {
-    likes_count: { min: 0, max: 15000 },
-    engagement_rate: { min: 0, max: 60 },
-  },
-  ベーカリー: {
-    likes_count: { min: 0, max: 12000 },
-    engagement_rate: { min: 0, max: 50 },
-  },
-  レストラン: {
-    likes_count: { min: 0, max: 15000 },
-    engagement_rate: { min: 0, max: 60 },
-  },
-
-  // クリエイティブ系（フォトグラファーなど）
-  フォトグラファー: {
-    likes_count: { min: 0, max: 20000 },
-    saves_count: { min: 0, max: 5000 },
-    engagement_rate: { min: 0, max: 70 },
-  },
-  デザイン事務所: {
-    likes_count: { min: 0, max: 15000 },
-    engagement_rate: { min: 0, max: 60 },
-  },
-};
-
 /**
  * カテゴリーに応じたバリデーションルールを取得
  * @param {string} category - カテゴリー名
  * @returns {Object} - バリデーションルール
  */
 export function getValidationRules(category) {
-  const categoryRules = CATEGORY_SPECIFIC_RULES[category] || {};
+  const categoryRules = getValidationForCategory(category) || {};
   return {
     ...DEFAULT_VALIDATION_RULES,
     ...categoryRules,

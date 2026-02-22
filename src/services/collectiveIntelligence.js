@@ -1,5 +1,5 @@
 import { supabase } from './supabaseService.js';
-import { getCategoryGroup } from '../config/categoryGroups.js';
+import { getCategoryGroup, normalizeCategory } from '../config/categoryDictionary.js';
 import { validateEngagementMetrics, isStatisticalOutlier } from '../config/validationRules.js';
 import { analyzePostStructure, extractWinningPattern } from '../utils/postAnalyzer.js';
 
@@ -222,7 +222,9 @@ function getDefaultInsights() {
  * @returns {Object} - { success: boolean, validation: Object }
  */
 export async function saveEngagementMetrics(storeId, category, postData, metrics = {}) {
-  const categoryGroup = getCategoryGroup(category);
+  // ラベルを正規化（表記ゆれ吸収: "cafe"→"カフェ", "カフェ "→"カフェ"）
+  const normalizedCategory = normalizeCategory(category) || category;
+  const categoryGroup = getCategoryGroup(normalizedCategory);
 
   // ステータス判定：いいね or 保存が入っていれば「報告済」、なければ「未報告」
   // 未報告レコードは集合知・勝ちパターンの学習対象から除外される
@@ -232,7 +234,7 @@ export async function saveEngagementMetrics(storeId, category, postData, metrics
   const metricsData = {
     store_id: storeId,
     post_id: postData.post_id || null,
-    category,
+    category: normalizedCategory,
     category_group: categoryGroup,
     post_content: postData.content,
     hashtags: extractHashtags(postData.content),
