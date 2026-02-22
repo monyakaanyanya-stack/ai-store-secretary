@@ -40,6 +40,11 @@ import { getSeasonalMemoryPromptAddition, getSeasonalMemoryStatus } from '../ser
  * テキストメッセージの振り分け処理
  */
 export async function handleTextMessage(user, text, replyToken) {
+  // H11修正: 入力長の上限チェック（5000文字以上はLINE仕様外 or 攻撃的入力）
+  if (!text || text.length > 5000) {
+    return await replyText(replyToken, 'メッセージが長すぎます。5000文字以内でお願いします。');
+  }
+
   // 全角コロン「：」→半角「:」、全角数字「１２３」→半角「123」を最初に1回正規化
   const trimmed = normalizeInput(text.trim());
 

@@ -91,8 +91,19 @@ export async function applyFeedbackToProfile(storeId, feedback, originalPost) {
   if (wordMatches) {
     wordMatches.forEach(match => {
       const word = match.replace(/「|」/g, '');
-      wordPrefs[word] = (wordPrefs[word] || 0) + 1;
+      // M11修正: 単語長が20文字以下のみ登録（攻撃的入力防止）
+      if (word.length > 0 && word.length <= 20) {
+        wordPrefs[word] = (wordPrefs[word] || 0) + 1;
+      }
     });
+
+    // M11修正: word_preferences のキー数を50件に制限（古い低スコアを削除）
+    const keys = Object.keys(wordPrefs);
+    if (keys.length > 50) {
+      const sorted = keys.sort((a, b) => wordPrefs[a] - wordPrefs[b]);
+      const toRemove = sorted.slice(0, keys.length - 50);
+      toRemove.forEach(k => delete wordPrefs[k]);
+    }
   }
 
   profileData.word_preferences = wordPrefs;
@@ -203,18 +214,31 @@ export async function applyEngagementToProfile(storeId, postContent, metricsData
   };
 
   const er = metricsData.engagement_rate || 0;
+  // C14修正: save_intensity ベースの学習も考慮（ERが0でもsave_intensityが高ければ学習対象）
+  const si = metricsData.save_intensity || 0;
   const postLength = postContent.length;
   const emojiCount = (postContent.match(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu) || []).length;
 
-  // ER 4% 以上を「高エンゲージメント」として学習
-  if (er >= 4) {
+  // ER 4% 以上 or 保存強度 0.15 以上を「高エンゲージメント」として学習
+  const isHighEngagement = er >= 4 || si >= 0.15;
+
+  if (isHighEngagement) {
     el.high_er_posts = (el.high_er_posts || 0) + 1;
     el.total_length = (el.total_length || 0) + postLength;
     el.total_emoji = (el.total_emoji || 0) + emojiCount;
 
-    // 高ER投稿の平均的な特徴を計算
-    el.preferred_length = Math.round(el.total_length / el.high_er_posts);
-    el.preferred_emoji_count = Math.round(el.total_emoji / el.high_er_posts);
+    // C14修正: 指数移動平均（EMA）で新しいデータを重視
+    // α = 0.3 → 直近のデータに30%の重みを与える
+    const alpha = 0.3;
+    if (el.high_er_posts === 1) {
+      // 最初のデータはそのまま
+      el.preferred_length = postLength;
+      el.preferred_emoji_count = emojiCount;
+    } else {
+      // EMA: new = α * current + (1-α) * previous
+      el.preferred_length = Math.round(alpha * postLength + (1 - alpha) * (el.preferred_length || postLength));
+      el.preferred_emoji_count = Math.round(alpha * emojiCount + (1 - alpha) * (el.preferred_emoji_count || emojiCount));
+    }
 
     // 文章が短めか長めかの傾向
     if (el.preferred_length < 100) {
@@ -224,7 +248,7 @@ export async function applyEngagementToProfile(storeId, postContent, metricsData
     } else {
       el.high_er_tone = '中程度の文量';
     }
-  } else if (er > 0 && er < 2) {
+  } else if ((er > 0 && er < 2) || (si > 0 && si < 0.05)) {
     el.low_er_posts = (el.low_er_posts || 0) + 1;
   }
 

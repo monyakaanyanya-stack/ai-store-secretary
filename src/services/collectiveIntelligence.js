@@ -207,6 +207,9 @@ function getDefaultInsights() {
     avgLength: 200,
     avgEmojiCount: 3,
     topPostsAvgLength: 200,
+    avgSaveIntensity: 0,
+    topPostsAvgSaveIntensity: 0,
+    winningPattern: null,
     bestPostingHours: [12, 18, 20],
     sampleSize: 0,
     avgEngagementRate: 0,
@@ -292,51 +295,70 @@ export async function saveEngagementMetrics(storeId, category, postData, metrics
       const isLikesOutlier = isStatisticalOutlier(likesValues, metrics.likes_count);
 
       if (isLikesOutlier) {
+        // C18修正: 外れ値の詳細をログに残す（デバッグ用）
+        const mean = likesValues.reduce((sum, v) => sum + v, 0) / likesValues.length;
+        const variance = likesValues.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / likesValues.length;
+        const stdDev = Math.sqrt(variance);
         console.warn('[CollectiveIntelligence] 統計的外れ値を検出（いいね数）:', {
           value: metrics.likes_count,
           category,
-          mean: likesValues.reduce((sum, v) => sum + v, 0) / likesValues.length,
+          mean: Math.round(mean),
+          stdDev: Math.round(stdDev),
+          threshold: `${Math.round(mean + 3 * stdDev)}以下が正常範囲`,
+          sampleSize: likesValues.length,
         });
 
         return {
           success: false,
           validation: {
             isValid: false,
-            errors: [`いいね数が統計的外れ値です: ${metrics.likes_count}（カテゴリー平均から3σ以上離れています）`],
+            errors: [`いいね数 ${metrics.likes_count} が統計的外れ値です（カテゴリー平均${Math.round(mean)}、3σ=${Math.round(mean + 3 * stdDev)}）`],
           },
-          message: '統計的に異常なデータが検出されたため保存されませんでした',
+          message: `統計的に異常なデータが検出されたため保存されませんでした（いいね数: ${metrics.likes_count}、カテゴリー平均: ${Math.round(mean)}）`,
         };
       }
     }
   }
 
   // バリデーション通過 → データベースに保存
-  // post_idがある場合は既存レコードを更新、なければ新規作成
+  // C12修正: TOCTOU レース条件を排除 — upsert で原子的に処理
   let error;
 
   if (metricsData.post_id) {
-    // post_idで既存レコードを検索
-    const { data: existing } = await supabase
+    // post_idがある場合: upsert（存在すれば更新、なければ作成）
+    // ※ DB側に engagement_metrics.post_id の UNIQUE制約が必要
+    //   なければ INSERT で重複が出るが、UPDATE の select→update 間の
+    //   レース条件よりは安全
+    const { error: upsertError } = await supabase
       .from('engagement_metrics')
-      .select('id')
-      .eq('post_id', metricsData.post_id)
-      .single();
+      .upsert(metricsData, { onConflict: 'post_id', ignoreDuplicates: false });
+    error = upsertError;
 
-    if (existing) {
-      // 既存レコードを更新（UPSERT）
-      const { error: updateError } = await supabase
+    // upsert未対応の場合のフォールバック: 従来のselect→update/insert
+    if (error && error.message?.includes('unique') || error?.message?.includes('constraint')) {
+      console.warn('[CollectiveIntelligence] upsert失敗、フォールバック:', error.message);
+      const { data: existing } = await supabase
         .from('engagement_metrics')
-        .update(metricsData)
-        .eq('id', existing.id);
-      error = updateError;
-      console.log(`[CollectiveIntelligence] メトリクス更新: post_id=${metricsData.post_id}`);
-    } else {
-      // 新規作成
-      const { error: insertError } = await supabase
-        .from('engagement_metrics')
-        .insert(metricsData);
-      error = insertError;
-      console.log(`[CollectiveIntelligence] メトリクス新規作成: post_id=${metricsData.post_id}`);
+        .select('id')
+        .eq('post_id', metricsData.post_id)
+        .single();
+
+      if (existing) {
+        const { error: updateError } = await supabase
+          .from('engagement_metrics')
+          .update(metricsData)
+          .eq('id', existing.id);
+        error = updateError;
+      } else {
+        const { error: insertError } = await supabase
+          .from('engagement_metrics')
+          .insert(metricsData);
+        error = insertError;
+      }
+    }
+
+    if (!error) {
+      console.log(`[CollectiveIntelligence] メトリクスupsert成功: post_id=${metricsData.post_id}`);
     }
   } else {
     // post_idがない場合は常に新規作成
@@ -344,7 +366,9 @@ export async function saveEngagementMetrics(storeId, category, postData, metrics
       .from('engagement_metrics')
       .insert(metricsData);
     error = insertError;
-    console.log(`[CollectiveIntelligence] メトリクス新規作成（post_idなし）`);
+    if (!error) {
+      console.log(`[CollectiveIntelligence] メトリクス新規作成（post_idなし）`);
+    }
   }
 
   if (error) {
@@ -393,10 +417,12 @@ function countEmojis(text) {
  * @returns {Array<{category: string, storeCount: number}>} - 昇格候補リスト
  */
 export async function detectPopularOtherCategories(threshold = 5) {
+  // H16修正: ページング制限を追加（メモリ溢れ防止）
   const { data, error } = await supabase
     .from('engagement_metrics')
     .select('category, store_id')
-    .eq('category_group', 'other');
+    .eq('category_group', 'other')
+    .limit(5000);
 
   if (error || !data) {
     console.error('[CollectiveIntelligence] other カテゴリー検出エラー:', error?.message);

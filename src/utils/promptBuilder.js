@@ -282,10 +282,11 @@ export function buildImagePostPrompt(store, learningData, lengthOverride = null,
     const { category, group, own } = blendedInsights;
     const insights = [];
 
-    if (category && category.sampleSize > 0) {
+    // C20修正: topHashtags が Array であることを確認してからスライス
+    if (category && category.sampleSize > 0 && Array.isArray(category.topHashtags)) {
       dbTags.push(...category.topHashtags.slice(0, 3));
     }
-    if (group && group.sampleSize > 0) {
+    if (group && group.sampleSize > 0 && Array.isArray(group.topHashtags)) {
       dbTags.push(...group.topHashtags.slice(0, 2));
     }
     // DBデータがない場合は辞書の静的タグにフォールバック
@@ -452,11 +453,12 @@ export function buildTextPostPrompt(store, learningData, userText, lengthOverrid
     const insights = [];
 
     // ハッシュタグ（優先度1）
+    // C20修正: topHashtags が Array であることを確認してからスライス
     const dbTags = [];
-    if (category && category.sampleSize > 0) {
+    if (category && category.sampleSize > 0 && Array.isArray(category.topHashtags)) {
       dbTags.push(...category.topHashtags.slice(0, 3));
     }
-    if (group && group.sampleSize > 0) {
+    if (group && group.sampleSize > 0 && Array.isArray(group.topHashtags)) {
       dbTags.push(...group.topHashtags.slice(0, 2));
     }
     // DBデータがない場合は辞書の静的タグにフォールバック

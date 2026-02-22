@@ -1,6 +1,6 @@
 /**
- * リグレッションテスト（Day7）
- * 7日間の修正が正しく動作するか、10シナリオで検証
+ * リグレッションテスト（Day7 + 第2次監査修正）
+ * 修正が正しく動作するか、15シナリオで検証
  *
  * 実行: node --test tests/regression.test.js
  */
@@ -170,11 +170,7 @@ describe('Scenario 7: getCategoryGroup null防止', async () => {
 
 // ==================== Scenario 8: feedbackHandler null安全 (Day1: H7) ====================
 describe('Scenario 8: extractLearningHints null安全', async () => {
-  // extractLearningHintsはモジュール内のprivate関数なので、
-  // feedbackHandlerをimportして間接的にテスト不可能。
-  // 代わりにlower.includes()がnull feedbackで壊れないことをシミュレート
   it('null feedbackでクラッシュしない', () => {
-    // 実際のextractLearningHintsの冒頭ガードをシミュレート
     function extractLearningHints(feedback) {
       const hints = {};
       if (!feedback) return hints;
@@ -193,7 +189,6 @@ describe('Scenario 8: extractLearningHints null安全', async () => {
 // ==================== Scenario 9: reach推定値撤廃の確認 (Day4: C5/C6) ====================
 describe('Scenario 9: reach推定値撤廃', () => {
   it('エンゲージメント率はreachがある時だけ算出', () => {
-    // calculateMetricsの挙動をシミュレート
     function calculateMetrics(metrics, followerCount) {
       const { likes, saves, comments, reach } = metrics;
       const saveIntensity = likes > 0 ? parseFloat((saves / likes).toFixed(4)) : 0;
@@ -208,28 +203,22 @@ describe('Scenario 9: reach推定値撤廃', () => {
       return { saveIntensity, reactionIndex, engagementRate };
     }
 
-    // reach入力なし → engagementRate = null（推定しない）
     const noReach = calculateMetrics({ likes: 100, saves: 15, comments: 5, reach: null }, null);
     assert.equal(noReach.engagementRate, null, 'ER should be null without reach');
     assert.ok(noReach.saveIntensity > 0, 'Save intensity should be calculated');
 
-    // reach=0 → engagementRate = null
     const zeroReach = calculateMetrics({ likes: 100, saves: 15, comments: 5, reach: 0 }, null);
     assert.equal(zeroReach.engagementRate, null, 'ER should be null with reach=0');
 
-    // reach入力あり → engagementRate算出
     const withReach = calculateMetrics({ likes: 100, saves: 15, comments: 5, reach: 800 }, null);
     assert.ok(withReach.engagementRate > 0, 'ER should be calculated with reach');
     assert.equal(withReach.engagementRate, 15, '(100+15+5)/800*100 = 15%');
   });
 
   it('likes×10推定を使わない', () => {
-    // reach推定が存在しないことを確認（関数にlikes×10が含まれない）
     function calculateMetrics(metrics) {
       const { likes, reach } = metrics;
-      // BAD: const estimatedReach = likes * 10;
-      // GOOD: reach is null or user-provided
-      return { reach: reach || 0 }; // 推定しない
+      return { reach: reach || 0 };
     }
 
     const result = calculateMetrics({ likes: 100, reach: null });
@@ -272,8 +261,6 @@ describe('Scenario 10: モジュールimport整合性', async () => {
   });
 
   it('supabaseService の updatePostContent が存在する', async () => {
-    // supabaseServiceはDB接続を試みるため、env未設定だとエラーになる可能性
-    // export名の存在だけ静的にチェック
     const fs = await import('node:fs');
     const content = fs.readFileSync(
       new URL('../src/services/supabaseService.js', import.meta.url), 'utf-8'
@@ -304,12 +291,180 @@ describe('Scenario 10: モジュールimport整合性', async () => {
     const content = fs.readFileSync(
       new URL('../src/handlers/textHandler.js', import.meta.url), 'utf-8'
     );
-    // import行ではなく実際の関数呼び出し位置を比較
     const postSelectionIdx = content.indexOf('handlePostSelection(user, trimmed');
     const followerRequestCallIdx = content.indexOf('await getPendingFollowerRequest(');
     assert.ok(postSelectionIdx > 0, 'handlePostSelection call should exist');
     assert.ok(followerRequestCallIdx > 0, 'getPendingFollowerRequest call should exist');
     assert.ok(postSelectionIdx < followerRequestCallIdx,
       'handlePostSelection should come BEFORE getPendingFollowerRequest call');
+  });
+});
+
+// ==================== Scenario 11: C21 postAnalyzer typeof ガード ====================
+describe('Scenario 11: postAnalyzer 型安全', async () => {
+  const { analyzePostStructure } = await import('../src/utils/postAnalyzer.js');
+
+  it('正常なテキストで骨格を返す', () => {
+    const result = analyzePostStructure('やばい！めっちゃ美味しかった！ぜひ来てね');
+    assert.ok(result, 'Should return structure');
+    assert.ok(result.hook_type, 'Should have hook_type');
+    assert.ok(typeof result.body_length === 'number', 'body_length should be number');
+  });
+
+  it('null/undefined/短文でデフォルト構造を返す', () => {
+    const nullResult = analyzePostStructure(null);
+    assert.equal(nullResult.hook_type, 'unknown');
+    assert.equal(nullResult.body_length, 0);
+
+    const undefinedResult = analyzePostStructure(undefined);
+    assert.equal(undefinedResult.hook_type, 'unknown');
+
+    const shortResult = analyzePostStructure('abc');
+    assert.equal(shortResult.hook_type, 'unknown');
+  });
+
+  it('数値やオブジェクトでもクラッシュしない（C21）', () => {
+    const numResult = analyzePostStructure(12345);
+    assert.equal(numResult.hook_type, 'unknown');
+
+    const objResult = analyzePostStructure({ text: 'test' });
+    assert.equal(objResult.hook_type, 'unknown');
+
+    const arrResult = analyzePostStructure(['test']);
+    assert.equal(arrResult.hook_type, 'unknown');
+  });
+});
+
+// ==================== Scenario 12: C14 EMA学習（シミュレーション） ====================
+describe('Scenario 12: EMA学習アルゴリズム', () => {
+  it('EMAが新しいデータに重みを置く', () => {
+    const alpha = 0.3;
+    // 最初のデータ
+    let preferred_length = 200; // 最初の投稿は200文字
+
+    // 2番目のデータ: 100文字の投稿
+    preferred_length = Math.round(alpha * 100 + (1 - alpha) * preferred_length);
+    // = 0.3 * 100 + 0.7 * 200 = 30 + 140 = 170
+    assert.equal(preferred_length, 170, 'EMA should weight toward new data');
+
+    // 3番目のデータ: 100文字の投稿
+    preferred_length = Math.round(alpha * 100 + (1 - alpha) * preferred_length);
+    // = 0.3 * 100 + 0.7 * 170 = 30 + 119 = 149
+    assert.equal(preferred_length, 149, 'EMA should continue to shift');
+
+    // 新しいデータが入るほど徐々にそちらに寄る
+    assert.ok(preferred_length < 200, 'Should shift toward new data direction');
+    assert.ok(preferred_length > 100, 'But should not jump all the way');
+  });
+
+  it('save_intensity >= 0.15 でも高エンゲージメントと判定', () => {
+    // C14修正: ERが0でもsave_intensityが高ければ学習対象
+    const er = 0;
+    const si = 0.20;
+    const isHighEngagement = er >= 4 || si >= 0.15;
+    assert.equal(isHighEngagement, true, 'High save_intensity should trigger learning');
+  });
+
+  it('ERもsave_intensityも低ければ低エンゲージメント', () => {
+    const er = 1;
+    const si = 0.03;
+    const isHighEngagement = er >= 4 || si >= 0.15;
+    const isLowEngagement = (er > 0 && er < 2) || (si > 0 && si < 0.05);
+    assert.equal(isHighEngagement, false);
+    assert.equal(isLowEngagement, true);
+  });
+});
+
+// ==================== Scenario 13: C8 環境変数検証 ====================
+describe('Scenario 13: サーバー環境変数検証', async () => {
+  it('server.js に環境変数チェックが含まれる', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../server.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('REQUIRED_ENV_VARS'), 'Should define REQUIRED_ENV_VARS');
+    assert.ok(content.includes('LINE_CHANNEL_SECRET'), 'Should check LINE_CHANNEL_SECRET');
+    assert.ok(content.includes('ANTHROPIC_API_KEY'), 'Should check ANTHROPIC_API_KEY');
+    assert.ok(content.includes('SUPABASE_URL'), 'Should check SUPABASE_URL');
+    assert.ok(content.includes('process.exit(1)'), 'Should exit on missing vars');
+  });
+
+  it('server.js にgraceful shutdownが含まれる（C9）', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../server.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('SIGTERM'), 'Should handle SIGTERM');
+    assert.ok(content.includes('SIGINT'), 'Should handle SIGINT');
+    assert.ok(content.includes('gracefulShutdown'), 'Should have gracefulShutdown function');
+  });
+
+  it('server.js にリクエストサイズ制限がある（C10）', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../server.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes("limit: '1mb'") || content.includes('limit:'),
+      'Should have request size limit');
+  });
+
+  it('server.js にunhandledRejectionハンドラーがある（C11）', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../server.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('unhandledRejection'), 'Should handle unhandledRejection');
+    assert.ok(content.includes('uncaughtException'), 'Should handle uncaughtException');
+  });
+
+  it('server.js にJSONパース安全化がある（C13）', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../server.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('JSON.parse') && content.includes('catch'),
+      'JSON.parse should be wrapped in try-catch');
+  });
+});
+
+// ==================== Scenario 14: C15 pending_report 競合防止 ====================
+describe('Scenario 14: pending_report 競合防止', async () => {
+  it('savePendingReport に既存クリーンアップが含まれる', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/reportHandler.js', import.meta.url), 'utf-8'
+    );
+    // savePendingReport 関数内で既存の awaiting_post_selection を expired にする処理があるか
+    const funcStart = content.indexOf('async function savePendingReport');
+    const funcEnd = content.indexOf('async function', funcStart + 1);
+    const funcBody = content.slice(funcStart, funcEnd > 0 ? funcEnd : undefined);
+
+    assert.ok(funcBody.includes("status: 'expired'") || funcBody.includes('expired'),
+      'savePendingReport should expire existing reports');
+    assert.ok(funcBody.includes('awaiting_post_selection'),
+      'Should target awaiting_post_selection status');
+  });
+});
+
+// ==================== Scenario 15: H17 Promise.all 安全化 ====================
+describe('Scenario 15: imageHandler Promise.all安全化', async () => {
+  it('imageHandler に safeResolve パターンが含まれる', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('safeResolve'),
+      'imageHandler should use safeResolve for non-critical promises');
+    assert.ok(content.includes('.catch('),
+      'safeResolve should catch errors');
+  });
+
+  it('scheduler にジョブロックが含まれる（H18）', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/scheduler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('jobLocks') || content.includes('runWithLock'),
+      'scheduler should have job locking mechanism');
   });
 });

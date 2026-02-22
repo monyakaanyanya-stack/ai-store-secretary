@@ -30,8 +30,17 @@ export async function handleImageMessage(user, messageId, replyToken) {
     console.log(`[Image] 画像取得中: messageId=${messageId}`);
     const imageBase64 = await getImageAsBase64(messageId);
 
-    // 画像分析とSupabase取得を並列実行（タイムアウト対策）
+    // H17修正: 画像分析（必須）と補助データ取得（任意）を分けて並列実行
+    // 補助データの1つが失敗しても投稿生成は続行する
     console.log(`[Image] 画像分析・データ取得を並列実行中: store=${store.name}`);
+
+    // 補助データを個別にキャッチ（失敗してもデフォルト値で続行）
+    const safeResolve = (promise, defaultVal, label) =>
+      promise.catch(err => {
+        console.warn(`[Image] ${label} 取得失敗（続行）:`, err.message);
+        return defaultVal;
+      });
+
     const [
       imageDescription,
       learningData,
@@ -40,16 +49,19 @@ export async function handleImageMessage(user, messageId, replyToken) {
       advancedPersonalization,
       seasonalMemory,
     ] = await Promise.all([
-      describeImage(imageBase64),
-      aggregateLearningData(store.id),
-      store.category ? getBlendedInsights(store.id, store.category) : Promise.resolve(null),
-      getPersonalizationPromptAddition(store.id),
-      getAdvancedPersonalizationPrompt(store.id),
-      getSeasonalMemoryPromptAddition(store.id),
+      describeImage(imageBase64), // 必須: これが失敗したらcatchブロックへ
+      safeResolve(aggregateLearningData(store.id), {}, 'learningData'),
+      safeResolve(
+        store.category ? getBlendedInsights(store.id, store.category) : Promise.resolve(null),
+        null, 'blendedInsights'
+      ),
+      safeResolve(getPersonalizationPromptAddition(store.id), '', 'personalization'),
+      safeResolve(getAdvancedPersonalizationPrompt(store.id), '', 'advancedPersonalization'),
+      safeResolve(getSeasonalMemoryPromptAddition(store.id), '', 'seasonalMemory'),
     ]);
     console.log(`[Image] 画像分析結果: ${imageDescription?.slice(0, 100)}...`);
 
-    const personalization = basicPersonalization + advancedPersonalization + seasonalMemory;
+    const personalization = (basicPersonalization || '') + (advancedPersonalization || '') + (seasonalMemory || '');
 
     // ステップ2: 画像分析結果を使ってテキストのみで投稿生成（画像への依存をなくす）
     const prompt = buildImagePostPrompt(store, learningData, null, blendedInsights, personalization, imageDescription);
@@ -62,11 +74,16 @@ export async function handleImageMessage(user, messageId, replyToken) {
     const savedPost = await savePostHistory(user.id, store.id, postContent);
 
     // エンゲージメントメトリクスを保存（初期値）
+    // C17修正: fire-and-forget にせずエラーをキャッチ（投稿自体は成功させる）
     if (store.category) {
-      await saveEngagementMetrics(store.id, store.category, {
-        post_id: savedPost.id,
-        content: postContent,
-      });
+      try {
+        await saveEngagementMetrics(store.id, store.category, {
+          post_id: savedPost.id,
+          content: postContent,
+        });
+      } catch (metricsErr) {
+        console.error('[Image] メトリクス初期保存エラー（投稿は成功）:', metricsErr.message);
+      }
     }
 
     console.log(`[Image] 画像投稿生成完了: store=${store.name}`);

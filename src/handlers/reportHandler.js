@@ -105,6 +105,15 @@ export async function handleEngagementReport(user, text, replyToken) {
       );
     }
 
+    // H12/H14修正: 数値上限チェック（入力ミス or 攻撃的入力の防止）
+    const MAX_METRIC_VALUE = 10_000_000; // 1000万
+    if (metrics.likes > MAX_METRIC_VALUE || metrics.saves > MAX_METRIC_VALUE ||
+        metrics.comments > MAX_METRIC_VALUE || (metrics.reach && metrics.reach > MAX_METRIC_VALUE)) {
+      return await replyText(replyToken,
+        '数値が大きすぎます。入力内容を確認してください。'
+      );
+    }
+
     // 店舗情報を取得
     const store = await getStore(user.current_store_id);
     if (!store) {
@@ -395,9 +404,18 @@ async function getMonthlyReportCount(userId, storeId) {
 
 /**
  * pending_reportsにメトリクスを保存
+ * C15修正: 既存の awaiting_post_selection を先にクリーンアップ（競合防止）
  */
 async function savePendingReport(userId, storeId, metrics) {
   const { supabase } = await import('../services/supabaseService.js');
+
+  // 既存の awaiting_post_selection を expired に変更（競合防止）
+  await supabase
+    .from('pending_reports')
+    .update({ status: 'expired' })
+    .eq('user_id', userId)
+    .eq('store_id', storeId)
+    .eq('status', 'awaiting_post_selection');
 
   const { data, error } = await supabase
     .from('pending_reports')

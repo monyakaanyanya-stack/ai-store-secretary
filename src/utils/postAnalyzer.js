@@ -31,7 +31,8 @@ const CTA_WORDS = [
  * @returns {Object} - 骨格データ
  */
 export function analyzePostStructure(text) {
-  if (!text || text.length < 5) return getDefaultStructure();
+  // C21修正: typeof チェック（数値やオブジェクトが渡されてもクラッシュしない）
+  if (!text || typeof text !== 'string' || text.length < 5) return getDefaultStructure();
 
   // 本文のみ抽出（ハッシュタグ・Photo Advice除去）
   const body = extractBody(text);
@@ -202,11 +203,14 @@ export function extractWinningPattern(posts, minCount = 10) {
     const ht = p.post_structure.hook_type;
     hookTypeCounts[ht] = (hookTypeCounts[ht] || 0) + 1;
   });
-  const dominantHookType = Object.entries(hookTypeCounts)
-    .sort((a, b) => b[1] - a[1])[0]?.[0];
-  const dominantHookRatio = Math.round(
-    (hookTypeCounts[dominantHookType] || 0) / topPosts.length * 100
-  );
+  // M13修正: hookTypeCounts が空の場合のガード
+  const hookEntries = Object.entries(hookTypeCounts);
+  const dominantHookType = hookEntries.length > 0
+    ? hookEntries.sort((a, b) => b[1] - a[1])[0][0]
+    : 'unknown';
+  const dominantHookRatio = topPosts.length > 0
+    ? Math.round((hookTypeCounts[dominantHookType] || 0) / topPosts.length * 100)
+    : 0;
 
   // CTA位置の集計（上位30%から）
   const ctaPositionCounts = {};

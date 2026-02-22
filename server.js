@@ -9,6 +9,26 @@ import { sendWelcomeMessage } from './src/handlers/welcomeHandler.js';
 import { checkRateLimit, maskUserId } from './src/utils/security.js';
 import { replyText } from './src/services/lineService.js';
 
+// ==================== C8: 起動時の環境変数検証 ====================
+const REQUIRED_ENV_VARS = [
+  'LINE_CHANNEL_SECRET',
+  'LINE_CHANNEL_ACCESS_TOKEN',
+  'ANTHROPIC_API_KEY',
+  'SUPABASE_URL',
+];
+
+const missingVars = REQUIRED_ENV_VARS.filter(v => !process.env[v]);
+if (missingVars.length > 0) {
+  console.error(`[Server] 必須環境変数が未設定: ${missingVars.join(', ')}`);
+  console.error('[Server] .env ファイルを確認してください');
+  process.exit(1);
+}
+
+// SUPABASE_SERVICE_ROLE_KEY がなければ警告（フォールバックあり）
+if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  console.warn('[Server] SUPABASE_SERVICE_ROLE_KEY が未設定。SUPABASE_ANON_KEY にフォールバックします（RLS制限あり）');
+}
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -27,8 +47,8 @@ app.use((req, res, next) => {
   next();
 });
 
-// LINE Webhook は raw body が必要（署名検証用）
-app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+// C10: LINE Webhook は raw body が必要（署名検証用）+ リクエストサイズ制限
+app.post('/webhook', express.raw({ type: 'application/json', limit: '1mb' }), async (req, res) => {
   // メンテナンスモードチェック
   if (process.env.MAINTENANCE_MODE === 'true') {
     console.log('[Webhook] メンテナンスモード中');
@@ -42,7 +62,15 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
     return res.status(403).json({ error: 'Invalid signature' });
   }
 
-  const body = JSON.parse(req.body.toString());
+  // C13: JSON.parse の安全化
+  let body;
+  try {
+    body = JSON.parse(req.body.toString());
+  } catch (parseErr) {
+    console.error('[Webhook] JSONパースエラー:', parseErr.message);
+    return res.status(400).json({ error: 'Invalid JSON' });
+  }
+
   const events = body.events;
 
   // LINE の接続確認（イベントなし）に即座に 200 を返す
@@ -63,6 +91,12 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
 });
 
 async function processEvent(event) {
+  // イベントの基本構造チェック
+  if (!event?.source?.userId) {
+    console.warn('[Event] userId が存在しないイベントをスキップ');
+    return;
+  }
+
   const lineUserId = event.source.userId;
 
   // フォローイベント（友だち追加）
@@ -101,12 +135,49 @@ async function processEvent(event) {
   }
 }
 
-// ヘルスチェック（サービス名を隠す）
+// M15修正: ヘルスチェック（起動時刻を含む）
+const startedAt = new Date().toISOString();
 app.get('/', (req, res) => {
-  res.json({ status: 'ok' });
+  res.json({ status: 'ok', started_at: startedAt });
 });
 
-app.listen(PORT, () => {
+// ==================== C9: Graceful Shutdown ====================
+let server;
+
+function gracefulShutdown(signal) {
+  console.log(`[Server] ${signal} を受信。グレースフルシャットダウン開始...`);
+
+  // 新しいリクエストの受付を停止
+  if (server) {
+    server.close(() => {
+      console.log('[Server] HTTPサーバーを停止しました');
+      process.exit(0);
+    });
+  }
+
+  // 30秒以内にシャットダウンしなければ強制終了
+  setTimeout(() => {
+    console.error('[Server] グレースフルシャットダウンがタイムアウト。強制終了します');
+    process.exit(1);
+  }, 30000);
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// ==================== C11: unhandledRejection / uncaughtException ====================
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Server] unhandledRejection:', reason);
+  // プロセスは継続（LINE Botはクラッシュさせない）
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('[Server] uncaughtException:', error);
+  // 致命的なエラーの場合はプロセスを終了（自動再起動に任せる）
+  gracefulShutdown('uncaughtException');
+});
+
+server = app.listen(PORT, () => {
   console.log(`[Server] サーバー起動完了 (port: ${PORT})`);
 
   // スケジューラー起動

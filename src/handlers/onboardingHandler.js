@@ -59,6 +59,18 @@ export async function handleOnboardingResponse(user, message, replyToken) {
     return null; // オンボーディング中でない
   }
 
+  // C19修正: 1時間以上経過したオンボーディング状態を自動クリーンアップ
+  const stateAge = Date.now() - new Date(state.updated_at || state.created_at).getTime();
+  const ONE_HOUR = 60 * 60 * 1000;
+  if (stateAge > ONE_HOUR) {
+    console.log(`[Onboarding] 期限切れの状態を削除: user=${user.id}, age=${Math.round(stateAge / 60000)}分`);
+    await supabase
+      .from('onboarding_state')
+      .delete()
+      .eq('user_id', user.id);
+    return null; // 期限切れ → 通常のメッセージ処理に委譲
+  }
+
   console.log(`[Onboarding] State exists, step=${state.step}`);
 
   const trimmed = message.trim();
