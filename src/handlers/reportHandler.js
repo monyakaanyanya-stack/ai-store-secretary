@@ -418,7 +418,7 @@ async function savePendingReport(userId, storeId, metrics) {
     throw new Error('報告の保存に失敗しました');
   }
 
-  console.log(`[Report] pending_report作成: id=${data.id}`);
+  console.log(`[Report] pending_report作成`);
   return data;
 }
 

@@ -2,6 +2,7 @@ import { supabase } from './supabaseService.js';
 import { pushMessage } from './lineService.js';
 import { updateFollowerCount, saveFollowerHistory, getStore } from './supabaseService.js';
 import { replyText } from './lineService.js';
+import { maskUserId } from '../utils/security.js';
 
 /**
  * 月次フォロワー数収集: 毎月1日に全ユーザーにフォロワー数を尋ねる
@@ -13,7 +14,7 @@ export async function sendMonthlyFollowerRequests() {
     // 全ユーザーを取得
     const { data: users, error } = await supabase
       .from('users')
-      .select('*, stores!inner(*)');
+      .select('id, line_user_id, current_store_id');
 
     if (error) {
       console.error('[MonthlyFollower] ユーザー取得エラー:', error.message);
@@ -49,7 +50,7 @@ export async function sendMonthlyFollowerRequests() {
         // レート制限対策: 各送信間に100ms待機
         await sleep(100);
       } catch (err) {
-        console.error(`[MonthlyFollower] ユーザー ${user.line_user_id} への送信エラー:`, err.message);
+        console.error(`[MonthlyFollower] ユーザー ${maskUserId(user.line_user_id)} への送信エラー:`, err.message);
       }
     }
 

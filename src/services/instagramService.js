@@ -237,7 +237,7 @@ export async function syncInstagramPosts(storeId, limit = 25) {
     })
     .eq('id', account.id);
 
-  console.log(`[Instagram] 同期完了: store=${storeId}, synced=${synced}件`);
+  console.log(`[Instagram] 同期完了: store=${storeId?.slice(0, 4)}…, synced=${synced}件`);
   return synced;
 }
 

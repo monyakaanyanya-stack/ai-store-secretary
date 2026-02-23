@@ -1,5 +1,6 @@
 import { replyText } from '../services/lineService.js';
 import { supabase, getStore, getStoresByUser, deleteStore, updateCurrentStore } from '../services/supabaseService.js';
+import { maskId } from '../utils/security.js';
 
 /**
  * データリセット確認メッセージ
@@ -8,11 +9,11 @@ export async function handleDataResetPrompt(user, replyToken) {
   console.log(`[DataReset] handleDataResetPrompt called`);
 
   if (!user.current_store_id) {
-    console.warn(`[DataReset] 店舗未選択: user=${user.id}`);
+    console.warn(`[DataReset] 店舗未選択: user=${maskId(user.id)}`);
     return await replyText(replyToken, '店舗が選択されていません。');
   }
 
-  console.log(`[DataReset] 確認メッセージ送信開始: store=${user.current_store_id}`);
+  console.log(`[DataReset] 確認メッセージ送信開始: store=${maskId(user.current_store_id)}`);
 
   const message = `⚠️ データリセット確認
 
@@ -70,7 +71,7 @@ export async function handleDataResetExecution(user, replyToken) {
       console.error('[DataReset] learning_profiles削除エラー:', profileError.message);
     }
 
-    console.log(`[DataReset] データリセット完了: store=${storeId}, posts=${postCount}, learning=${learningCount}`);
+    console.log(`[DataReset] データリセット完了: store=${maskId(storeId)}, posts=${postCount}, learning=${learningCount}`);
 
     const message = `✅ データリセット完了
 

@@ -358,7 +358,7 @@ export async function saveEngagementMetrics(storeId, category, postData, metrics
     }
 
     if (!error) {
-      console.log(`[CollectiveIntelligence] メトリクスupsert成功: post_id=${metricsData.post_id}`);
+      console.log(`[CollectiveIntelligence] メトリクスupsert成功`);
     }
   } else {
     // post_idがない場合は常に新規作成
@@ -380,7 +380,7 @@ export async function saveEngagementMetrics(storeId, category, postData, metrics
     };
   }
 
-  console.log(`[CollectiveIntelligence] メトリクス保存成功: store=${storeId}, category=${category}`);
+  console.log(`[CollectiveIntelligence] メトリクス保存成功: store=${storeId?.slice(0, 4)}…, category=${category}`);
   return {
     success: true,
     validation,

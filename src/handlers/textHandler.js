@@ -451,7 +451,7 @@ async function handleStoreRegistration(user, text, replyToken) {
     const store = await createStore(user.id, storeData);
     await updateCurrentStore(user.id, store.id);
 
-    console.log(`[Store] 登録完了: ${store.category} - ${store.name} (${store.id})`);
+    console.log(`[Store] 登録完了: ${store.category} - ${store.name}`);
     await replyText(replyToken,
       `✅ 店舗「${store.name}」を登録しました！\n\n業種: ${store.category || '未設定'}\nこだわり: ${store.strength}\n口調: ${store.tone}\n\nこの店舗が選択中です。画像やテキストを送ると投稿案を作成します。`
     );

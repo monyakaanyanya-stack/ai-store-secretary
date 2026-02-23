@@ -203,6 +203,17 @@ export function maskUserId(lineUserId) {
 }
 
 /**
+ * 内部ID（UUID等）をマスク処理（ログ用）
+ * @param {string} id - 内部ID
+ * @returns {string} - マスクされたID
+ */
+export function maskId(id) {
+  if (!id || typeof id !== 'string') return '***';
+  if (id.length <= 8) return id.slice(0, 2) + '***';
+  return id.slice(0, 4) + '…' + id.slice(-4);
+}
+
+/**
  * 機密情報をマスクしてログ出力する
  * @param {string} tag - ログタグ
  * @param {string} message - ログメッセージ

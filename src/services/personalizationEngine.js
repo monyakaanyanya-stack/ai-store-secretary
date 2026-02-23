@@ -119,7 +119,7 @@ export async function applyFeedbackToProfile(storeId, feedback, originalPost) {
     })
     .eq('store_id', storeId);
 
-  console.log(`[Personalization] フィードバック学習完了: store=${storeId}`);
+  console.log(`[Personalization] フィードバック学習完了: store=${storeId?.slice(0, 4)}…`);
 }
 
 /**
@@ -275,7 +275,7 @@ export async function applyEngagementToProfile(storeId, postContent, metricsData
     })
     .eq('store_id', storeId);
 
-  console.log(`[Personalization] エンゲージメント学習完了: store=${storeId}, ER=${er}%, 高ER投稿=${el.high_er_posts}件`);
+  console.log(`[Personalization] エンゲージメント学習完了: store=${storeId?.slice(0, 4)}…, ER=${er}%, 高ER投稿=${el.high_er_posts}件`);
 }
 
 /**
