@@ -218,8 +218,10 @@ export function extractWinningPattern(posts, minCount = 10) {
     const pos = p.post_structure.cta_position || 'none';
     ctaPositionCounts[pos] = (ctaPositionCounts[pos] || 0) + 1;
   });
-  const dominantCTAPosition = Object.entries(ctaPositionCounts)
-    .sort((a, b) => b[1] - a[1])[0]?.[0];
+  const ctaEntries = Object.entries(ctaPositionCounts);
+  const dominantCTAPosition = ctaEntries.length > 0
+    ? ctaEntries.sort((a, b) => b[1] - a[1])[0][0]
+    : 'none';
 
   // 文字数帯の集計（上位30%から）
   const charBucketCounts = {};
@@ -228,8 +230,10 @@ export function extractWinningPattern(posts, minCount = 10) {
     const bucket = len < 100 ? 'short' : len < 200 ? 'medium' : 'long';
     charBucketCounts[bucket] = (charBucketCounts[bucket] || 0) + 1;
   });
-  const dominantCharBucket = Object.entries(charBucketCounts)
-    .sort((a, b) => b[1] - a[1])[0]?.[0];
+  const bucketEntries = Object.entries(charBucketCounts);
+  const dominantCharBucket = bucketEntries.length > 0
+    ? bucketEntries.sort((a, b) => b[1] - a[1])[0][0]
+    : 'short';
 
   // 改行密度の平均（上位30%から）
   const avgLineBreakDensity = topPosts.reduce(

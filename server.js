@@ -78,7 +78,7 @@ app.post('/webhook', express.raw({ type: 'application/json', limit: '1mb' }), as
   const events = body.events;
 
   // LINE の接続確認（イベントなし）に即座に 200 を返す
-  if (!events || events.length === 0) {
+  if (!Array.isArray(events) || events.length === 0) {
     return res.status(200).json({ message: 'ok' });
   }
 

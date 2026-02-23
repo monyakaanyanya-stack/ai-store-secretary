@@ -1363,3 +1363,144 @@ describe('Scenario 29: 案A/B/C選択 + スタイル学習', async () => {
       'Should add style preference to prompt');
   });
 });
+
+// ==================== Scenario 30: バグ修正検証（第5次監査） ====================
+describe('Scenario 30: 第5次監査バグ修正検証', async () => {
+
+  // H4: insightsOCRService K/万変換
+  it('H4: insightsOCRService.js の toInt が K/万 を正しく変換する', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/insightsOCRService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('kMatch') && content.includes('* 1000'),
+      'Should handle K suffix (e.g. 1.2K → 1200)');
+    assert.ok(content.includes('manMatch') && content.includes('* 10000'),
+      'Should handle 万 suffix (e.g. 1.2万 → 12000)');
+  });
+
+  it('H4: toInt ロジック — K/万/通常数値/null を正しく処理', () => {
+    // toInt のロジックを直接再現してテスト
+    function toInt(v) {
+      if (v === null || v === undefined) return null;
+      const s = String(v).replace(/,/g, '').trim();
+      const kMatch = s.match(/^([\d.]+)[Kk]$/);
+      if (kMatch) {
+        const n = parseFloat(kMatch[1]) * 1000;
+        return Number.isFinite(n) && n >= 0 ? Math.round(n) : null;
+      }
+      const manMatch = s.match(/^([\d.]+)万$/);
+      if (manMatch) {
+        const n = parseFloat(manMatch[1]) * 10000;
+        return Number.isFinite(n) && n >= 0 ? Math.round(n) : null;
+      }
+      const n = Number(s);
+      return Number.isFinite(n) && n >= 0 ? Math.round(n) : null;
+    }
+
+    assert.equal(toInt('1.2K'),   1200,   '1.2K → 1200');
+    assert.equal(toInt('2K'),     2000,   '2K → 2000');
+    assert.equal(toInt('1.2万'),  12000,  '1.2万 → 12000');
+    assert.equal(toInt('12万'),   120000, '12万 → 120000');
+    assert.equal(toInt('1,234'),  1234,   '1,234 → 1234');
+    assert.equal(toInt(1234),     1234,   '1234 → 1234');
+    assert.equal(toInt(null),     null,   'null → null');
+    assert.equal(toInt(undefined),null,   'undefined → null');
+    assert.equal(toInt('abc'),    null,   'abc → null (invalid)');
+    assert.equal(toInt(-5),       null,   '-5 → null (negative)');
+  });
+
+  // H1: collectiveIntelligence normalizedCategory 条件
+  it('H1: collectiveIntelligence.js の外れ値チェックが normalizedCategory を使う', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/collectiveIntelligence.js', import.meta.url), 'utf-8'
+    );
+    // 外れ値チェックの if 条件が normalizedCategory を使っていること
+    assert.ok(
+      /if\s*\(\s*normalizedCategory\s*&&\s*metrics\.likes_count/.test(content),
+      'Outlier check should use normalizedCategory, not raw category'
+    );
+  });
+
+  // H6: dataResetHandler サイレント失敗
+  it('H6: dataResetHandler.js の learning_profiles 削除エラーが throw される', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/dataResetHandler.js', import.meta.url), 'utf-8'
+    );
+    // profileError 時に throw new Error があること（サイレント継続しない）
+    assert.ok(content.includes('throw new Error') && content.includes('learning_profiles削除エラー'),
+      'Should throw on learning_profiles delete error, not silently continue');
+  });
+
+  // H7: onboardingHandler getCategoryGroupByNumber null チェック
+  it('H7: onboardingHandler.js が getCategoryGroupByNumber の null を検証する', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/onboardingHandler.js', import.meta.url), 'utf-8'
+    );
+    // selectedGroup の null チェックがあること
+    assert.ok(content.includes('if (!selectedGroup)'),
+      'Should validate selectedGroup is not null after getCategoryGroupByNumber');
+  });
+
+  // M5: postAnalyzer undefined CTA/bucket
+  it('M5: postAnalyzer.js の dominantCTAPosition がデフォルト値を持つ', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/utils/postAnalyzer.js', import.meta.url), 'utf-8'
+    );
+    // ctaEntries を使って none にフォールバックすること
+    assert.ok(content.includes("ctaEntries.length > 0") && content.includes("'none'"),
+      'dominantCTAPosition should default to "none" when no CTA data');
+    assert.ok(content.includes("bucketEntries.length > 0") && content.includes("'short'"),
+      'dominantCharBucket should default to "short" when no bucket data');
+  });
+
+  it('M5: extractWinningPattern が dominantCTAPosition として undefined を返さない', async () => {
+    const { extractWinningPattern } = await import('../src/utils/postAnalyzer.js');
+
+    // post_structure に cta_position を持たない投稿（none にフォールバックされるはず）
+    const posts = Array.from({ length: 10 }, (_, i) => ({
+      post_structure: {
+        hook_type: 'question',
+        cta_position: null,  // ← null で none フォールバックのケース
+        body_length: 150,
+        line_break_density: 0.3,
+      },
+      saves_count: 10 + i,
+      likes_count: 100 + i,
+      save_intensity: 0.1,
+    }));
+    const result = extractWinningPattern(posts, 10);
+    assert.ok(result !== null, 'Should return a result with 10 posts');
+    assert.ok(result.dominantCTAPosition !== undefined, 'dominantCTAPosition should not be undefined');
+    assert.ok(result.dominantCharBucket !== undefined, 'dominantCharBucket should not be undefined');
+  });
+
+  // M3: feedbackHandler preferredWords 上書き
+  it('M3: feedbackHandler.js の extractLearningHints がカジュアル+丁寧で両方を保持する', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/feedbackHandler.js', import.meta.url), 'utf-8'
+    );
+    // toneWords 配列に push してから hints.preferredWords に代入する実装であること
+    assert.ok(content.includes('toneWords') && content.includes('toneWords.push'),
+      'Should use array push instead of overwriting hints.preferredWords');
+    assert.ok(!content.includes("hints.preferredWords = ['カジュアル']"),
+      'Should NOT directly assign カジュアル to preferredWords');
+    assert.ok(!content.includes("hints.preferredWords = ['丁寧']"),
+      'Should NOT directly assign 丁寧 to preferredWords');
+  });
+
+  // server.js Array.isArray
+  it('M7(server): server.js が events を Array.isArray でチェックする', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../server.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('Array.isArray(events)'),
+      'Should validate events is an array before processing');
+  });
+});

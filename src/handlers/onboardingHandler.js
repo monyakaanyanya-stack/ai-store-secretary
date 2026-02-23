@@ -117,6 +117,11 @@ async function handleCategoryGroupSelection(user, input, replyToken) {
 
   const selectedGroup = getCategoryGroupByNumber(groupNumber);
 
+  // 念のため null チェック（categoryGroups.js 側に番号が未定義の場合）
+  if (!selectedGroup) {
+    return await replyText(replyToken, '番号が正しくありません。\n\n1〜6の番号を送ってください。');
+  }
+
   // 状態を更新
   await supabase
     .from('onboarding_state')

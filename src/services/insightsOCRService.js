@@ -51,9 +51,22 @@ Instagram のインサイト / 投稿分析 / 統計画面のスクリーンシ�
     const parsed = JSON.parse(jsonMatch[0]);
 
     // 数値変換（文字列・null・undefined を安全に処理）
+    // Claude APIが変換に失敗した場合のフォールバックとして K/万 接尾辞も処理
     const toInt = (v) => {
       if (v === null || v === undefined) return null;
-      const n = Number(String(v).replace(/,/g, ''));
+      const s = String(v).replace(/,/g, '').trim();
+      // K/万 接尾辞対応（例: "1.2K" → 1200, "1.2万" → 12000, "12万" → 120000）
+      const kMatch = s.match(/^([\d.]+)[Kk]$/);
+      if (kMatch) {
+        const n = parseFloat(kMatch[1]) * 1000;
+        return Number.isFinite(n) && n >= 0 ? Math.round(n) : null;
+      }
+      const manMatch = s.match(/^([\d.]+)万$/);
+      if (manMatch) {
+        const n = parseFloat(manMatch[1]) * 10000;
+        return Number.isFinite(n) && n >= 0 ? Math.round(n) : null;
+      }
+      const n = Number(s);
       return Number.isFinite(n) && n >= 0 ? Math.round(n) : null;
     };
 

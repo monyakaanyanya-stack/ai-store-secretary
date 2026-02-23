@@ -292,8 +292,8 @@ export async function saveEngagementMetrics(storeId, category, postData, metrics
   }
 
   // 統計的外れ値チェック（同カテゴリーの過去データと比較）
-  // BUG #1修正: normalizedCategory を使う（生の category だと保存データと一致しない場合がある）
-  if (category && metrics.likes_count > 0) {
+  // normalizedCategory を使う（raw category だと保存データと一致しない場合がある）
+  if (normalizedCategory && metrics.likes_count > 0) {
     const { data: categoryData } = await supabase
       .from('engagement_metrics')
       .select('likes_count, engagement_rate')

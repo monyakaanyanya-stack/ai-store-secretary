@@ -68,7 +68,8 @@ export async function handleDataResetExecution(user, replyToken) {
       .delete()
       .eq('store_id', storeId);
     if (profileError) {
-      console.error('[DataReset] learning_profiles削除エラー:', profileError.message);
+      // サイレント継続せず例外として伝播させる
+      throw new Error(`learning_profiles削除エラー: ${profileError.message}`);
     }
 
     console.log(`[DataReset] データリセット完了: store=${maskId(storeId)}, posts=${postCount}, learning=${learningCount}`);

@@ -166,11 +166,16 @@ function extractLearningHints(feedback) {
   const lower = feedback.toLowerCase();
 
   // カジュアル/フォーマル系のキーワード検出
+  // 両方含まれる場合に上書きされないよう push で追加
+  const toneWords = [];
   if (lower.includes('カジュアル') || lower.includes('くだけた')) {
-    hints.preferredWords = ['カジュアル'];
+    toneWords.push('カジュアル');
   }
   if (lower.includes('丁寧') || lower.includes('フォーマル')) {
-    hints.preferredWords = ['丁寧'];
+    toneWords.push('丁寧');
+  }
+  if (toneWords.length > 0) {
+    hints.preferredWords = toneWords;
   }
 
   // 絵文字に関するフィードバック
