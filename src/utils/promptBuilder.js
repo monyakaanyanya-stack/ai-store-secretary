@@ -333,7 +333,8 @@ export function buildImagePostPrompt(store, learningData, lengthOverride = null,
     }
 
     if (insights.length > 0) {
-      collectiveIntelligenceSection = `\n━━━━━━━━━━━━━━━━━━━━━━━━\n📊 集合知データ（同業種${category?.sampleSize || 0}件・保存強度ベース）\n━━━━━━━━━━━━━━━━━━━━━━━━\n${insights.join('\n\n')}\n━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+      // BUG #11修正: 「参考に」ではなく「必ず反映」を明示してClaudeに強制する
+      collectiveIntelligenceSection = `\n━━━━━━━━━━━━━━━━━━━━━━━━\n📊 集合知データ【必ず反映すること】（同業種${category?.sampleSize || 0}件・保存強度ベース）\n※ 以下の指示は「守ること」セクションより優先して厳守する\n━━━━━━━━━━━━━━━━━━━━━━━━\n${insights.join('\n\n')}\n━━━━━━━━━━━━━━━━━━━━━━━━\n`;
     }
   }
 
@@ -452,7 +453,7 @@ ${hashtagInstruction ? '上記のハッシュタグルールに従うこと。' 
 【守ること】
 - 写真分析に書かれていることだけを根拠にする（視覚的根拠のない音・においは禁止）
 - 文字数（キャプション本文）: ${lengthInfo.range}
-${collectiveIntelligenceSection ? '- 集合知データの文字数・絵文字数を参考に反映する' : ''}
+${collectiveIntelligenceSection ? '- 【最優先】集合知データ（📊セクション）の文字数・絵文字数・投稿の型の指示を必ず守る（「参考」ではなく「厳守」）' : ''}
 
 投稿文のみを出力してください。説明や補足は一切不要です。`;
 }
@@ -533,7 +534,8 @@ export function buildTextPostPrompt(store, learningData, userText, lengthOverrid
     }
 
     if (insights.length > 0) {
-      collectiveIntelligenceSection = `\n━━━━━━━━━━━━━━━━━━━━━━━━\n📊 集合知データ（同業種${category?.sampleSize || 0}件・保存強度ベース）\n━━━━━━━━━━━━━━━━━━━━━━━━\n${insights.join('\n\n')}\n━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+      // BUG #11修正: 「参考に」ではなく「必ず反映」を明示してClaudeに強制する
+      collectiveIntelligenceSection = `\n━━━━━━━━━━━━━━━━━━━━━━━━\n📊 集合知データ【必ず反映すること】（同業種${category?.sampleSize || 0}件・保存強度ベース）\n※ 以下の指示は「ルール」セクションより優先して厳守する\n━━━━━━━━━━━━━━━━━━━━━━━━\n${insights.join('\n\n')}\n━━━━━━━━━━━━━━━━━━━━━━━━\n`;
     }
   }
 
@@ -583,7 +585,7 @@ ${userText}
 - 最初の1〜2文で「感情・本音・発見」を書く（説明から始めない）
 - 具体的なことを書く（抽象的な褒め言葉「素敵・幻想的」は使わない）
 - 文字数: ${lengthInfo.range}
-${collectiveIntelligenceSection ? '- 集合知データの文字数・絵文字数・ハッシュタグを反映する' : ''}
+${collectiveIntelligenceSection ? '- 【最優先】集合知データ（📊セクション）の文字数・絵文字数・ハッシュタグ・投稿の型の指示を必ず守る（「参考」ではなく「厳守」）' : ''}
 
 投稿文のみを出力してください。説明や補足は一切不要です。`;
 }

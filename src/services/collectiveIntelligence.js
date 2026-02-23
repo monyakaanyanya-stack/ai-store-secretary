@@ -12,10 +12,15 @@ import { analyzePostStructure, extractWinningPattern } from '../utils/postAnalyz
 export async function getCategoryInsights(category, limit = 100) {
   if (!category) return getDefaultInsights();
 
+  // BUG #1修正: 保存時と同じ正規化を適用（"cafe" → "カフェ" などの表記ゆれ吸収）
+  // saveEngagementMetrics() は normalizeCategory で保存するが、呼び出し元が
+  // 生の store.category を渡すため、ここで揃えないとデータが見つからない
+  const normalizedCategory = normalizeCategory(category) || category;
+
   const { data, error } = await supabase
     .from('engagement_metrics')
     .select('*')
-    .eq('category', category)
+    .eq('category', normalizedCategory)
     .eq('status', '報告済')                          // 未報告（数値ゼロ）を除外
     .order('save_intensity', { ascending: false })  // 保存強度でランキング
     .limit(limit);
@@ -287,11 +292,12 @@ export async function saveEngagementMetrics(storeId, category, postData, metrics
   }
 
   // 統計的外れ値チェック（同カテゴリーの過去データと比較）
+  // BUG #1修正: normalizedCategory を使う（生の category だと保存データと一致しない場合がある）
   if (category && metrics.likes_count > 0) {
     const { data: categoryData } = await supabase
       .from('engagement_metrics')
       .select('likes_count, engagement_rate')
-      .eq('category', category)
+      .eq('category', normalizedCategory)
       .order('created_at', { ascending: false })
       .limit(30);
 
