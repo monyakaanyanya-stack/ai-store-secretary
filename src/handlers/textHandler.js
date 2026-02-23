@@ -82,6 +82,8 @@ export async function handleTextMessage(user, text, replyToken) {
       const handled = await handleAdminSub(user, subArgs, replyToken);
       if (handled) return;
     }
+    // /admin で始まるメッセージは管理者以外には無視（後続ハンドラーに流さない）
+    return;
   }
 
   // 管理者の実データ入力（カテゴリー: から始まる場合）
