@@ -16,7 +16,8 @@
  *   - checkout.session.completed  ← Payment Link 使用時
  */
 
-import Stripe from 'stripe';
+// ⚠️ stripe パッケージは動的インポート（npm install stripe を実行後に有効）
+// top-level import を避けることで、stripe 未インストール時でもサーバーが起動できる
 import {
   syncStripeSubscription,
   downgradeToFree,
@@ -24,11 +25,12 @@ import {
 import { pushMessage } from '../services/lineService.js';
 import { supabase } from '../services/supabaseService.js';
 
-// Stripe クライアント（実行時に初期化）
-function getStripe() {
+// Stripe クライアント（実行時に動的インポートで初期化）
+async function getStripe() {
   if (!process.env.STRIPE_SECRET_KEY) {
     throw new Error('STRIPE_SECRET_KEY が設定されていません');
   }
+  const { default: Stripe } = await import('stripe');
   return new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-12-18.acacia' });
 }
 
@@ -47,7 +49,8 @@ export async function handleStripeWebhook(req, res) {
 
   let event;
   try {
-    event = getStripe().webhooks.constructEvent(req.body, sig, endpointSecret);
+    const stripe = await getStripe();
+    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
   } catch (err) {
     console.error('[StripeWebhook] 署名検証失敗:', err.message);
     return res.status(400).json({ error: `Webhook Error: ${err.message}` });
@@ -98,7 +101,8 @@ export async function handleStripeWebhook(req, res) {
       case 'checkout.session.completed': {
         const session = event.data.object;
         if (session.mode === 'subscription' && session.subscription) {
-          const subscription = await getStripe().subscriptions.retrieve(session.subscription);
+          const stripe = await getStripe();
+          const subscription = await stripe.subscriptions.retrieve(session.subscription);
           // client_reference_id に user.id を設定している
           const userId = session.client_reference_id;
           if (userId) {

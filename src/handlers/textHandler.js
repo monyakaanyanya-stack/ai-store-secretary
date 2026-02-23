@@ -14,7 +14,7 @@ import { handleFeedback } from './feedbackHandler.js';
 import { handleEngagementReport, handlePostSelection } from './reportHandler.js';
 import { handleOnboardingStart, handleOnboardingResponse, handleHelpMenu, handleHelpCategory } from './onboardingHandler.js';
 import { handleDataStats } from './dataStatsHandler.js';
-import { handleAdminMenu, handleAdminTestData, handleAdminClearData, handleAdminClearTestData, handleAdminReportMode, handleAdminReportSave, handleAdminCategoryRequests } from './adminHandler.js';
+import { handleAdminMenu, handleAdminTestData, handleAdminClearData, handleAdminClearTestData, handleAdminReportMode, handleAdminReportSave, handleAdminCategoryRequests, handleAdminSub } from './adminHandler.js';
 import { handleInstagramCommand } from './instagramHandler.js';
 import { handleFollowerCountResponse, getPendingFollowerRequest } from '../services/monthlyFollowerService.js';
 import { handleDataResetPrompt, handleDataResetExecution, handleStoreDeletePrompt, handleStoreDeleteExecution } from './dataResetHandler.js';
@@ -76,6 +76,10 @@ export async function handleTextMessage(user, text, replyToken) {
       if (handled) return;
     } else if (args === 'category-requests') {
       const handled = await handleAdminCategoryRequests(user, replyToken);
+      if (handled) return;
+    } else if (args.startsWith('sub')) {
+      const subArgs = args.replace(/^sub\s*/, '');
+      const handled = await handleAdminSub(user, subArgs, replyToken);
       if (handled) return;
     }
   }

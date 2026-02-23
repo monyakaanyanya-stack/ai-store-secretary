@@ -171,9 +171,115 @@ const seasonalMemory = smEnabled ? await getSeasonalMemoryPromptAddition(store.i
 
 ---
 
-## テスト方法
+## テスト手順（本番前に必ずやること）
 
-Stripe CLI を使ってローカルで Webhook をテスト:
+### フェーズ 1: 管理者コマンドで単体確認（Stripe 不要）
+
+STEP 3（SQLマイグレーション）完了後、LINE で以下を送信：
+
+```
+# 自分のプラン確認（フリーになっているはず）
+/admin sub status
+
+# スタンダードプランに手動昇格
+/admin sub set standard
+
+# 昇格確認（機能制限が解除されるか確認）
+/admin sub status
+
+# フリーに戻す
+/admin sub set free
+```
+
+これで「プラン取得 → 機能チェック → DB 更新」の一連の流れが動作確認できます。
+
+---
+
+### フェーズ 2: Stripe テストモードで E2E 確認
+
+> 本番キーの前にテストキーで動作を確認する（費用は一切発生しない）
+
+**事前準備**
+
+1. Stripe ダッシュボード → **「テストモード」を ON** にする
+2. テスト用の商品・価格・Payment Link を作成（STEP 1 と同じ手順）
+3. `.env` のキーをテストキー（`sk_test_xxxx`, `price_test_xxxx` 等）に設定
+
+**Stripe CLI のインストール**（ローカル開発環境用）
+
+```bash
+# macOS
+brew install stripe/stripe-cli/stripe
+
+# Windows（管理者 PowerShell）
+scoop install stripe
+
+# インストール確認
+stripe version
+```
+
+**ローカル Webhook フォワーディング**
+
+```bash
+# ターミナル 1: Stripe Webhook → localhost に転送
+stripe listen --forward-to localhost:3000/stripe/webhook
+
+# 表示された Webhook シークレット (whsec_xxxx) を .env の STRIPE_WEBHOOK_SECRET に設定
+```
+
+**テストイベントの送信**
+
+```bash
+# ターミナル 2: テストイベント送信
+# （checkout.session.completed はPayment Link 経由の初回購読に相当）
+stripe trigger checkout.session.completed
+
+# 解約テスト
+stripe trigger customer.subscription.deleted
+
+# 支払い失敗テスト
+stripe trigger invoice.payment_failed
+```
+
+**確認すること**
+
+| チェック項目 | 確認方法 |
+|---|---|
+| Webhook 署名検証が通るか | ターミナル 1 にエラーが出ないこと |
+| DB が更新されるか | `/admin sub status` で plan が変わること |
+| LINE 通知が届くか | 実際に LINE Bot に通知が来ること |
+
+---
+
+### フェーズ 3: Railway 本番環境での Webhook 確認
+
+1. Railway Variables にテストキーを設定（`sk_test_xxxx`）
+2. Stripe ダッシュボード → Webhook エンドポイントに `https://本番ドメイン/stripe/webhook` を登録
+3. テスト Payment Link から実際に「テスト購入」（カード番号: `4242 4242 4242 4242`）
+4. LINE 通知が届き、`/admin sub status` でプランが変わることを確認
+5. 問題なければ `.env` / Railway Variables を本番キー（`sk_live_xxxx`）に切り替え
+
+---
+
+### テスト時のトラブルシューティング
+
+**Webhook が届かない（ローカル）**
+- Stripe CLI が起動しているか確認: `stripe listen --forward-to localhost:3000/stripe/webhook`
+- `STRIPE_WEBHOOK_SECRET` が CLI 表示の `whsec_xxxx` と一致しているか確認
+
+**「STRIPE_SECRET_KEY が設定されていません」エラー**
+- `.env` に `STRIPE_SECRET_KEY=sk_test_xxxx` を追加してサーバーを再起動
+
+**LINE 通知が届かない**
+- サーバーログで `[StripeWebhook]` の行を確認
+- `checkout.session.completed` の `client_reference_id` に正しい `user.id` が入っているか確認
+
+**`/admin sub status` でユーザーが見つからない**
+- STEP 3 の SQL マイグレーションが未実行 → Supabase SQL Editor で実行
+
+---
+
+## テスト方法（Stripe CLI 簡易版）
 
 ```bash
 # Stripe CLI インストール後

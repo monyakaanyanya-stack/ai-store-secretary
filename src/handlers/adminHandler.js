@@ -296,6 +296,153 @@ export async function handleAdminCategoryRequests(user, replyToken) {
 }
 
 /**
+ * 管理者用: サブスクリプション確認・手動設定（テスト用）
+ * コマンド:
+ *   /admin sub                           → 使い方表示
+ *   /admin sub status                    → 自分のプランを確認
+ *   /admin sub status [LINE_USER_ID]     → 指定ユーザーのプランを確認
+ *   /admin sub set free                  → 自分を free プランに設定
+ *   /admin sub set standard              → 自分を standard プランに設定（テスト用）
+ *   /admin sub set premium               → 自分を premium プランに設定（テスト用）
+ *   /admin sub set [plan] [LINE_USER_ID] → 指定ユーザーのプランを設定
+ */
+export async function handleAdminSub(user, args, replyToken) {
+  if (!isAdmin(user.line_user_id)) {
+    return false;
+  }
+
+  const parts = args.trim().split(/\s+/).filter(Boolean);
+  const subCmd = parts[0] || '';
+
+  try {
+    // /admin sub status [LINE_USER_ID]
+    if (subCmd === 'status' || subCmd === '') {
+      const targetId = parts[1] || user.line_user_id;
+      return await _adminSubStatus(user, targetId, replyToken);
+    }
+
+    // /admin sub set [plan] [LINE_USER_ID]
+    if (subCmd === 'set') {
+      const plan = parts[1] || '';
+      const targetId = parts[2] || user.line_user_id;
+      return await _adminSubSet(user, targetId, plan, replyToken);
+    }
+
+    // 使い方
+    await replyText(replyToken, `⚙️ サブスクリプション管理コマンド
+
+【プラン確認】
+/admin sub status
+→ 自分のプラン状況を確認
+
+/admin sub status [LINE_USER_ID]
+→ 指定ユーザーのプランを確認
+
+【プラン手動変更（テスト用）】
+/admin sub set free
+/admin sub set standard
+/admin sub set premium
+→ 自分のプランをテスト変更
+
+/admin sub set [plan] [LINE_USER_ID]
+→ 指定ユーザーのプランを変更
+
+⚠️ 変更は DB を直接更新します（Stripe 連携なし）。
+テスト・サポート目的でのみ使用してください。`);
+    return true;
+  } catch (err) {
+    console.error('[Admin] sub コマンドエラー:', err);
+    await replyText(replyToken, '❌ サブスクリプション操作中にエラーが発生しました。ログを確認してください。');
+    return true;
+  }
+}
+
+/** プラン状況を確認 */
+async function _adminSubStatus(admin, targetLineUserId, replyToken) {
+  const { data: targetUser } = await supabase
+    .from('users')
+    .select('id, line_user_id')
+    .eq('line_user_id', targetLineUserId)
+    .single();
+
+  if (!targetUser) {
+    await replyText(replyToken, `❌ ユーザーが見つかりません\nID: ${maskUserId(targetLineUserId)}`);
+    return true;
+  }
+
+  const { data: sub } = await supabase
+    .from('subscriptions')
+    .select('*')
+    .eq('user_id', targetUser.id)
+    .single();
+
+  if (!sub) {
+    await replyText(replyToken, `⚙️ サブスクリプション確認\n\nユーザー: ${maskUserId(targetLineUserId)}\nレコードなし（free として扱われます）\n\n「/admin sub set free [ID]」でレコードを作成できます。`);
+    return true;
+  }
+
+  const periodEnd = sub.current_period_end
+    ? new Date(sub.current_period_end).toLocaleDateString('ja-JP')
+    : 'なし';
+
+  await replyText(replyToken, `⚙️ サブスクリプション確認
+
+ユーザー: ${maskUserId(targetLineUserId)}
+プラン: ${sub.plan}
+ステータス: ${sub.status}
+更新日: ${periodEnd}
+解約予定: ${sub.cancel_at_period_end ? 'あり' : 'なし'}
+Stripe Customer: ${sub.stripe_customer_id ? maskUserId(sub.stripe_customer_id) : 'なし'}
+Stripe Sub ID: ${sub.stripe_subscription_id ? maskUserId(sub.stripe_subscription_id) : 'なし'}`);
+  return true;
+}
+
+/** プランを手動変更（テスト用） */
+async function _adminSubSet(admin, targetLineUserId, plan, replyToken) {
+  const VALID_PLANS = ['free', 'standard', 'premium'];
+  if (!VALID_PLANS.includes(plan)) {
+    await replyText(replyToken, `❌ 無効なプランです: "${plan}"\n\n有効: free / standard / premium`);
+    return true;
+  }
+
+  const { data: targetUser } = await supabase
+    .from('users')
+    .select('id, line_user_id')
+    .eq('line_user_id', targetLineUserId)
+    .single();
+
+  if (!targetUser) {
+    await replyText(replyToken, `❌ ユーザーが見つかりません\nID: ${maskUserId(targetLineUserId)}`);
+    return true;
+  }
+
+  auditLog(admin.line_user_id, 'SUB_SET', `target=${maskUserId(targetLineUserId)} plan=${plan}`);
+
+  const { error } = await supabase
+    .from('subscriptions')
+    .upsert({
+      user_id: targetUser.id,
+      plan,
+      status: 'active',
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id' });
+
+  if (error) {
+    await replyText(replyToken, `❌ プラン変更失敗\n\nエラー: ${error.message}`);
+    return true;
+  }
+
+  await replyText(replyToken, `✅ プラン変更完了
+
+ユーザー: ${maskUserId(targetLineUserId)}
+新プラン: ${plan}
+
+⚠️ テスト用設定です（Stripe には反映されません）。
+実際の課金開始後は Stripe Webhook で自動上書きされます。`);
+  return true;
+}
+
+/**
  * 管理者用メニュー
  */
 export async function handleAdminMenu(user, replyToken) {
@@ -324,6 +471,10 @@ export async function handleAdminMenu(user, replyToken) {
 【カテゴリーリクエスト確認】
 /admin category-requests
 → ユーザーが自由入力した業種一覧を確認
+
+【サブスクリプション管理】
+/admin sub
+→ プラン確認・手動変更（テスト用）
 
 【データ確認】
 データ確認
