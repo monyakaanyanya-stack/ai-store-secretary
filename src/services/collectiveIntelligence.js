@@ -98,12 +98,16 @@ function analyzeEngagementData(data) {
   const topPosts = data.slice(0, 20);
   const topPostsAvgLength = topPosts.reduce((sum, post) => sum + (post.post_length || 0), 0) / topPosts.length;
 
-  // 投稿時間帯の分析
+  // 投稿時間帯の分析（"HH:MM:SS" 形式を安全にパース）
   const timeDistribution = {};
   data.forEach(post => {
     if (post.post_time) {
-      const hour = new Date(post.post_time).getHours();
-      timeDistribution[hour] = (timeDistribution[hour] || 0) + 1;
+      // new Date("HH:MM:SS") は Invalid Date になるため split で抽出
+      const hourStr = String(post.post_time).split(':')[0];
+      const hour = parseInt(hourStr, 10);
+      if (Number.isFinite(hour) && hour >= 0 && hour <= 23) {
+        timeDistribution[hour] = (timeDistribution[hour] || 0) + 1;
+      }
     }
   });
 
@@ -262,8 +266,8 @@ export async function saveEngagementMetrics(storeId, category, postData, metrics
     save_intensity: safeSaveIntensity,
     reaction_index: safeReactionIndex,
     post_structure: analyzePostStructure(postData.content), // 投稿骨格を解析して保存
-    post_time: new Date().toTimeString().slice(0, 8),
-    day_of_week: new Date().getDay(),
+    post_time: await resolvePostTime(postData.post_id, 'time'),
+    day_of_week: await resolvePostTime(postData.post_id, 'day'),
     status: isReported ? '報告済' : '未報告',
   };
 
@@ -442,4 +446,41 @@ export async function detectPopularOtherCategories(threshold = 5) {
     .filter(([, stores]) => stores.size >= threshold)
     .map(([category, stores]) => ({ category, storeCount: stores.size }))
     .sort((a, b) => b.storeCount - a.storeCount);
+}
+
+/**
+ * 投稿の実際の作成時刻を取得する（post_time / day_of_week 収集用）
+ * 報告時刻ではなく投稿作成時刻を使うことで bestPostingHours 分析を正確にする
+ *
+ * @param {string|null} postId - post_history の ID
+ * @param {'time'|'day'} type - 返す値の種類
+ * @returns {Promise<string|number>} - "HH:MM:SS"（time）または 0-6（day）
+ */
+async function resolvePostTime(postId, type) {
+  let baseDate = new Date(); // フォールバック: 現在時刻（post_id がない場合）
+
+  if (postId) {
+    const { data } = await supabase
+      .from('post_history')
+      .select('created_at')
+      .eq('id', postId)
+      .single();
+
+    if (data?.created_at) {
+      baseDate = new Date(data.created_at);
+    }
+  }
+
+  // JST（UTC+9）で計算
+  const jstOffset = 9 * 60 * 60 * 1000;
+  const jstDate = new Date(baseDate.getTime() + jstOffset);
+
+  if (type === 'day') {
+    return jstDate.getUTCDay(); // 0=日曜...6=土曜
+  }
+  // type === 'time': "HH:MM:SS" 形式で返す
+  const h = String(jstDate.getUTCHours()).padStart(2, '0');
+  const m = String(jstDate.getUTCMinutes()).padStart(2, '0');
+  const s = String(jstDate.getUTCSeconds()).padStart(2, '0');
+  return `${h}:${m}:${s}`;
 }

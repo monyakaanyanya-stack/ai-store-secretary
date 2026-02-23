@@ -75,41 +75,6 @@ export async function notifyClaudeError(error, userId) {
   });
 }
 
-/**
- * データベースエラーを通知
- * @param {Error} error - エラーオブジェクト
- * @param {string} operation - 実行していた操作
- */
-export async function notifyDatabaseError(error, operation) {
-  await notifyCriticalError('データベースエラー', error.message, {
-    operation,
-    code: error.code || 'UNKNOWN',
-  });
-}
-
-/**
- * LINE Messaging API エラーを通知
- * @param {Error} error - エラーオブジェクト
- * @param {string} userId - ユーザーID
- */
-export async function notifyLineError(error, userId) {
-  await notifyCriticalError('LINE Messaging API エラー', error.message, {
-    userId,
-  });
-}
-
-/**
- * バリデーションエラーが多発した場合に通知
- * @param {string} category - カテゴリー
- * @param {number} count - エラー件数
- */
-export async function notifyValidationFlood(category, count) {
-  await notifyCriticalError('異常データ多発', `${category}カテゴリーで異常データが${count}件検出されました`, {
-    category,
-    count,
-    suggestion: 'データソースを確認してください',
-  });
-}
 
 /**
  * デイリーサマリーを送信（今後の実装）

@@ -63,7 +63,6 @@ export async function createStore(userId, storeData) {
       strength: storeData.strength,
       tone: storeData.tone,
       category: normalizedCategory,
-      profit_margin: storeData.profit_margin || 0,
       config: storeData.config || {
         post_length: '中文',
         templates: {},

@@ -19,7 +19,6 @@ import { handleInstagramCommand } from './instagramHandler.js';
 import { handleFollowerCountResponse, getPendingFollowerRequest } from '../services/monthlyFollowerService.js';
 import { handleDataResetPrompt, handleDataResetExecution, handleStoreDeletePrompt, handleStoreDeleteExecution } from './dataResetHandler.js';
 import { applyFeedbackToProfile } from '../services/personalizationEngine.js';
-import { detectUserIntent } from '../services/intentDetection.js';
 import { handleHelpRequest, handleGreeting, handleConfusion } from './conversationHandler.js';
 import {
   generateConversationalResponse,

@@ -391,37 +391,3 @@ export async function getAdvancedPersonalizationPrompt(storeId) {
   return writingSection + generalSection;
 }
 
-/**
- * 学習精度スコアを計算
- * @param {string} storeId - 店舗ID
- * @returns {number} - 精度スコア (0-100)
- */
-export async function calculateLearningAccuracy(storeId) {
-  const { data: profile } = await supabase
-    .from('learning_profiles')
-    .select('*')
-    .eq('store_id', storeId)
-    .single();
-
-  if (!profile || profile.interaction_count === 0) {
-    return 0;
-  }
-
-  const profileData = profile.profile_data || {};
-  let score = 0;
-
-  // 基本スコア（インタラクション回数ベース）
-  score += Math.min(profile.interaction_count * 2, 50); // 最大50点
-
-  // データの充実度ボーナス
-  if (Object.keys(profileData.tone_adjustments || {}).length > 0) score += 10;
-  // C2修正: Objectに.lengthは存在しない → Object.keys()を使用
-  if (Object.keys(profileData.word_preferences || {}).length > 3) score += 10;
-  if ((profileData.avoided_words || []).length > 0) score += 5;
-  if (profileData.emoji_style) score += 5;
-  if (profileData.length_preferences?.target_chars) score += 10;
-  if (profileData.hashtag_preferences?.style) score += 5;
-  if (profileData.cta_preferences?.style) score += 5;
-
-  return Math.min(score, 100);
-}

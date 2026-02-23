@@ -292,24 +292,6 @@ export function getPersonalizationLevel(interactionCount) {
   return 5;
 }
 
-/**
- * 投稿履歴にパーソナライゼーション適用フラグを保存
- * @param {string} postId - 投稿ID
- * @param {Object} appliedLearning - 適用した学習データ
- */
-export async function markLearningApplied(postId, appliedLearning) {
-  await supabase
-    .from('post_history')
-    .update({
-      learning_applied: {
-        own_learning: appliedLearning.ownLearning || false,
-        category_insights: appliedLearning.categoryInsights || false,
-        group_insights: appliedLearning.groupInsights || false,
-        personalization_level: appliedLearning.personalizationLevel || 0,
-      },
-    })
-    .eq('id', postId);
-}
 
 /**
  * 学習状況を可視化用に整形して取得

@@ -733,17 +733,18 @@ describe('Scenario 22: 第4次監査 CRITICAL修正（C1+C2）', async () => {
       'Should wrap message in array');
   });
 
-  it('C2: Object.keys()でword_preferencesのキー数を取得', async () => {
+  it('C2: word_preferencesに.length直接アクセスなし', async () => {
     const fs = await import('node:fs');
     const content = fs.readFileSync(
       new URL('../src/services/advancedPersonalization.js', import.meta.url), 'utf-8'
     );
-    assert.ok(content.includes('Object.keys(profileData.word_preferences'),
-      'Should use Object.keys() instead of .length on Object');
-    // 旧パターン: (profileData.word_preferences || {}).length（Object.keysなし）
-    // 新パターンにはObject.keysが含まれるので部分一致は問題ない
-    assert.ok(!content.match(/[^s]\(profileData\.word_preferences \|\| \{\}\)\.length/),
+    // calculateLearningAccuracy は削除済み（dead code クリーンアップ）
+    // 残存コードに Object.length 直接アクセスがないことを確認
+    assert.ok(!content.match(/\(profileData\.word_preferences[^)]*\)\.length/),
       'Should NOT use direct Object.length without Object.keys()');
+    // word_preferencesが安全にアクセスされていること
+    assert.ok(content.includes('word_preferences || {}'),
+      'Should use fallback {} for word_preferences');
   });
 
   it('C2: Object.length は常にundefined', () => {
