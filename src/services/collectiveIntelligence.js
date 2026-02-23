@@ -266,8 +266,9 @@ export async function saveEngagementMetrics(storeId, category, postData, metrics
     save_intensity: safeSaveIntensity,
     reaction_index: safeReactionIndex,
     post_structure: analyzePostStructure(postData.content), // 投稿骨格を解析して保存
-    post_time: await resolvePostTime(postData.post_id, 'time'),
-    day_of_week: await resolvePostTime(postData.post_id, 'day'),
+    post_time: await resolvePostTime(postData.post_id, 'time'),   // 投稿作成時刻（不明なら NULL）
+    day_of_week: await resolvePostTime(postData.post_id, 'day'),  // 投稿曜日（不明なら NULL）
+    reported_at: new Date().toISOString(),                        // メトリクス報告時刻（常に現在時刻）
     status: isReported ? '報告済' : '未報告',
   };
 
@@ -454,26 +455,23 @@ export async function detectPopularOtherCategories(threshold = 5) {
  *
  * @param {string|null} postId - post_history の ID
  * @param {'time'|'day'} type - 返す値の種類
- * @returns {Promise<string|number>} - "HH:MM:SS"（time）または 0-6（day）
+ * @returns {Promise<string|number|null>} - "HH:MM:SS"（time）/ 0-6（day）/ null（不明）
  */
 async function resolvePostTime(postId, type) {
-  let baseDate = new Date(); // フォールバック: 現在時刻（post_id がない場合）
+  // post_id がない場合は NULL（報告時刻を誤って入れない）
+  if (!postId) return null;
 
-  if (postId) {
-    const { data } = await supabase
-      .from('post_history')
-      .select('created_at')
-      .eq('id', postId)
-      .single();
+  const { data } = await supabase
+    .from('post_history')
+    .select('created_at')
+    .eq('id', postId)
+    .single();
 
-    if (data?.created_at) {
-      baseDate = new Date(data.created_at);
-    }
-  }
+  if (!data?.created_at) return null;
 
   // JST（UTC+9）で計算
   const jstOffset = 9 * 60 * 60 * 1000;
-  const jstDate = new Date(baseDate.getTime() + jstOffset);
+  const jstDate = new Date(new Date(data.created_at).getTime() + jstOffset);
 
   if (type === 'day') {
     return jstDate.getUTCDay(); // 0=日曜...6=土曜
