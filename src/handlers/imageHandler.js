@@ -7,6 +7,8 @@ import { getBlendedInsights, saveEngagementMetrics } from '../services/collectiv
 import { getPersonalizationPromptAddition, getPersonalizationLevel } from '../services/personalizationEngine.js';
 import { getAdvancedPersonalizationPrompt } from '../services/advancedPersonalization.js';
 import { getSeasonalMemoryPromptAddition } from '../services/seasonalMemoryService.js';
+import { extractInsightsFromScreenshot } from '../services/insightsOCRService.js';
+import { applyEngagementMetrics } from './reportHandler.js';
 
 /**
  * 画像分析結果から機材レベルを抽出
@@ -42,6 +44,48 @@ export async function handleImageMessage(user, messageId, replyToken) {
     // 画像をBase64で取得
     console.log(`[Image] 画像取得中: messageId=${messageId}`);
     const imageBase64 = await getImageAsBase64(messageId);
+
+    // ──────────────────────────────────────────────
+    // インサイトスクショ判定
+    // 朝のリマインダーに「スクショを送ってください」と案内しているため、
+    // 投稿生成の前に Instagram インサイト画像かどうかを先にチェックする
+    // ──────────────────────────────────────────────
+    const insights = await extractInsightsFromScreenshot(imageBase64);
+    if (insights.isInsights) {
+      console.log(`[Image] インサイトスクショ検出: store=${store.name}, likes=${insights.likes}, saves=${insights.saves}`);
+
+      // 少なくとも1指標が読み取れていれば自動報告
+      if (insights.likes !== null || insights.saves !== null || insights.comments !== null) {
+        // 最新の投稿を取得
+        const { data: latestPost } = await (await import('../services/supabaseService.js'))
+          .supabase
+          .from('post_history')
+          .select('id, content')
+          .eq('store_id', store.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (!latestPost) {
+          return await replyText(replyToken,
+            'スクショを読み取りましたが、まだ投稿履歴がありません。\n先に投稿を生成してから送ってください。'
+          );
+        }
+
+        const metrics = {
+          likes:    insights.likes    ?? 0,
+          saves:    insights.saves    ?? 0,
+          comments: insights.comments ?? 0,
+          reach:    insights.reach,
+        };
+
+        await applyEngagementMetrics(user, store, metrics, latestPost, replyToken);
+        return; // 報告完了 → 投稿生成フローには進まない
+      }
+
+      // 数値が1つも読み取れなかった場合は通常フローへ（商品写真として処理）
+      console.warn('[Image] インサイト判定: 数値読み取り失敗 → 投稿生成フローへ');
+    }
 
     // H17修正: 画像分析（必須）と補助データ取得（任意）を分けて並列実行
     // 補助データの1つが失敗しても投稿生成は続行する

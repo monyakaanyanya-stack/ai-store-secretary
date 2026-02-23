@@ -132,61 +132,65 @@ export async function handleEngagementReport(user, text, replyToken) {
 
     const latestPost = recentPosts[0];
 
-    // 投稿内容のプレビュー
-    let postContent = (latestPost.content || '').split('#')[0].trim().slice(0, 50);
+    // 共通処理: DB保存 + 返信
+    await applyEngagementMetrics(user, store, metrics, latestPost, replyToken);
+  } catch (err) {
+    console.error('[Report] エンゲージメント報告エラー:', err);
+    await replyText(replyToken, 'エラーが発生しました。しばらくしてから再度お試しください。');
+  }
+}
 
-    // 正直な指標を計算（いいね×10推定は使わない）
-    const followerCount = parseInt(store.follower_count, 10) || null;
-    const { saveIntensity, reactionIndex, engagementRate } = calculateMetrics(metrics, followerCount);
+/**
+ * エンゲージメント指標を DB に保存してユーザーに結果を返す（共通処理）
+ * handleEngagementReport と imageHandler（インサイトOCR）の両方から呼ばれる
+ *
+ * @param {Object} user      - ユーザーオブジェクト
+ * @param {Object} store     - 店舗オブジェクト
+ * @param {{ likes, saves, comments, reach }} metrics - 数値
+ * @param {{ id, content }}  latestPost - 対象の投稿
+ * @param {string}           replyToken - LINE reply token
+ */
+export async function applyEngagementMetrics(user, store, metrics, latestPost, replyToken) {
+  const followerCount = parseInt(store.follower_count, 10) || null;
+  const { saveIntensity, reactionIndex, engagementRate } = calculateMetrics(metrics, followerCount);
 
-    // 集合知データベースに保存
-    const postData = {
-      post_id: latestPost.id,
-      content: latestPost.content,
-    };
+  const postData = { post_id: latestPost.id, content: latestPost.content };
+  const metricsData = {
+    likes_count: metrics.likes,
+    saves_count: metrics.saves,
+    comments_count: metrics.comments,
+    reach_actual: metrics.reach || 0,
+    reach: metrics.reach || 0,
+    engagement_rate: engagementRate || 0,
+    save_intensity: saveIntensity,
+    reaction_index: reactionIndex,
+  };
 
-    const metricsData = {
-      likes_count: metrics.likes,
-      saves_count: metrics.saves,
-      comments_count: metrics.comments,
-      reach_actual: metrics.reach || 0,
-      reach: metrics.reach || 0, // 実リーチのみ（推定値は使わない）
-      engagement_rate: engagementRate || 0,
-      save_intensity: saveIntensity,
-      reaction_index: reactionIndex,
-    };
+  await saveEngagementMetrics(store.id, store.category || 'その他', postData, metricsData);
+  await applyEngagementToProfile(store.id, latestPost.content, metricsData);
 
-    await saveEngagementMetrics(store.id, store.category || 'その他', postData, metricsData);
+  console.log(`[Report] エンゲージメント報告完了: store=${store.name}, likes=${metrics.likes}, save_intensity=${saveIntensity}`);
 
-    // エンゲージメント実績を個別学習プロファイルに反映
-    await applyEngagementToProfile(store.id, latestPost.content, metricsData);
+  const reportCount = await getMonthlyReportCount(user.id, store.id);
+  const postContent = (latestPost.content || '').split('#')[0].trim().slice(0, 50);
 
-    console.log(`[Report] エンゲージメント報告完了: store=${store.name}, likes=${metrics.likes}, save_intensity=${saveIntensity}`);
+  let saveComment = '';
+  if (saveIntensity >= 0.3) saveComment = '🔥 保存率がかなり高い！アルゴリズム評価◎';
+  else if (saveIntensity >= 0.15) saveComment = '✨ 保存率が良好です';
+  else if (saveIntensity >= 0.05) saveComment = '👍 標準的な保存率';
+  else if (metrics.likes > 0) saveComment = '💡 保存を増やすと伸びやすくなります';
 
-    // 今月の報告回数を取得
-    const reportCount = await getMonthlyReportCount(user.id, store.id);
+  let reactionLine = '';
+  if (followerCount && followerCount > 0 && reactionIndex > 0) {
+    reactionLine = `\n📊 反応指数: ${reactionIndex.toFixed(2)}（フォロワー${followerCount.toLocaleString()}人比）`;
+  }
 
-    // 保存強度の評価コメント
-    let saveComment = '';
-    if (saveIntensity >= 0.3) saveComment = '🔥 保存率がかなり高い！アルゴリズム評価◎';
-    else if (saveIntensity >= 0.15) saveComment = '✨ 保存率が良好です';
-    else if (saveIntensity >= 0.05) saveComment = '👍 標準的な保存率';
-    else if (metrics.likes > 0) saveComment = '💡 保存を増やすと伸びやすくなります';
+  let engagementLine = '';
+  if (engagementRate !== null) {
+    engagementLine = `\n📈 エンゲージメント率: ${engagementRate}%（実リーチ${metrics.reach?.toLocaleString()}より算出）`;
+  }
 
-    // 反応指数の表示（フォロワー数あるときのみ）
-    let reactionLine = '';
-    if (followerCount && followerCount > 0 && reactionIndex > 0) {
-      reactionLine = `\n📊 反応指数: ${reactionIndex.toFixed(2)}（フォロワー${followerCount.toLocaleString()}人比）`;
-    }
-
-    // リーチ入力があった場合のみエンゲージメント率を表示
-    let engagementLine = '';
-    if (engagementRate !== null) {
-      engagementLine = `\n📈 エンゲージメント率: ${engagementRate}%（実リーチ${metrics.reach?.toLocaleString()}より算出）`;
-    }
-
-    // フィードバックメッセージ
-    const feedbackMessage = `✅ 報告完了！（最新の投稿に適用されました）
+  const feedbackMessage = `✅ 報告完了！（最新の投稿に適用されました）
 
 【報告内容】
 ❤️ いいね: ${metrics.likes}
@@ -203,11 +207,7 @@ ${postContent}...
 
 💡 リーチがわかる場合は「リーチ:800」を追加すると精度が上がります`;
 
-    await replyText(replyToken, feedbackMessage);
-  } catch (err) {
-    console.error('[Report] エンゲージメント報告エラー:', err);
-    await replyText(replyToken, 'エラーが発生しました。しばらくしてから再度お試しください。');
-  }
+  await replyText(replyToken, feedbackMessage);
 }
 
 /**
