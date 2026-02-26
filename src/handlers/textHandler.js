@@ -16,6 +16,7 @@ import { handleOnboardingStart, handleOnboardingResponse, handleHelpMenu, handle
 import { handleDataStats } from './dataStatsHandler.js';
 import { handleAdminMenu, handleAdminTestData, handleAdminClearData, handleAdminClearTestData, handleAdminReportMode, handleAdminReportSave, handleAdminCategoryRequests, handleAdminSub } from './adminHandler.js';
 import { handleInstagramCommand } from './instagramHandler.js';
+import { handlePendingImageResponse } from './pendingImageHandler.js';
 import { handleFollowerCountResponse, getPendingFollowerRequest } from '../services/monthlyFollowerService.js';
 import { handleDataResetPrompt, handleDataResetExecution, handleStoreDeletePrompt, handleStoreDeleteExecution } from './dataResetHandler.js';
 import { applyFeedbackToProfile } from '../services/personalizationEngine.js';
@@ -89,6 +90,14 @@ export async function handleTextMessage(user, text, replyToken) {
   // 管理者の実データ入力（カテゴリー: から始まる場合）
   if (trimmed.startsWith('カテゴリー:') || trimmed.startsWith('カテゴリ:')) {
     const handled = await handleAdminReportSave(user, trimmed, replyToken);
+    if (handled) return;
+  }
+
+  // 画像「一言ヒント」待ち状態の処理
+  // （キャンセル・リセット系コマンド以外はここで受け取る）
+  const isCancelCommand = ['キャンセル', 'cancel', 'リセット', 'データリセット'].includes(trimmed);
+  if (user.pending_image_context && !isCancelCommand) {
+    const handled = await handlePendingImageResponse(user, trimmed, replyToken);
     if (handled) return;
   }
 

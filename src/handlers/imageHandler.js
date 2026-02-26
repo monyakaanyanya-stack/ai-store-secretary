@@ -1,6 +1,6 @@
 import { replyText, getImageAsBase64 } from '../services/lineService.js';
 import { askClaude, describeImage } from '../services/claudeService.js';
-import { getStore, savePostHistory } from '../services/supabaseService.js';
+import { getStore, savePostHistory, savePendingImageContext, clearPendingImageContext } from '../services/supabaseService.js';
 import { buildImagePostPrompt, appendTemplateFooter } from '../utils/promptBuilder.js';
 import { aggregateLearningData } from '../utils/learningData.js';
 import { getBlendedInsights, saveEngagementMetrics } from '../services/collectiveIntelligence.js';
@@ -128,43 +128,30 @@ export async function handleImageMessage(user, messageId, replyToken) {
       return await replyText(replyToken, '画像の分析に失敗しました。別の画像で再度お試しください。');
     }
 
-    // ステップ2: 機材レベルを解析し、画像分析結果を使ってテキストのみで投稿生成
-    const equipmentLevel = parseEquipmentLevel(imageDescription);
-    console.log(`[Image] 機材レベル判定: ${equipmentLevel}`);
-    const prompt = buildImagePostPrompt(store, learningData, null, blendedInsights, personalization, imageDescription, equipmentLevel);
-    const rawContent = await askClaude(prompt);
+    // ── 一言ヒント機能: 画像分析後に1つだけ質問して待機 ──
+    // pending_image_context に状態を保存し、テキスト返信を待つ
+    await savePendingImageContext(user.id, {
+      messageId,
+      imageDescription,
+      storeId: store.id,
+      learningData,
+      blendedInsights: blendedInsights ?? null,
+      personalization,
+      createdAt: new Date().toISOString(),
+    });
 
-    // 3案の段階ではfooterを適用しない（案選択後にproposalHandlerで適用）
-    const savedPost = await savePostHistory(user.id, store.id, rawContent);
+    await replyText(replyToken, `📸 写真を受け取りました！
 
-    // エンゲージメントメトリクスを保存（初期値）
-    // C17修正: fire-and-forget にせずエラーをキャッチ（投稿自体は成功させる）
-    if (store.category) {
-      try {
-        await saveEngagementMetrics(store.id, store.category, {
-          post_id: savedPost.id,
-          content: rawContent,
-        });
-      } catch (metricsErr) {
-        console.error('[Image] メトリクス初期保存エラー（投稿は成功）:', metricsErr.message);
-      }
-    }
+この写真の「伝えたいこと」を一言だけ教えてください👇
 
-    console.log(`[Image] 画像投稿生成完了: store=${store.name}`);
+例）
+・イチゴパフェ 本日限定10食
+・新メニュー追加しました
+・3周年記念セール開催中
+・今日のおすすめランチ
 
-    // 3案から選択を促すフォーマット
-    const formattedReply = `✨ 3つの投稿案ができました！
-━━━━━━━━━━━
-${rawContent}
-━━━━━━━━━━━
-
-どの案が理想に近いですか？
-A / B / C と送ってください✉️
-修正したい場合は「直し: 〜」でどうぞ
-
-※ 選択するたびにあなたの好みを学習します📚`;
-
-    await replyText(replyToken, formattedReply);
+スキップしてすぐ生成する場合は
+「スキップ」と送ってください`);
   } catch (err) {
     console.error('[Image] 画像投稿生成エラー:', err);
     await replyText(replyToken, '投稿生成中にエラーが発生しました。しばらくしてから再度お試しください。');

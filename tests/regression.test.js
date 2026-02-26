@@ -1326,16 +1326,20 @@ describe('Scenario 29: 案A/B/C選択 + スタイル学習', async () => {
     assert.equal(result, null, 'Should return null for non-proposal content');
   });
 
-  it('imageHandler の返信に案選択UIが含まれる', async () => {
+  it('imageHandler の返信に案選択UIが含まれる（pendingImageHandler に移動済み）', async () => {
     const fs = await import('node:fs');
-    const content = fs.readFileSync(
+    // 一言ヒント機能導入後、A/B/C UIは pendingImageHandler.js に移動
+    const pending = fs.readFileSync(
+      new URL('../src/handlers/pendingImageHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(pending.includes('A / B / C と送ってください'),
+      'Reply should ask user to select A/B/C');
+    assert.ok(pending.includes('3つの投稿案ができました'),
+      'Reply should mention 3 proposals');
+    const image = fs.readFileSync(
       new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
     );
-    assert.ok(content.includes('A / B / C と送ってください'),
-      'Reply should ask user to select A/B/C');
-    assert.ok(content.includes('3つの投稿案ができました'),
-      'Reply should mention 3 proposals');
-    assert.ok(!content.includes('appendTemplateFooter(rawContent'),
+    assert.ok(!image.includes('appendTemplateFooter(rawContent'),
       'Should NOT apply footer before selection');
   });
 
@@ -1502,5 +1506,75 @@ describe('Scenario 30: 第5次監査バグ修正検証', async () => {
     );
     assert.ok(content.includes('Array.isArray(events)'),
       'Should validate events is an array before processing');
+  });
+});
+
+// ==================== Scenario 31: 一言ヒント機能 ====================
+describe('Scenario 31: 画像「一言ヒント」機能', async () => {
+  const fs = await import('fs');
+
+  it('pendingImageHandler.js が存在する', () => {
+    assert.ok(
+      fs.existsSync('src/handlers/pendingImageHandler.js'),
+      'pendingImageHandler.js が作成されているべき'
+    );
+  });
+
+  it('isValidContext: createdAt が30分以内なら有効', () => {
+    const ctx = {
+      messageId: 'msg_123',
+      imageDescription: 'カフェのパフェ写真',
+      storeId: 'uuid-1',
+      createdAt: new Date().toISOString(),
+    };
+    const age = Date.now() - new Date(ctx.createdAt).getTime();
+    assert.ok(age < 30 * 60 * 1000, '生成直後は有効期限内');
+  });
+
+  it('isValidContext: createdAt が31分前なら期限切れ', () => {
+    const old = new Date(Date.now() - 31 * 60 * 1000).toISOString();
+    const age = Date.now() - new Date(old).getTime();
+    assert.ok(age >= 30 * 60 * 1000, '31分前は期限切れ');
+  });
+
+  it('imageHandler に savePendingImageContext の呼び出しがある', () => {
+    const content = fs.readFileSync('src/handlers/imageHandler.js', 'utf8');
+    assert.ok(content.includes('savePendingImageContext'), 'savePendingImageContext を呼び出す');
+  });
+
+  it('imageHandler が質問メッセージを送信する', () => {
+    const content = fs.readFileSync('src/handlers/imageHandler.js', 'utf8');
+    assert.ok(content.includes('伝えたいこと'), '質問文に「伝えたいこと」が含まれる');
+    assert.ok(content.includes('スキップ'), 'スキップの案内が含まれる');
+  });
+
+  it('textHandler に pending_image_context チェックがある', () => {
+    const content = fs.readFileSync('src/handlers/textHandler.js', 'utf8');
+    assert.ok(content.includes('pending_image_context'), 'pending チェックがある');
+    assert.ok(content.includes('handlePendingImageResponse'), 'ハンドラーに委譲する');
+  });
+
+  it('supabaseService に savePendingImageContext がある', () => {
+    const content = fs.readFileSync('src/services/supabaseService.js', 'utf8');
+    assert.ok(content.includes('export async function savePendingImageContext'), '関数が存在する');
+    assert.ok(content.includes('export async function clearPendingImageContext'), 'クリア関数が存在する');
+  });
+
+  it('キャンセルコマンドは pending を無視してスルー', () => {
+    const content = fs.readFileSync('src/handlers/textHandler.js', 'utf8');
+    assert.ok(content.includes('isCancelCommand'), 'キャンセル判定がある');
+    assert.ok(content.includes("'キャンセル'"), 'キャンセルが除外される');
+  });
+
+  it('pendingImageHandler でスキップを検出する', () => {
+    const content = fs.readFileSync('src/handlers/pendingImageHandler.js', 'utf8');
+    assert.ok(content.includes("'スキップ'"), 'スキップ文字列を検出する');
+    assert.ok(content.includes('isSkip'), 'スキップ判定変数がある');
+  });
+
+  it('ヒントがある場合は imageDescription に補足情報を追記', () => {
+    const content = fs.readFileSync('src/handlers/pendingImageHandler.js', 'utf8');
+    assert.ok(content.includes('店主からの補足情報'), 'ヒントを描写に追記する');
+    assert.ok(content.includes('enrichedDescription'), '拡張した説明を使う');
   });
 });

@@ -293,6 +293,28 @@ export async function saveFollowerHistory(storeId, followerCount, source = 'manu
 }
 
 /**
+ * 画像コンテキストを一時保存（「一言ヒント」質問待ち状態）
+ */
+export async function savePendingImageContext(userId, context) {
+  const { error } = await supabase
+    .from('users')
+    .update({ pending_image_context: context })
+    .eq('id', userId);
+  if (error) throw new Error(`pending_image_context 保存失敗: ${error.message}`);
+}
+
+/**
+ * 画像コンテキストをクリア
+ */
+export async function clearPendingImageContext(userId) {
+  const { error } = await supabase
+    .from('users')
+    .update({ pending_image_context: null })
+    .eq('id', userId);
+  if (error) console.warn('[Supabase] pending_image_context クリア失敗:', error.message);
+}
+
+/**
  * 最新のフォロワー数履歴を取得
  */
 export async function getLatestFollowerHistory(storeId, limit = 12) {
