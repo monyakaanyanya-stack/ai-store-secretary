@@ -10,7 +10,7 @@ import {
   updateStoreConfig,
   updateStoreTemplates,
 } from '../services/supabaseService.js';
-import { handleFeedback } from './feedbackHandler.js';
+import { handleFeedback, handleStyleLearning } from './feedbackHandler.js';
 import { handleEngagementReport, handlePostSelection } from './reportHandler.js';
 import { handleOnboardingStart, handleOnboardingResponse, handleHelpMenu, handleHelpCategory } from './onboardingHandler.js';
 import { handleDataStats } from './dataStatsHandler.js';
@@ -155,6 +155,12 @@ export async function handleTextMessage(user, text, replyToken) {
     }
     const feedback = trimmed.replace(/^直し[:：]\s*/, '');
     return await handleFeedback(user, feedback, replyToken);
+  }
+
+  // 見本学習: 「学習:」で始まる（ユーザーが自分で書き直した版を送って差分学習）
+  if (trimmed.startsWith('学習:') || trimmed.startsWith('学習:')) {
+    const userRewrite = trimmed.replace(/^学習[:：]\s*/, '');
+    return await handleStyleLearning(user, userRewrite, replyToken);
   }
 
   // エンゲージメント報告: 「報告:」で始まる

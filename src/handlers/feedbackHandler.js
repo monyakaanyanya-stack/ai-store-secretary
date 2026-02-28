@@ -112,6 +112,76 @@ ${revisedContent}
 }
 
 /**
+ * 見本学習: ユーザーが自分で書き直したバージョンと AI 生成版を比較して学習
+ * 「学習:〇〇」コマンドから呼ばれる
+ */
+export async function handleStyleLearning(user, userRewrite, replyToken) {
+  if (!user.current_store_id) {
+    return await replyText(replyToken, '店舗が選択されていません。先に店舗を登録してください。');
+  }
+
+  if (!userRewrite.trim()) {
+    return await replyText(replyToken, '書き直した文章を「学習:」の後に入れてください。\n\n例: 学習: α7C来たよ！まじ持ちやすくてやばい💫');
+  }
+
+  try {
+    const store = await getStore(user.current_store_id);
+    if (!store) {
+      return await replyText(replyToken, '選択中の店舗が見つかりません。');
+    }
+
+    const latestPost = await getLatestPost(store.id);
+    if (!latestPost) {
+      return await replyText(replyToken, 'まだ投稿がありません。先に投稿案を生成してから送ってください。');
+    }
+
+    console.log(`[StyleLearning] 見本学習開始: store=${store.name}, len=${userRewrite.length}`);
+
+    // AI生成版とユーザー書き直し版の差分を分析
+    // revisedPost に userRewrite を渡すことで「2つの版の差分分析」として機能させる
+    const analysis = await analyzeFeedbackWithClaude(
+      'ユーザーが書き直したバージョンとAI生成版を比較し、ユーザーの好む文体・語尾・口癖・表現の特徴を抽出してください。',
+      latestPost.content,
+      userRewrite
+    );
+
+    if (analysis) {
+      await updateAdvancedProfile(store.id, analysis);
+      console.log(`[StyleLearning] 見本学習完了: ${analysis.summary}`);
+    }
+
+    await saveLearningData(
+      store.id,
+      'style_sample',
+      latestPost.content,
+      userRewrite,
+      analysis || {}
+    );
+
+    const profile = await getOrCreateLearningProfile(store.id);
+    const profileData = profile?.profile_data || {};
+    const latestLearnings = profileData.latest_learnings || [];
+
+    const learningList = latestLearnings.length > 0
+      ? latestLearnings.map(l => `✅ ${l}`).join('\n')
+      : '✅ 文体パターンを学習しました';
+
+    await replyText(replyToken, `🧠 見本から学習しました！
+
+${learningList}
+
+次回からずっと反映されます。
+
+📚 累計学習回数: ${profile.interaction_count}回
+
+「学習状況」で学習内容を確認できます。`);
+  } catch (err) {
+    console.error('[StyleLearning] エラー:', err);
+    await replyText(replyToken, '学習中にエラーが発生しました。しばらくしてから再度お試しください。');
+  }
+}
+
+/**
  * フィードバックテキストから学習ヒントを簡易抽出
  */
 function extractLearningHints(feedback) {
