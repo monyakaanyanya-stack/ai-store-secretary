@@ -551,10 +551,6 @@ export async function handleHelpLearning(user, replyToken) {
 【学習状況の確認】
 学習状況
 
-または
-
-学習
-
 【フィードバック方法】
 1. 👍 良い評価
 2. 👎 イマイチ評価

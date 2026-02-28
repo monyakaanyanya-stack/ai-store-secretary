@@ -302,8 +302,8 @@ export async function handleTextMessage(user, text, replyToken) {
     return await handleShowSettings(user, replyToken);
   }
 
-  // 学習状況
-  if (trimmed === '学習状況' || trimmed === '学習') {
+  // 学習状況（「学習」はhelpCategoryで先に捕捉されるため「学習状況」のみ有効）
+  if (trimmed === '学習状況') {
     return await handleLearningStatus(user, replyToken);
   }
 
@@ -579,75 +579,6 @@ async function handleStoreList(user, replyToken) {
   } catch (err) {
     console.error('[Store] 一覧エラー:', err.message);
     await replyText(replyToken, 'エラーが発生しました。');
-  }
-}
-
-// ==================== テキスト投稿生成 ====================
-
-async function handleTextPostGeneration(user, text, replyToken) {
-  if (!user.current_store_id) {
-    return await replyText(replyToken,
-      '店舗が選択されていません。\n\nまず店舗を登録してください:\n1: 店名,こだわり,口調\n\n例: 1: ベーカリー幸福堂,天然酵母の手作りパン,フレンドリー'
-    );
-  }
-
-  try {
-    const store = await getStore(user.current_store_id);
-    if (!store) {
-      return await replyText(replyToken, '選択中の店舗が見つかりません。店舗一覧 で確認してください。');
-    }
-
-    // 集合知を取得（カテゴリーが設定されている場合のみ）
-    let blendedInsights = null;
-    if (store.category) {
-      blendedInsights = await getBlendedInsights(store.id, store.category);
-      console.log(`[Post] 集合知取得: category=${store.category}, group=${blendedInsights.categoryGroup}`);
-    }
-
-    // パーソナライゼーション情報を取得（基本 + 高度 + 季節記憶）
-    const basicPersonalization = await getPersonalizationPromptAddition(store.id);
-    const advancedPersonalization = await getAdvancedPersonalizationPrompt(store.id);
-    const seasonalMemory = await getSeasonalMemoryPromptAddition(store.id);
-    const personalization = basicPersonalization + advancedPersonalization + seasonalMemory;
-
-    const prompt = buildTextPostPrompt(store, text, null, blendedInsights, personalization);
-    const rawContent = await askClaude(prompt);
-
-    // テンプレートの住所・営業時間などを末尾に固定追記（AIにアレンジさせない）
-    const postContent = appendTemplateFooter(rawContent, store);
-
-    // 投稿履歴に保存
-    const savedPost = await savePostHistory(user.id, store.id, postContent);
-
-    // エンゲージメントメトリクスを保存（初期値）
-    if (store.category) {
-      await saveEngagementMetrics(store.id, store.category, {
-        post_id: savedPost.id,
-        content: postContent,
-      });
-    }
-
-    console.log(`[Post] テキスト投稿生成完了: store=${store.name}`);
-
-    // コピペしやすい形式でフォーマット
-    const formattedReply = `✨ 投稿案ができました！
-
-以下をコピーしてInstagramに貼り付けてください↓
-━━━━━━━━━━━
-${postContent}
-━━━━━━━━━━━
-
-※ 「学習状況」と送ると学習内容を確認できます`;
-
-    await replyWithQuickReply(replyToken, formattedReply, [
-      { type: 'action', action: { type: 'message', label: '👍 良い', text: '👍' } },
-      { type: 'action', action: { type: 'message', label: '👎 イマイチ', text: '👎' } },
-      { type: 'action', action: { type: 'message', label: '✏️ 直し', text: '直し:' } },
-      { type: 'action', action: { type: 'message', label: '📝 学習', text: '学習:' } },
-    ]);
-  } catch (err) {
-    console.error('[Post] テキスト投稿生成エラー:', err);
-    await replyText(replyToken, '投稿生成中にエラーが発生しました。しばらくしてから再度お試しください。');
   }
 }
 
