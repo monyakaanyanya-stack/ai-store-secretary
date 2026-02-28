@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>プライバシーポリシー - AI Store Secretary</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+      line-height: 1.8;
+      color: #333;
+      background: #fafafa;
+      padding: 2rem 1rem;
+    }
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 8px;
+      padding: 2.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+      color: #1a1a1a;
+    }
+    .updated {
+      font-size: 0.85rem;
+      color: #888;
+      margin-bottom: 2rem;
+    }
+    h2 {
+      font-size: 1.15rem;
+      margin-top: 2rem;
+      margin-bottom: 0.5rem;
+      padding-bottom: 0.3rem;
+      border-bottom: 1px solid #eee;
+      color: #1a1a1a;
+    }
+    p, li {
+      font-size: 0.95rem;
+      margin-bottom: 0.5rem;
+    }
+    ul {
+      padding-left: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .contact {
+      margin-top: 2rem;
+      padding: 1rem;
+      background: #f5f5f5;
+      border-radius: 6px;
+    }
+    .contact a { color: #4a90d9; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>プライバシーポリシー</h1>
+    <p class="updated">最終更新日: 2026年2月28日</p>
+
+    <p>AI Store Secretary（以下「本サービス」）は、店舗オーナー様の Instagram 投稿文生成を支援するサービスです。本ポリシーでは、本サービスにおける個人情報の取り扱いについて説明します。</p>
+
+    <h2>1. 取得する情報</h2>
+    <p>本サービスは、ご利用者様の同意のもと、以下の情報を取得します。</p>
+    <ul>
+      <li><strong>LINE アカウント情報</strong>: LINE ユーザーID、表示名</li>
+      <li><strong>店舗情報</strong>: 店舗名、業種、口調設定など、ご利用者様が入力した情報</li>
+      <li><strong>送信画像</strong>: 投稿文生成のために送信された写真</li>
+      <li><strong>Instagram アカウント情報</strong>（連携時のみ）: Instagram ユーザー名、フォロワー数、投稿数</li>
+      <li><strong>Instagram インサイトデータ</strong>（連携時のみ）: 投稿のいいね数、保存数、コメント数、リーチ数、エンゲージメント率</li>
+    </ul>
+
+    <h2>2. 情報の利用目的</h2>
+    <p>取得した情報は、以下の目的でのみ使用します。</p>
+    <ul>
+      <li>Instagram 投稿文の生成・最適化</li>
+      <li>ご利用者様の口調・好みの学習による投稿品質の向上</li>
+      <li>同業種の投稿傾向分析（集合知データとして匿名化して活用）</li>
+      <li>サービスの改善・新機能の開発</li>
+    </ul>
+
+    <h2>3. Instagram データの取り扱い</h2>
+    <p>Instagram Graph API を通じて取得するデータについて:</p>
+    <ul>
+      <li>ご利用者様ご自身のアカウントのデータのみを取得します</li>
+      <li>第三者のアカウントデータは一切取得しません</li>
+      <li>アクセストークンは暗号化して保存します</li>
+      <li>Instagram のデータを第三者に販売・提供することはありません</li>
+    </ul>
+
+    <h2>4. 情報の共有</h2>
+    <p>本サービスは、以下の場合を除き、個人情報を第三者に提供しません。</p>
+    <ul>
+      <li>ご利用者様の同意がある場合</li>
+      <li>法令に基づく開示請求がある場合</li>
+      <li>サービス提供に必要な外部サービス（Anthropic Claude API、Supabase）への技術的なデータ送信</li>
+    </ul>
+
+    <h2>5. データの保管と削除</h2>
+    <ul>
+      <li>データは Supabase（PostgreSQL）に保管されます</li>
+      <li>ご利用者様は LINE 上の「学習リセット」「店舗削除」コマンドでいつでもデータを削除できます</li>
+      <li>Instagram 連携は「/instagram disconnect」コマンドで解除でき、関連データは削除されます</li>
+    </ul>
+
+    <h2>6. セキュリティ</h2>
+    <ul>
+      <li>Instagram アクセストークンは AES 暗号化して保存します</li>
+      <li>Supabase の Row Level Security（RLS）を有効化し、不正アクセスを防止します</li>
+      <li>HTTPS 通信を使用します</li>
+    </ul>
+
+    <h2>7. お子様のプライバシー</h2>
+    <p>本サービスは、13歳未満のお子様を対象としておりません。13歳未満の方の個人情報を意図的に収集することはありません。</p>
+
+    <h2>8. ポリシーの変更</h2>
+    <p>本ポリシーは、必要に応じて更新されることがあります。重要な変更がある場合は、本サービスを通じてお知らせします。</p>
+
+    <div class="contact">
+      <h2 style="margin-top: 0; border: none;">9. お問い合わせ</h2>
+      <p>本ポリシーに関するご質問は、以下までご連絡ください。</p>
+      <p><strong>AI Store Secretary</strong><br>
+      メール: <a href="mailto:rion.monya0224@gmail.com">rion.monya0224@gmail.com</a></p>
+    </div>
+  </div>
+</body>
+</html>
