@@ -309,6 +309,37 @@
 
     footer a:hover { color: var(--black); }
 
+    /* ─── QR Code ──────────────────────────── */
+    .hero-qr, .cta-qr {
+      margin-top: 36px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .qr-wrap {
+      display: inline-block;
+      padding: 10px;
+      background: var(--white);
+      border-radius: 4px;
+      line-height: 0;
+      transition: opacity 0.2s;
+    }
+
+    .qr-wrap:hover { opacity: 0.85; }
+
+    .qr-wrap img {
+      display: block;
+      border-radius: 2px;
+    }
+
+    .qr-label {
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+      color: rgba(255,255,255,0.35);
+    }
+
     /* ─── Responsive ────────────────────────── */
     @media (max-width: 900px) {
       .steps-grid { grid-template-columns: repeat(2, 1fr); gap: 40px; }
@@ -358,6 +389,13 @@
       <h1>写真を送るだけで<br><em>投稿が完成</em>する</h1>
       <p class="hero-sub">店舗オーナーのためのAI投稿生成サービス。<br>LINEで画像を送るだけで、魅力的な投稿文とハッシュタグが秒で届く。</p>
       <a href="https://lin.ee/OWTIvhZ" class="btn">LINEで無料で始める</a>
+
+      <div class="hero-qr">
+        <a href="https://lin.ee/OWTIvhZ" class="qr-wrap">
+          <img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=https://lin.ee/OWTIvhZ&color=000000&bgcolor=ffffff&margin=10" alt="LINE友だち追加QRコード" width="100" height="100">
+        </a>
+        <p class="qr-label">QRをスキャン or タップして追加</p>
+      </div>
     </div>
   </section>
 
@@ -484,6 +522,13 @@
       <h2 class="title" style="text-align:center">今すぐ、始めてみる</h2>
       <p class="desc">LINEで友だち追加するだけ。3分で投稿作成を始められます。</p>
       <a href="https://lin.ee/OWTIvhZ" class="btn">LINEで始める</a>
+
+      <div class="cta-qr">
+        <a href="https://lin.ee/OWTIvhZ" class="qr-wrap">
+          <img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=https://lin.ee/OWTIvhZ&color=000000&bgcolor=ffffff&margin=10" alt="LINE友だち追加QRコード" width="100" height="100">
+        </a>
+        <p class="qr-label" style="color:var(--gray-mid)">QRをスキャン or タップして追加</p>
+      </div>
     </div>
   </section>
 
