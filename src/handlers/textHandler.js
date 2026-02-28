@@ -22,7 +22,6 @@ import { handlePendingImageResponse } from './pendingImageHandler.js';
 import { handleFollowerCountResponse, getPendingFollowerRequest } from '../services/monthlyFollowerService.js';
 import { handleDataResetPrompt, handleDataResetExecution, handleStoreDeletePrompt, handleStoreDeleteExecution } from './dataResetHandler.js';
 import { applyFeedbackToProfile } from '../services/personalizationEngine.js';
-import { handleHelpRequest, handleGreeting, handleConfusion } from './conversationHandler.js';
 import {
   generateConversationalResponse,
   saveConversation,
@@ -30,7 +29,7 @@ import {
   cleanOldConversations
 } from '../services/conversationService.js';
 import { buildStoreParsePrompt, buildTextPostPrompt, POST_LENGTH_MAP, appendTemplateFooter } from '../utils/promptBuilder.js';
-import { normalizeInput, safeParseInt } from '../utils/inputNormalizer.js';
+import { normalizeInput } from '../utils/inputNormalizer.js';
 import { normalizeCategory } from '../config/categoryDictionary.js';
 import { getBlendedInsights, saveEngagementMetrics } from '../services/collectiveIntelligence.js';
 import { getPersonalizationPromptAddition, getLearningStatus } from '../services/personalizationEngine.js';
@@ -366,7 +365,7 @@ ${contactEmail}
   }
 
   // キャラクター設定の入力（「口癖:」から始まる）
-  if (trimmed.startsWith('口癖:') || trimmed.startsWith('口癖：')) {
+  if (trimmed.startsWith('口癖:')) {
     return await handleCharacterSettingsSave(user, trimmed, replyToken);
   }
 
