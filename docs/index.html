@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI店舗秘書 - Instagram投稿を秒で作成</title>
+  <meta name="description" content="写真を送るだけでInstagram投稿が完成。あなたの店舗に最適化されたAI秘書が、集合知を活用して魅力的な投稿を自動生成します。">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      background: #fff;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+
+    /* ヘッダー */
+    header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 80px 20px;
+      text-align: center;
+    }
+
+    header h1 {
+      font-size: 3rem;
+      margin-bottom: 20px;
+      font-weight: 700;
+    }
+
+    header .subtitle {
+      font-size: 1.5rem;
+      margin-bottom: 40px;
+      opacity: 0.95;
+    }
+
+    .cta-button {
+      display: inline-block;
+      background: #06c755;
+      color: white;
+      padding: 18px 50px;
+      border-radius: 50px;
+      text-decoration: none;
+      font-size: 1.2rem;
+      font-weight: 600;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 15px rgba(6, 199, 85, 0.3);
+    }
+
+    .cta-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(6, 199, 85, 0.4);
+    }
+
+    /* 問題提起セクション */
+    .problem-section {
+      padding: 80px 20px;
+      background: #f9fafb;
+      text-align: center;
+    }
+
+    .problem-section h2 {
+      font-size: 2.5rem;
+      margin-bottom: 20px;
+      color: #1f2937;
+    }
+
+    .problem-section .subtitle {
+      font-size: 1.2rem;
+      color: #6b7280;
+      margin-bottom: 50px;
+    }
+
+    .problem-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 30px;
+      margin-top: 40px;
+    }
+
+    .problem-card {
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .problem-card .emoji {
+      font-size: 3rem;
+      margin-bottom: 15px;
+    }
+
+    .problem-card h3 {
+      font-size: 1.3rem;
+      margin-bottom: 10px;
+      color: #1f2937;
+    }
+
+    .problem-card p {
+      color: #6b7280;
+      line-height: 1.8;
+    }
+
+    /* 解決策セクション */
+    .solution-section {
+      padding: 80px 20px;
+      text-align: center;
+    }
+
+    .solution-section h2 {
+      font-size: 2.5rem;
+      margin-bottom: 20px;
+      color: #1f2937;
+    }
+
+    .solution-section .highlight {
+      color: #667eea;
+      font-weight: 700;
+    }
+
+    .solution-section .subtitle {
+      font-size: 1.2rem;
+      color: #6b7280;
+      margin-bottom: 60px;
+    }
+
+    /* 機能セクション */
+    .features-section {
+      padding: 80px 20px;
+      background: #f9fafb;
+    }
+
+    .features-section h2 {
+      font-size: 2.5rem;
+      margin-bottom: 60px;
+      text-align: center;
+      color: #1f2937;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 40px;
+    }
+
+    .feature-card {
+      background: white;
+      padding: 40px;
+      border-radius: 15px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      transition: transform 0.2s;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-5px);
+    }
+
+    .feature-card .icon {
+      font-size: 3.5rem;
+      margin-bottom: 20px;
+    }
+
+    .feature-card h3 {
+      font-size: 1.5rem;
+      margin-bottom: 15px;
+      color: #1f2937;
+    }
+
+    .feature-card p {
+      color: #6b7280;
+      line-height: 1.8;
+    }
+
+    /* 使い方セクション */
+    .how-to-section {
+      padding: 80px 20px;
+      text-align: center;
+    }
+
+    .how-to-section h2 {
+      font-size: 2.5rem;
+      margin-bottom: 60px;
+      color: #1f2937;
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 40px;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    .step {
+      position: relative;
+    }
+
+    .step-number {
+      display: inline-block;
+      width: 60px;
+      height: 60px;
+      line-height: 60px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      font-size: 1.8rem;
+      font-weight: 700;
+      margin-bottom: 20px;
+    }
+
+    .step h3 {
+      font-size: 1.3rem;
+      margin-bottom: 10px;
+      color: #1f2937;
+    }
+
+    .step p {
+      color: #6b7280;
+      line-height: 1.8;
+    }
+
+    /* 集合知セクション */
+    .collective-section {
+      padding: 80px 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      text-align: center;
+    }
+
+    .collective-section h2 {
+      font-size: 2.5rem;
+      margin-bottom: 20px;
+    }
+
+    .collective-section p {
+      font-size: 1.2rem;
+      opacity: 0.95;
+      max-width: 800px;
+      margin: 0 auto 40px;
+      line-height: 1.8;
+    }
+
+    .collective-stats {
+      display: flex;
+      justify-content: center;
+      gap: 60px;
+      margin-top: 40px;
+      flex-wrap: wrap;
+    }
+
+    .stat {
+      text-align: center;
+    }
+
+    .stat-number {
+      font-size: 3rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .stat-label {
+      font-size: 1.1rem;
+      opacity: 0.9;
+    }
+
+    /* CTAセクション */
+    .cta-section {
+      padding: 100px 20px;
+      text-align: center;
+      background: #f9fafb;
+    }
+
+    .cta-section h2 {
+      font-size: 2.5rem;
+      margin-bottom: 30px;
+      color: #1f2937;
+    }
+
+    .cta-section p {
+      font-size: 1.2rem;
+      color: #6b7280;
+      margin-bottom: 40px;
+    }
+
+    /* フッター */
+    footer {
+      padding: 40px 20px;
+      text-align: center;
+      background: #1f2937;
+      color: white;
+    }
+
+    footer p {
+      opacity: 0.8;
+    }
+
+    /* レスポンシブ */
+    @media (max-width: 768px) {
+      header h1 {
+        font-size: 2rem;
+      }
+
+      header .subtitle {
+        font-size: 1.1rem;
+      }
+
+      .problem-section h2,
+      .solution-section h2,
+      .features-section h2,
+      .how-to-section h2,
+      .collective-section h2,
+      .cta-section h2 {
+        font-size: 1.8rem;
+      }
+
+      .steps {
+        grid-template-columns: 1fr;
+      }
+
+      .collective-stats {
+        gap: 30px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- ヘッダー -->
+  <header>
+    <div class="container">
+      <h1>AI店舗秘書</h1>
+      <p class="subtitle">Instagram投稿を秒で作成</p>
+      <a href="https://lin.ee/OWTIvhZ" class="cta-button">LINEで無料で始める</a>
+    </div>
+  </header>
+
+  <!-- 問題提起セクション -->
+  <section class="problem-section">
+    <div class="container">
+      <h2>Instagram運用、こんな悩みありませんか？</h2>
+      <p class="subtitle">毎日の投稿作成に時間がかかりすぎていませんか？</p>
+
+      <div class="problem-cards">
+        <div class="problem-card">
+          <div class="emoji">⏰</div>
+          <h3>投稿作成に時間がかかる</h3>
+          <p>写真を撮って、文章を考えて、ハッシュタグを選んで…毎回30分以上かかる</p>
+        </div>
+        <div class="problem-card">
+          <div class="emoji">💭</div>
+          <h3>何を書けばいいか分からない</h3>
+          <p>毎日同じような文章になってしまう。フォロワーに響く投稿が作れない</p>
+        </div>
+        <div class="problem-card">
+          <div class="emoji">📉</div>
+          <h3>エンゲージメントが伸びない</h3>
+          <p>投稿してもいいねや保存が増えない。何が正解か分からない</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 解決策セクション -->
+  <section class="solution-section">
+    <div class="container">
+      <h2><span class="highlight">写真を送るだけ</span>で投稿完成</h2>
+      <p class="subtitle">AI店舗秘書があなたの代わりに、魅力的な投稿を自動生成します</p>
+    </div>
+  </section>
+
+  <!-- 機能セクション -->
+  <section class="features-section">
+    <div class="container">
+      <h2>3つの特徴</h2>
+
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="icon">✨</div>
+          <h3>画像を送るだけで投稿完成</h3>
+          <p>LINEで写真を送信するだけ。AIが画像を分析し、魅力的な投稿テキストとハッシュタグを自動生成。文章を考える時間がゼロに。</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="icon">🧠</div>
+          <h3>あなたの店舗に最適化</h3>
+          <p>業種、こだわり、口調を登録するだけで、あなたのブランドに合った投稿を生成。使うほど学習し、精度が向上します。</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="icon">📊</div>
+          <h3>集合知で成功パターンを学習</h3>
+          <p>同じ業種の成功事例から最適なハッシュタグ、投稿時間、文章長を提案。業界のベストプラクティスを活用できます。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 使い方セクション -->
+  <section class="how-to-section">
+    <div class="container">
+      <h2>使い方はシンプル</h2>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-number">1</div>
+          <h3>LINE登録</h3>
+          <p>LINEで友だち追加するだけで始められます</p>
+        </div>
+
+        <div class="step">
+          <div class="step-number">2</div>
+          <h3>店舗情報を入力</h3>
+          <p>業種、店名、こだわり、口調を選択。たった3分で完了</p>
+        </div>
+
+        <div class="step">
+          <div class="step-number">3</div>
+          <h3>写真を送信</h3>
+          <p>LINEで商品やサービスの写真を送るだけ</p>
+        </div>
+
+        <div class="step">
+          <div class="step-number">4</div>
+          <h3>投稿完成！</h3>
+          <p>魅力的な文章とハッシュタグが自動生成。コピペしてInstagramに投稿</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 集合知セクション -->
+  <section class="collective-section">
+    <div class="container">
+      <h2>みんなで育てる集合知</h2>
+      <p>
+        AI店舗秘書は、あなたの投稿の反応を学習し続けます。<br>
+        さらに、同じ業種の成功事例を分析し、最適なハッシュタグや投稿時間を提案。<br>
+        使えば使うほど、あなたの店舗に最適化された投稿が生成されます。
+      </p>
+
+      <div class="collective-stats">
+        <div class="stat">
+          <div class="stat-number">30秒</div>
+          <div class="stat-label">投稿作成時間</div>
+        </div>
+        <div class="stat">
+          <div class="stat-number">50+</div>
+          <div class="stat-label">対応業種</div>
+        </div>
+        <div class="stat">
+          <div class="stat-number">∞</div>
+          <div class="stat-label">成長し続けるAI</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTAセクション -->
+  <section class="cta-section">
+    <div class="container">
+      <h2>今すぐ始めてみませんか？</h2>
+      <p>LINEで友だち追加するだけ。3分で投稿作成を始められます</p>
+      <a href="https://lin.ee/OWTIvhZ" class="cta-button">LINEで無料で始める</a>
+    </div>
+  </section>
+
+  <!-- フッター -->
+  <footer>
+    <div class="container">
+      <p>&copy; 2026 AI店舗秘書. All rights reserved.</p>
+    </div>
+  </footer>
+</body>
+</html>
