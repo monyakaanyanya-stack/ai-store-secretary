@@ -879,32 +879,9 @@ describe('Scenario 25: 第4次監査 MEDIUM修正（M1+M2+M4）', async () => {
   });
 });
 
-// ==================== Scenario 26: M5+M6 learningData + M7 スタックトレース + M12 content[0] ====================
-describe('Scenario 26: 第4次監査 MEDIUM修正（M5+M6+M7+M12）', async () => {
-  it('M5: learningData に Array.isArray ガードがある', async () => {
-    const fs = await import('node:fs');
-    const content = fs.readFileSync(
-      new URL('../src/utils/learningData.js', import.meta.url), 'utf-8'
-    );
-    assert.ok(content.includes('Array.isArray(data.preferredWords)'),
-      'Should check preferredWords is array');
-    assert.ok(content.includes('Array.isArray(data.avoidWords)'),
-      'Should check avoidWords is array');
-    assert.ok(content.includes('Array.isArray(data.topEmojis)'),
-      'Should check topEmojis is array');
-  });
-
-  it('M6: learningData に try-catch がある', async () => {
-    const fs = await import('node:fs');
-    const content = fs.readFileSync(
-      new URL('../src/utils/learningData.js', import.meta.url), 'utf-8'
-    );
-    assert.ok(content.includes('try {') && content.includes('catch (err)'),
-      'Should have try-catch around DB call');
-    assert.ok(content.includes('デフォルト値で続行'),
-      'Should return default on error');
-  });
-
+// ==================== Scenario 26: M7 スタックトレース + M12 content[0] ====================
+// M5/M6: learningData.js は未使用として削除済み
+describe('Scenario 26: 第4次監査 MEDIUM修正（M7+M12）', async () => {
   it('M7: errorNotification にスタックトレースが含まれない', async () => {
     const fs = await import('node:fs');
     const content = fs.readFileSync(
