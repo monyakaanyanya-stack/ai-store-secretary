@@ -166,7 +166,15 @@ export async function applyEngagementMetrics(user, store, metrics, latestPost, r
     reaction_index: reactionIndex,
   };
 
-  await saveEngagementMetrics(store.id, store.category || 'その他', postData, metricsData);
+  const saveResult = await saveEngagementMetrics(store.id, store.category || 'その他', postData, metricsData);
+  if (!saveResult.success) {
+    console.warn('[Report] 集合知保存失敗:', saveResult.message);
+    await replyText(replyToken,
+      `⚠️ データの保存に失敗しました。\n\n原因: ${saveResult.message}\n\n入力内容を確認して再度お試しください。`
+    );
+    return;
+  }
+
   await applyEngagementToProfile(store.id, latestPost.content, metricsData);
 
   console.log(`[Report] エンゲージメント報告完了: store=${store.name}, likes=${metrics.likes}, save_intensity=${saveIntensity}`);
@@ -285,7 +293,14 @@ export async function handlePostSelection(user, postNumber, replyToken) {
       reaction_index: reactionIndex,
     };
 
-    await saveEngagementMetrics(store.id, store.category || 'その他', postData, metricsData);
+    const saveResult = await saveEngagementMetrics(store.id, store.category || 'その他', postData, metricsData);
+    if (!saveResult.success) {
+      console.warn('[Report] 集合知保存失敗:', saveResult.message);
+      await replyText(replyToken,
+        `⚠️ データの保存に失敗しました。\n\n原因: ${saveResult.message}\n\n入力内容を確認して再度お試しください。`
+      );
+      return true;
+    }
 
     // エンゲージメント実績を個別学習プロファイルに反映
     await applyEngagementToProfile(store.id, selectedPost.content, metricsData);

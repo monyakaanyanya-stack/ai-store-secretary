@@ -12,7 +12,7 @@ export const DEFAULT_VALIDATION_RULES = {
   comments_count: { min: 0, max: 5000 },
   reach: { min: 0, max: 1000000 },
   engagement_rate: { min: 0, max: 100 },
-  post_length: { min: 10, max: 3000 },
+  post_length: { min: 10, max: 10000 }, // 3案まとめて保存するため余裕を持たせる
   emoji_count: { min: 0, max: 50 },
   hashtags_count: { min: 0, max: 30 },
 };
