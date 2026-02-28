@@ -8,6 +8,7 @@ import { getAdvancedPersonalizationPrompt } from '../services/advancedPersonaliz
 import { getSeasonalMemoryPromptAddition } from '../services/seasonalMemoryService.js';
 import { extractInsightsFromScreenshot } from '../services/insightsOCRService.js';
 import { applyEngagementMetrics } from './reportHandler.js';
+import { detectContentCategory } from '../utils/contentCategoryDetector.js';
 
 /**
  * 画像メッセージ処理: 画像取得 → 画像分析 → 投稿生成 → 返信 → 履歴保存
@@ -73,10 +74,6 @@ export async function handleImageMessage(user, messageId, replyToken) {
       console.warn('[Image] インサイト判定: 数値読み取り失敗 → 投稿生成フローへ');
     }
 
-    // H17修正: 画像分析（必須）と補助データ取得（任意）を分けて並列実行
-    // 補助データの1つが失敗しても投稿生成は続行する
-    console.log(`[Image] 画像分析・データ取得を並列実行中: store=${store.name}`);
-
     // 補助データを個別にキャッチ（失敗してもデフォルト値で続行）
     const safeResolve = (promise, defaultVal, label) =>
       promise.catch(err => {
@@ -84,26 +81,34 @@ export async function handleImageMessage(user, messageId, replyToken) {
         return defaultVal;
       });
 
-    // S9修正: describeImage の失敗を safeResolve ではなく明示的にハンドリング
-    // describeImage はエラー時 throw するようになったため、Promise.all が失敗する
-    // → catch ブロックでユーザーに適切なエラーメッセージを返せる
+    // Phase 1: describeImage（必須）とパーソナライゼーションデータを並列取得
+    // describeImage は throw するので失敗時は catch ブロックへ
+    console.log(`[Image] Phase1: 画像分析・パーソナライゼーション並列取得中: store=${store.name}`);
     const [
       imageDescription,
-      blendedInsights,
       basicPersonalization,
       advancedPersonalization,
       seasonalMemory,
     ] = await Promise.all([
-      describeImage(imageBase64), // 必須: 失敗時はcatchブロックへ（S9で throw に変更済み）
-      safeResolve(
-        store.category ? getBlendedInsights(store.id, store.category) : Promise.resolve(null),
-        null, 'blendedInsights'
-      ),
+      describeImage(imageBase64),
       safeResolve(getPersonalizationPromptAddition(store.id), '', 'personalization'),
       safeResolve(getAdvancedPersonalizationPrompt(store.id), '', 'advancedPersonalization'),
       safeResolve(getSeasonalMemoryPromptAddition(store.id), '', 'seasonalMemory'),
     ]);
     console.log(`[Image] 画像分析結果: ${imageDescription?.slice(0, 100)}...`);
+
+    // Phase 2: 被写体カテゴリー検出（同期）→ 集合知取得
+    // imageDescription が確定してからでないと contentCategory を渡せないため直列
+    const contentCategory = detectContentCategory(imageDescription);
+    if (contentCategory && contentCategory !== store.category) {
+      console.log(`[Image] 被写体カテゴリー検出: store=${store.category} → content=${contentCategory}`);
+    }
+    const blendedInsights = await safeResolve(
+      store.category
+        ? getBlendedInsights(store.id, store.category, contentCategory)
+        : Promise.resolve(null),
+      null, 'blendedInsights'
+    );
 
     const personalization = (basicPersonalization || '') + (advancedPersonalization || '') + (seasonalMemory || '');
 

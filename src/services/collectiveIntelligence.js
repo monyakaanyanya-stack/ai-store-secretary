@@ -160,27 +160,55 @@ function analyzeEngagementData(data) {
 
 /**
  * ブレンド型集合知を取得（50% 自店舗 + 30% 同カテゴリー + 20% 大グループ）
+ *
+ * contentCategory が指定され店舗カテゴリーと異なる場合は、
+ * 被写体カテゴリーのハッシュタグを category のハッシュタグにブレンドする。
+ * 例: カフェ店舗が家具の写真を使った場合、家具店のハッシュタグを混ぜる。
+ *
  * @param {string} storeId - 店舗ID
- * @param {string} category - 詳細カテゴリー
+ * @param {string} category - 詳細カテゴリー（store.category）
+ * @param {string|null} contentCategory - 画像から推定した被写体カテゴリー（任意）
  * @returns {Object} - ブレンドされた集合知
  */
-export async function getBlendedInsights(storeId, category) {
+export async function getBlendedInsights(storeId, category, contentCategory = null) {
   const categoryGroup = getCategoryGroup(category) ?? 'other';
 
   // 自店舗の学習データ（50%）
   const ownData = await getOwnStoreInsights(storeId);
 
   // 同カテゴリーの集合知（30%）
-  const categoryData = await getCategoryInsights(category);
+  let categoryData = await getCategoryInsights(category);
 
   // 大グループの集合知（20%）
   const groupData = await getGroupInsights(categoryGroup);
+
+  // 被写体カテゴリーが検出され、かつ店舗カテゴリーと異なる場合はハッシュタグをブレンド
+  let detectedContentCategory = null;
+  if (contentCategory && contentCategory !== category) {
+    try {
+      const contentData = await getCategoryInsights(contentCategory);
+      if (contentData?.topHashtags?.length > 0) {
+        // 被写体カテゴリーのハッシュタグを後半に混ぜる（重複除去・最大10件）
+        const merged = [
+          ...(categoryData?.topHashtags ?? []),
+          ...contentData.topHashtags,
+        ];
+        const deduped = [...new Set(merged)].slice(0, 10);
+        categoryData = { ...(categoryData ?? {}), topHashtags: deduped };
+        detectedContentCategory = contentCategory;
+        console.log(`[CollectiveIntelligence] 被写体カテゴリーブレンド: store=${category} + content=${contentCategory} → ${deduped.slice(0, 5).join(', ')}`);
+      }
+    } catch (err) {
+      console.warn('[CollectiveIntelligence] 被写体カテゴリーデータ取得失敗（続行）:', err.message);
+    }
+  }
 
   return {
     own: ownData,
     category: categoryData,
     group: groupData,
     categoryGroup,
+    detectedContentCategory,
     blendRatio: { own: 50, category: 30, group: 20 },
   };
 }
