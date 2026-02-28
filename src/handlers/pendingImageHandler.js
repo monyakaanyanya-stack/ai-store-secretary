@@ -3,6 +3,7 @@ import { askClaude } from '../services/claudeService.js';
 import { getStore, savePostHistory, clearPendingImageContext } from '../services/supabaseService.js';
 import { buildImagePostPrompt } from '../utils/promptBuilder.js';
 import { saveEngagementMetrics } from '../services/collectiveIntelligence.js';
+import { getRevisionExample } from '../utils/categoryExamples.js';
 
 // pending_image_context の有効期限（30分）
 const PENDING_EXPIRE_MS = 30 * 60 * 1000;
@@ -81,6 +82,7 @@ export async function handlePendingImageResponse(user, text, replyToken) {
 
     console.log(`[PendingImage] 投稿生成完了: store=${store.name}`);
 
+    const revisionExample = getRevisionExample(store.category);
     const formattedReply = `✨ 3つの投稿案ができました！
 ━━━━━━━━━━━
 ${rawContent}
@@ -89,7 +91,7 @@ ${rawContent}
 どの案が理想に近いですか？👇
 
 【学習させる方法】
-✏️ 直し: ギャル風にして　→ 指示で修正＋学習
+✏️ 直し: ${revisionExample}　→ 指示で修正＋学習
 📝 学習: [自分で書いた文章]　→ 見本を送って直接学習
 
 ※ 選択・修正・見本のたびに好みを学習します📚`;
