@@ -1,4 +1,4 @@
-import { replyText } from '../services/lineService.js';
+import { replyText, replyWithQuickReply } from '../services/lineService.js';
 import { askClaude } from '../services/claudeService.js';
 import {
   createStore,
@@ -9,6 +9,8 @@ import {
   supabase,
   updateStoreConfig,
   updateStoreTemplates,
+  setPendingCommand,
+  clearPendingCommand,
 } from '../services/supabaseService.js';
 import { handleFeedback, handleStyleLearning } from './feedbackHandler.js';
 import { handleEngagementReport, handlePostSelection } from './reportHandler.js';
@@ -100,6 +102,19 @@ export async function handleTextMessage(user, text, replyToken) {
     if (handled) return;
   }
 
+  // 「直し」「学習」ボタン後の入力待ち状態の処理
+  // ボタンを押した後の次のメッセージをそれぞれのコマンドとして処理
+  if (user.pending_command && !isCancelCommand) {
+    const cmd = user.pending_command;
+    await clearPendingCommand(user.id);
+    if (cmd === 'revision') {
+      return await handleFeedback(user, trimmed, replyToken);
+    }
+    if (cmd === 'style_learning') {
+      return await handleStyleLearning(user, trimmed, replyToken);
+    }
+  }
+
   // 重要なコマンドはオンボーディング中でも優先処理
   const priorityCommands = [
     '店舗削除', '店舗削除実行', 'データリセット', 'リセット', 'リセット実行', '学習リセット',
@@ -136,6 +151,23 @@ export async function handleTextMessage(user, text, replyToken) {
 
   // フィードバック: 「直し:」で始まる
   if (trimmed.startsWith('直し:') || trimmed.startsWith('直し:')) {
+    const feedback = trimmed.replace(/^直し[:：]\s*/, '');
+
+    // 内容が空 = 「直し」ボタンが押された → 入力待ちモードへ
+    if (!feedback.trim()) {
+      await setPendingCommand(user.id, 'revision');
+      return await replyWithQuickReply(
+        replyToken,
+        '✏️ どんな修正をしますか？\n\n修正指示を送ってください（自由入力でもOK）',
+        [
+          { type: 'action', action: { type: 'message', label: 'カジュアルに', text: 'もっとカジュアルに' } },
+          { type: 'action', action: { type: 'message', label: '絵文字を減らして', text: '絵文字を減らして' } },
+          { type: 'action', action: { type: 'message', label: '短くして', text: 'もっと短くして' } },
+          { type: 'action', action: { type: 'message', label: '明るくして', text: 'もっと明るくして' } },
+        ]
+      );
+    }
+
     // H4: 3案が未選択の場合はまず案を選ぶよう促す
     if (user.current_store_id) {
       const storeForCheck = await getStore(user.current_store_id);
@@ -152,13 +184,21 @@ export async function handleTextMessage(user, text, replyToken) {
         }
       }
     }
-    const feedback = trimmed.replace(/^直し[:：]\s*/, '');
     return await handleFeedback(user, feedback, replyToken);
   }
 
   // 見本学習: 「学習:」で始まる（ユーザーが自分で書き直した版を送って差分学習）
   if (trimmed.startsWith('学習:') || trimmed.startsWith('学習:')) {
     const userRewrite = trimmed.replace(/^学習[:：]\s*/, '');
+
+    // 内容が空 = 「学習」ボタンが押された → 入力待ちモードへ
+    if (!userRewrite.trim()) {
+      await setPendingCommand(user.id, 'style_learning');
+      return await replyText(
+        replyToken,
+        '📝 書き直した文章を送ってください\n\nAIが生成した投稿と比較して、あなたの好みの文体を学習します。\n\n例）α7C来たよ！まじ持ちやすくてやばい💫 #カメラ好き'
+      );
+    }
     return await handleStyleLearning(user, userRewrite, replyToken);
   }
 
@@ -302,8 +342,9 @@ ${contactEmail}
     return await handleStoreDeleteExecution(user, replyToken);
   }
 
-  // キャンセル（データリセット・店舗削除共通）
+  // キャンセル（データリセット・店舗削除・入力待ち共通）
   if (trimmed === 'キャンセル' || trimmed === 'cancel') {
+    if (user.pending_command) await clearPendingCommand(user.id);
     return await replyText(replyToken, '✅ キャンセルしました。');
   }
 
@@ -584,14 +625,14 @@ async function handleTextPostGeneration(user, text, replyToken) {
 ${postContent}
 ━━━━━━━━━━━
 
-👍 良い（「👍」と送信）
-👎 イマイチ（「👎」と送信）
-✏️ 直し: ○○　→ 指示で修正＋学習
-📝 学習: [自分で書いた文章]　→ 見本を送って直接学習
-
 ※ 「学習状況」と送ると学習内容を確認できます`;
 
-    await replyText(replyToken, formattedReply);
+    await replyWithQuickReply(replyToken, formattedReply, [
+      { type: 'action', action: { type: 'message', label: '👍 良い', text: '👍' } },
+      { type: 'action', action: { type: 'message', label: '👎 イマイチ', text: '👎' } },
+      { type: 'action', action: { type: 'message', label: '✏️ 直し', text: '直し:' } },
+      { type: 'action', action: { type: 'message', label: '📝 学習', text: '学習:' } },
+    ]);
   } catch (err) {
     console.error('[Post] テキスト投稿生成エラー:', err);
     await replyText(replyToken, '投稿生成中にエラーが発生しました。しばらくしてから再度お試しください。');
@@ -969,14 +1010,14 @@ async function handleTextPostGenerationWithLength(user, text, replyToken, length
 ${postContent}
 ━━━━━━━━━━━
 
-👍 良い（「👍」と送信）
-👎 イマイチ（「👎」と送信）
-✏️ 直し: ○○　→ 指示で修正＋学習
-📝 学習: [自分で書いた文章]　→ 見本を送って直接学習
-
 ※ 「学習状況」と送ると学習内容を確認できます`;
 
-    await replyText(replyToken, formattedReply);
+    await replyWithQuickReply(replyToken, formattedReply, [
+      { type: 'action', action: { type: 'message', label: '👍 良い', text: '👍' } },
+      { type: 'action', action: { type: 'message', label: '👎 イマイチ', text: '👎' } },
+      { type: 'action', action: { type: 'message', label: '✏️ 直し', text: '直し:' } },
+      { type: 'action', action: { type: 'message', label: '📝 学習', text: '学習:' } },
+    ]);
   } catch (err) {
     console.error('[Post] 生成エラー:', err);
     await replyText(replyToken, '投稿生成中にエラーが発生しました。しばらくしてから再度お試しください。');

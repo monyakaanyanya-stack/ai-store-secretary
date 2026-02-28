@@ -315,6 +315,30 @@ export async function clearPendingImageContext(userId) {
 }
 
 /**
+ * pending_command をセット
+ * 'revision' = 次のメッセージを「直し:」として処理
+ * 'style_learning' = 次のメッセージを「学習:」として処理
+ */
+export async function setPendingCommand(userId, command) {
+  const { error } = await supabase
+    .from('users')
+    .update({ pending_command: command })
+    .eq('id', userId);
+  if (error) console.warn('[Supabase] pending_command セット失敗:', error.message);
+}
+
+/**
+ * pending_command をクリア
+ */
+export async function clearPendingCommand(userId) {
+  const { error } = await supabase
+    .from('users')
+    .update({ pending_command: null })
+    .eq('id', userId);
+  if (error) console.warn('[Supabase] pending_command クリア失敗:', error.message);
+}
+
+/**
  * 最新のフォロワー数履歴を取得
  */
 export async function getLatestFollowerHistory(storeId, limit = 12) {

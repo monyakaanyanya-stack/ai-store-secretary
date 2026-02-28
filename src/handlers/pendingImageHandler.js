@@ -98,6 +98,8 @@ ${rawContent}
       { type: 'action', action: { type: 'message', label: '✅ A案', text: 'A' } },
       { type: 'action', action: { type: 'message', label: '✅ B案', text: 'B' } },
       { type: 'action', action: { type: 'message', label: '✅ C案', text: 'C' } },
+      { type: 'action', action: { type: 'message', label: '✏️ 直し', text: '直し:' } },
+      { type: 'action', action: { type: 'message', label: '📝 学習', text: '学習:' } },
     ]);
     return true;
   } catch (err) {
