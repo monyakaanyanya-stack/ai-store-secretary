@@ -44,45 +44,26 @@ export async function handleFeedback(user, feedback, replyToken) {
     // 「直し:」の詳細フィードバック → Claude API分析（高精度）
     // それ以外（👍👎など） → キーワードマッチ（無料）
 
-    let learningMethod = 'basic'; // 'basic' or 'advanced'
-
     // ── 学習フェーズ ──────────────────────────────────────
-    // フィードバックが詳細な場合は高度な分析（Claude API）を使用
-    if (feedback.length > 10) {
-      // S17修正: ユーザー入力をログにそのまま出力しない（PII混入防止）
-      console.log(`[Feedback] 高度な学習を使用: len=${feedback.length}`);
-      learningMethod = 'advanced';
+    // 「直し:」は明示的な指示なので短くても常に Claude API 分析で永続学習させる
+    // （長さによる分岐をなくし「ギャル風」など短い指示も必ず writing_style に保存）
+    // S17修正: ユーザー入力をログにそのまま出力しない（PII混入防止）
+    console.log(`[Feedback] 高度な学習を使用: len=${feedback.length}`);
 
-      // Claude APIでフィードバックを分析
-      const analysis = await analyzeFeedbackWithClaude(feedback, latestPost.content);
+    const analysis = await analyzeFeedbackWithClaude(feedback, latestPost.content);
 
-      if (analysis) {
-        await updateAdvancedProfile(store.id, analysis);
-        console.log(`[Feedback] 高度な学習完了: ${analysis.summary}`);
-      }
-
-      await saveLearningData(
-        store.id,
-        'feedback',
-        latestPost.content,
-        feedback,
-        analysis || extractLearningHints(feedback)
-      );
-    } else {
-      // 簡易フィードバック（短い指示）→ キーワードマッチ
-      // S17修正: ユーザー入力をログにそのまま出力しない
-      console.log(`[Feedback] 基本学習を使用: len=${feedback.length}`);
-
-      await applyFeedbackToProfile(store.id, feedback, latestPost.content);
-
-      await saveLearningData(
-        store.id,
-        'feedback',
-        latestPost.content,
-        feedback,
-        extractLearningHints(feedback)
-      );
+    if (analysis) {
+      await updateAdvancedProfile(store.id, analysis);
+      console.log(`[Feedback] 高度な学習完了: ${analysis.summary}`);
     }
+
+    await saveLearningData(
+      store.id,
+      'feedback',
+      latestPost.content,
+      feedback,
+      analysis || extractLearningHints(feedback)
+    );
 
     // ── 修正生成フェーズ ──────────────────────────────────
     // 「直し:」コマンドなので長短問わず常に修正案を返す
@@ -95,7 +76,7 @@ export async function handleFeedback(user, feedback, replyToken) {
     // → エンゲージメント報告時にlatestPostが修正版に誤紐付けされるのを防止
     await updatePostContent(latestPost.id, revisedContent);
 
-    console.log(`[Feedback] 修正完了: store=${store.name}, method=${learningMethod}`);
+    console.log(`[Feedback] 修正完了: store=${store.name}`);
 
     // M8: 学習プロファイルを取得して学習回数・学習内容を確認（static import済み）
     const profile = await getOrCreateLearningProfile(store.id);
