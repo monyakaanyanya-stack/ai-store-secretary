@@ -324,7 +324,11 @@ export async function setPendingCommand(userId, command) {
     .from('users')
     .update({ pending_command: command })
     .eq('id', userId);
-  if (error) console.warn('[Supabase] pending_command セット失敗:', error.message);
+  if (error) {
+    console.error('[Supabase] pending_command セット失敗 userId=%s command=%s:', userId, command, error.message);
+    throw new Error(`pending_command セット失敗: ${error.message}`);
+  }
+  console.log('[Supabase] pending_command セット成功: userId=%s command=%s', userId, command);
 }
 
 /**

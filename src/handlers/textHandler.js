@@ -155,7 +155,11 @@ export async function handleTextMessage(user, text, replyToken) {
 
     // 内容が空 = 「直し」ボタンが押された → 入力待ちモードへ
     if (!feedback.trim()) {
-      await setPendingCommand(user.id, 'revision');
+      try {
+        await setPendingCommand(user.id, 'revision');
+      } catch (e) {
+        return await replyText(replyToken, '⚠️ 状態の保存に失敗しました。修正内容を「直し: もっとカジュアルに」の形で送ってください。');
+      }
       return await replyWithQuickReply(
         replyToken,
         '✏️ どんな修正をしますか？\n\n修正指示を送ってください（自由入力でもOK）',
@@ -193,7 +197,11 @@ export async function handleTextMessage(user, text, replyToken) {
 
     // 内容が空 = 「学習」ボタンが押された → 入力待ちモードへ
     if (!userRewrite.trim()) {
-      await setPendingCommand(user.id, 'style_learning');
+      try {
+        await setPendingCommand(user.id, 'style_learning');
+      } catch (e) {
+        return await replyText(replyToken, '⚠️ 状態の保存に失敗しました。「学習: 書き直した文章」の形で送ってください。');
+      }
       return await replyText(
         replyToken,
         '📝 書き直した文章を送ってください\n\nAIが生成した投稿と比較して、あなたの好みの文体を学習します。\n\n例）α7C来たよ！まじ持ちやすくてやばい💫 #カメラ好き'
