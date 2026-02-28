@@ -587,12 +587,11 @@ async function handleTextPostGeneration(user, text, replyToken) {
 ${postContent}
 ━━━━━━━━━━━
 
-この投稿は良かったですか？
 👍 良い（「👍」と送信）
 👎 イマイチ（「👎」と送信）
-✏️ 修正する（「直し: 〜」で指示してください）
+✏️ 直し: ○○　→ 指示で修正＋学習
+📝 学習: [自分で書いた文章]　→ 見本を送って直接学習
 
-※ 評価を送ると自動的に学習します！
 ※ 「学習状況」と送ると学習内容を確認できます`;
 
     await replyText(replyToken, formattedReply);
@@ -974,12 +973,11 @@ async function handleTextPostGenerationWithLength(user, text, replyToken, length
 ${postContent}
 ━━━━━━━━━━━
 
-この投稿は良かったですか？
 👍 良い（「👍」と送信）
 👎 イマイチ（「👎」と送信）
-✏️ 修正する（「直し: 〜」で指示してください）
+✏️ 直し: ○○　→ 指示で修正＋学習
+📝 学習: [自分で書いた文章]　→ 見本を送って直接学習
 
-※ 評価を送ると自動的に学習します！
 ※ 「学習状況」と送ると学習内容を確認できます`;
 
     await replyText(replyToken, formattedReply);
