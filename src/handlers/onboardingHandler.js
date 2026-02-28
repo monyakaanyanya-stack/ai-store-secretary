@@ -5,8 +5,6 @@ import {
   getCategoryGroupNames,
   getCategoriesByGroup,
   getCategoryByNumber,
-  generateGroupSelectionMessage,
-  generateDetailCategoryMessage
 } from '../config/categoryGroups.js';
 
 /** グループ選択用 Quick Reply アイテムを生成 */
@@ -316,7 +314,8 @@ async function handleCategoryDetailSelection(user, state, input, replyToken) {
  * 店舗情報入力処理
  */
 async function handleStoreInfoInput(user, state, input, replyToken) {
-  const parts = input.split(',').map(s => s.trim());
+  // 全角コンマ「，」と日本語の読点「、」も区切り文字として許容
+  const parts = input.split(/[,，、]/).map(s => s.trim());
 
   if (parts.length !== 3) {
     return await replyText(replyToken, '入力形式が正しくありません。\n\n「店名,こだわり,口調」の形式で入力してください。\n\n例: 幸福堂,天然酵母の手作りパン,フレンドリー');

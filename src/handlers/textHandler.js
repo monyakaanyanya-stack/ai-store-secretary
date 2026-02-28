@@ -136,12 +136,12 @@ export async function handleTextMessage(user, text, replyToken) {
   }
 
   // 店舗登録: 「1:」で始まる（旧形式、後方互換性のため残す）
-  if (trimmed.startsWith('1:') || trimmed.startsWith('1:')) {
+  if (trimmed.startsWith('1:')) {
     return await handleStoreRegistration(user, trimmed, replyToken);
   }
 
   // フォロワー数の報告: 「フォロワー:」で始まる
-  if (trimmed.startsWith('フォロワー:') || trimmed.startsWith('フォロワー:')) {
+  if (trimmed.startsWith('フォロワー:')) {
     const followerCountMatch = trimmed.match(/フォロワー[:：]\s*(\d+)/);
     if (followerCountMatch) {
       const followerCount = parseInt(followerCountMatch[1], 10);
@@ -150,7 +150,7 @@ export async function handleTextMessage(user, text, replyToken) {
   }
 
   // フィードバック: 「直し:」で始まる
-  if (trimmed.startsWith('直し:') || trimmed.startsWith('直し:')) {
+  if (trimmed.startsWith('直し:')) {
     const feedback = trimmed.replace(/^直し[:：]\s*/, '');
 
     // 内容が空 = 「直し」ボタンが押された → 入力待ちモードへ
@@ -192,7 +192,7 @@ export async function handleTextMessage(user, text, replyToken) {
   }
 
   // 見本学習: 「学習:」で始まる（ユーザーが自分で書き直した版を送って差分学習）
-  if (trimmed.startsWith('学習:') || trimmed.startsWith('学習:')) {
+  if (trimmed.startsWith('学習:')) {
     const userRewrite = trimmed.replace(/^学習[:：]\s*/, '');
 
     // 内容が空 = 「学習」ボタンが押された → 入力待ちモードへ
@@ -211,7 +211,7 @@ export async function handleTextMessage(user, text, replyToken) {
   }
 
   // エンゲージメント報告: 「報告:」で始まる
-  if (trimmed.startsWith('報告:') || trimmed.startsWith('報告:')) {
+  if (trimmed.startsWith('報告:')) {
     // H5: 3案が未選択の場合はまず案を選ぶよう促す
     if (user.current_store_id) {
       const storeForCheck = await getStore(user.current_store_id);
@@ -232,7 +232,7 @@ export async function handleTextMessage(user, text, replyToken) {
   }
 
   // 店舗切替: 「切替:」で始まる
-  if (trimmed.startsWith('切替:') || trimmed.startsWith('切替:')) {
+  if (trimmed.startsWith('切替:')) {
     const storeName = trimmed.replace(/^切替[:：]\s*/, '');
     return await handleStoreSwitch(user, storeName, replyToken);
   }
@@ -259,13 +259,13 @@ export async function handleTextMessage(user, text, replyToken) {
   }
 
   // 店舗更新の実行: 「更新: name: 新店名」など
-  if (trimmed.startsWith('更新:') || trimmed.startsWith('更新:')) {
+  if (trimmed.startsWith('更新:')) {
     const updateData = trimmed.replace(/^更新[:：]\s*/, '');
     return await handleStoreUpdate(user, updateData, replyToken);
   }
 
   // 文章量設定: 「長さ: short」など
-  if (trimmed.startsWith('長さ:') || trimmed.startsWith('長さ:')) {
+  if (trimmed.startsWith('長さ:')) {
     const length = trimmed.replace(/^長さ[:：]\s*/, '');
     return await handlePostLength(user, length, replyToken);
   }
@@ -283,8 +283,7 @@ export async function handleTextMessage(user, text, replyToken) {
   }
 
   // テンプレート設定: 「テンプレート: address:住所」など
-  if (trimmed.startsWith('テンプレート:') || trimmed.startsWith('テンプレート:') ||
-      trimmed.startsWith('テンプレ:') || trimmed.startsWith('テンプレ：')) {
+  if (trimmed.startsWith('テンプレート:') || trimmed.startsWith('テンプレ:')) {
     const templateData = trimmed.replace(/^(?:テンプレート|テンプレ)[:：]\s*/, '');
     // 「削除」系のワードが来た場合は削除プロンプトへ
     if (templateData === '削除' || templateData === '全削除' || templateData === 'all') {
@@ -415,7 +414,7 @@ ${contactEmail}
   }
 
   // テンプレート削除の実行: 「削除: address」など
-  if (trimmed.startsWith('削除:') || trimmed.startsWith('削除:')) {
+  if (trimmed.startsWith('削除:')) {
     const fieldToDelete = trimmed.replace(/^削除[:：]\s*/, '');
     return await handleTemplateDelete(user, fieldToDelete, replyToken);
   }
@@ -704,7 +703,8 @@ async function handleStoreUpdate(user, updateData, replyToken) {
     }
 
     // Parse: "店名: 新店名, こだわり: 新しいこだわり, 口調: カジュアル"
-    const pairs = updateData.split(',').map(p => p.trim());
+    // 全角コンマ「，」と日本語の読点「、」も区切り文字として許容
+    const pairs = updateData.split(/[,，、]/).map(p => p.trim());
     const updates = {};
 
     for (const pair of pairs) {
