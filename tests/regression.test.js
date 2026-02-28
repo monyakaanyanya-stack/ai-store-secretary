@@ -1023,120 +1023,112 @@ describe('Scenario 27: 第4次監査 LOW修正（L1-L9）', async () => {
   });
 });
 
-// ==================== Scenario 28: Ver.17.0 肖像と免罪符 ====================
-describe('Scenario 28: Ver.17.0 肖像と免罪符', async () => {
-  it('describeImage に機材レベル判定（6項目目）がある', async () => {
+// ==================== Scenario 28: Ver.4.0 Dual Trigger Model ====================
+describe('Scenario 28: Ver.4.0 Dual Trigger Model', async () => {
+  it('describeImage に五感ベース5項目分析がある', async () => {
     const fs = await import('node:fs');
     const content = fs.readFileSync(
       new URL('../src/services/claudeService.js', import.meta.url), 'utf-8'
     );
-    assert.ok(content.includes('機材レベル'),
-      'describeImage prompt should include equipment level analysis');
-    assert.ok(content.includes('Signature') && content.includes('Snapshot'),
-      'Should have both Signature and Snapshot labels');
+    assert.ok(content.includes('五感の推測'),
+      'describeImage prompt should include sensory analysis');
+    assert.ok(content.includes('記憶を呼ぶ要素'),
+      'describeImage prompt should include memory-triggering element');
+    assert.ok(content.includes('店舗写真の観察者'),
+      'describeImage should use observer perspective');
   });
 
-  it('imageHandler に parseEquipmentLevel がある', async () => {
+  it('imageHandler から parseEquipmentLevel が廃止された', async () => {
     const fs = await import('node:fs');
     const content = fs.readFileSync(
       new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
     );
-    assert.ok(content.includes('function parseEquipmentLevel'),
-      'Should have parseEquipmentLevel function');
-    assert.ok(content.includes("return 'signature'") && content.includes("return 'snapshot'"),
-      'Should return signature or snapshot');
+    assert.ok(!content.includes('function parseEquipmentLevel'),
+      'parseEquipmentLevel should be removed');
+    assert.ok(!content.includes('equipmentLevel'),
+      'equipmentLevel references should be removed');
   });
 
-  it('parseEquipmentLevel のロジックが正しい', () => {
-    function parseEquipmentLevel(imageDescription) {
-      if (!imageDescription) return 'snapshot';
-      const lower = imageDescription.toLowerCase();
-      if (lower.includes('signature')) return 'signature';
-      return 'snapshot';
-    }
-
-    assert.equal(parseEquipmentLevel(null), 'snapshot');
-    assert.equal(parseEquipmentLevel(''), 'snapshot');
-    assert.equal(parseEquipmentLevel('- 機材レベル: Snapshot'), 'snapshot');
-    assert.equal(parseEquipmentLevel('- 機材レベル: Signature'), 'signature');
-    assert.equal(parseEquipmentLevel('blah blah\n- 機材レベル: Signature（中判カメラ）'), 'signature');
+  it('pendingImageHandler から equipmentLevel が廃止された', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/pendingImageHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(!content.includes('equipmentLevel'),
+      'equipmentLevel references should be removed from pendingImageHandler');
+    assert.ok(content.includes('想起・来店どちらのトリガー'),
+      'Hint instruction should mention dual triggers');
   });
 
-  it('buildImagePostPrompt が equipmentLevel 引数を受け取る', async () => {
+  it('buildImagePostPrompt に Dual Trigger 出力形式がある', async () => {
     const { buildImagePostPrompt } = await import('../src/utils/promptBuilder.js');
     const store = { name: 'テスト店', tone: 'カジュアル', config: {} };
+    const prompt = buildImagePostPrompt(store, {}, null, null, '', 'テスト画像説明');
 
-    const promptSnap = buildImagePostPrompt(store, {}, null, null, '', 'テスト画像説明', 'snapshot');
-    assert.ok(promptSnap.includes('Snapshot'),
-      'Snapshot prompt should include Snapshot section');
-    assert.ok(promptSnap.includes('身体感覚'),
-      'Snapshot prompt should mention physical sensations');
-
-    const promptSig = buildImagePostPrompt(store, {}, null, null, '', 'テスト画像説明', 'signature');
-    assert.ok(promptSig.includes('Signature'),
-      'Signature prompt should include Signature section');
-    assert.ok(promptSig.includes('最小限の言葉'),
-      'Signature prompt should mention minimal words');
+    assert.ok(prompt.includes('想起トリガー'),
+      'Should include recall trigger concept');
+    assert.ok(prompt.includes('来店トリガー'),
+      'Should include visit trigger concept');
+    assert.ok(prompt.includes('想起の一言'),
+      'Should include recall one-liner format');
+    assert.ok(prompt.includes('来店の一文'),
+      'Should include visit one-liner format');
   });
 
-  it('Ver.17.0 のライティング・ルールがプロンプトに含まれる', async () => {
+  it('Dual Trigger の出力形式に新3案ラベルがある', async () => {
     const { buildImagePostPrompt } = await import('../src/utils/promptBuilder.js');
     const store = { name: 'テスト店', tone: 'フレンドリー', config: {} };
-    const prompt = buildImagePostPrompt(store, {}, null, null, '', 'テスト画像', 'snapshot');
+    const prompt = buildImagePostPrompt(store, {}, null, null, '', 'テスト画像');
 
-    assert.ok(prompt.includes('断言と余韻（Ver. 17.0）'),
-      'Should include Ver.17.0 header');
-    assert.ok(prompt.includes('事実を肖像に変える'),
-      'Should include portrait transformation rule');
-    assert.ok(prompt.includes('「説明」の排除'),
-      'Should include description elimination rule');
-    assert.ok(prompt.includes('完結した独白'),
-      'Should include complete monologue rule');
-    assert.ok(prompt.includes('不揃いな呼吸'),
-      'Should include irregular breathing rule');
+    assert.ok(prompt.includes('[ 案A：記憶に残る日常 ]'),
+      'Output format should include [ 案A：記憶に残る日常 ]');
+    assert.ok(prompt.includes('[ 案B：さりげない誘い ]'),
+      'Output format should include [ 案B：さりげない誘い ]');
+    assert.ok(prompt.includes('[ 案C：店主のひとりごと ]'),
+      'Output format should include [ 案C：店主のひとりごと ]');
+    assert.ok(prompt.includes('3案作成'),
+      'Should instruct 3 proposals');
+    assert.ok(prompt.includes('次の撮影に'),
+      'Should include simplified Photo Advice section');
   });
 
-  it('Ver.17.0 の出力形式に3つの肖像が含まれる', async () => {
+  it('旧Ver.17.0の芸術語が禁止ワードに含まれる', async () => {
     const { buildImagePostPrompt } = await import('../src/utils/promptBuilder.js');
     const store = { name: 'テスト店', tone: '丁寧', config: {} };
-    const prompt = buildImagePostPrompt(store, {}, null, null, '', 'テスト画像', 'snapshot');
+    const prompt = buildImagePostPrompt(store, {}, null, null, '', 'テスト画像');
 
-    assert.ok(prompt.includes('[ 案A：時間の肖像 ]'),
-      'Output format should include [ 案A：時間の肖像 ]');
-    assert.ok(prompt.includes('[ 案B：誠実の肖像 ]'),
-      'Output format should include [ 案B：誠実の肖像 ]');
-    assert.ok(prompt.includes('[ 案C：光の肖像 ]'),
-      'Output format should include [ 案C：光の肖像 ]');
-    assert.ok(prompt.includes('3案を出力'),
-      'Should instruct 3 proposals');
-    assert.ok(prompt.includes('Photo Advice'),
-      'Should include Photo Advice section');
-    assert.ok(!prompt.includes('店主へのバトン'),
-      'Should NOT include baton placeholder');
+    assert.ok(prompt.includes('肖像'),
+      'Should forbid old artistic term: 肖像');
+    assert.ok(prompt.includes('独白'),
+      'Should forbid old artistic term: 独白');
+    assert.ok(prompt.includes('光の意志'),
+      'Should forbid old artistic term: 光の意志');
+    assert.ok(!prompt.includes('事実を肖像に変える'),
+      'Old Ver.17.0 rule should be removed');
   });
 
-  it('Ver.17.0 のアイデンティティ: 良き理解者', async () => {
+  it('Dual Trigger のアイデンティティ: 編集者', async () => {
     const { buildImagePostPrompt } = await import('../src/utils/promptBuilder.js');
     const store = { name: 'テスト店', tone: 'カジュアル', config: {} };
-    const prompt = buildImagePostPrompt(store, {}, null, null, '', 'テスト画像', 'snapshot');
+    const prompt = buildImagePostPrompt(store, {}, null, null, '', 'テスト画像');
 
-    assert.ok(!prompt.includes('世界中を旅してきた写真家'),
+    assert.ok(!prompt.includes('良き理解者'),
       'Old identity should be removed');
-    assert.ok(prompt.includes('良き理解者'),
-      'New identity should be present');
-    assert.ok(prompt.includes('80点の正解'),
-      'Should mention 80-point correctness');
+    assert.ok(prompt.includes('編集者'),
+      'New identity should be editor');
+    assert.ok(prompt.includes('思い出してしまう'),
+      'Should mention recall goal');
   });
 
-  it('H2: buildRevisionPrompt に Ver.17.0 ルールが含まれる', async () => {
+  it('buildRevisionPrompt に Dual Trigger ルールが含まれる', async () => {
     const { buildRevisionPrompt } = await import('../src/utils/promptBuilder.js');
     const store = { name: 'テスト店', tone: 'カジュアル', config: {} };
     const prompt = buildRevisionPrompt(store, {}, '元の投稿', 'もっと短く');
 
-    assert.ok(prompt.includes('Ver. 17.0'),
-      'Revision prompt should include Ver.17.0 rules');
-    assert.ok(prompt.includes('不揃いな呼吸'),
-      'Revision prompt should include breathing rule');
+    assert.ok(prompt.includes('Dual Trigger Model'),
+      'Revision prompt should include Dual Trigger Model rules');
+    assert.ok(prompt.includes('想起トリガー'),
+      'Revision prompt should include recall trigger');
     assert.ok(prompt.includes('幻想的'),
       'Revision prompt should include forbidden words');
   });

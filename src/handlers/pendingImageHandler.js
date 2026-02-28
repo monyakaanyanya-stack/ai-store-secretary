@@ -51,14 +51,10 @@ export async function handlePendingImageResponse(user, text, replyToken) {
     const imageBase64 = await getImageAsBase64(ctx.messageId);
 
     // ヒントがある場合は imageDescription に追記してプロンプトに反映
+    // ヒントは想起トリガー・来店トリガーどちらにも自然に反映してよい
     const enrichedDescription = hint
-      ? `${ctx.imageDescription}\n\n【店主からの補足情報】${hint}`
+      ? `${ctx.imageDescription}\n\n【店主からの補足情報（想起・来店どちらのトリガーにも自然に反映してよい）】${hint}`
       : ctx.imageDescription;
-
-    // 機材レベルを再判定
-    const equipmentLevel = ctx.imageDescription?.toLowerCase().includes('signature')
-      ? 'signature'
-      : 'snapshot';
 
     const prompt = buildImagePostPrompt(
       store,
@@ -67,7 +63,6 @@ export async function handlePendingImageResponse(user, text, replyToken) {
       ctx.blendedInsights ?? null,
       ctx.personalization ?? '',
       enrichedDescription,
-      equipmentLevel,
     );
 
     const rawContent = await askClaude(prompt);

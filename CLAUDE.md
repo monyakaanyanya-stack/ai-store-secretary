@@ -13,12 +13,13 @@
 | **ローカルパス** | `D:\クロードコード　でも\ai-store-secretary\` |
 | **リポジトリ** | `https://github.com/monyakaanyanya-stack/ai-store-secretary` |
 | **本番環境** | Railway（`main` ブランチへの push で自動デプロイ） |
-| **コンセプト** | 店舗オーナーが LINE で写真を送ると、写真家の目を持つ AI秘書が Instagram 投稿文を生成するサービス |
+| **コンセプト** | 店舗オーナーが LINE で写真を送ると、AI秘書が「記憶を作り、さりげない行動理由を添える」Instagram 投稿文を生成するサービス |
 
 ### サービスの特徴
 
-- 「写真を分析するAI」ではなく「**店長自身が写真家の目を持っている**」体験
-- **Ver.3.0 The Silent Storyteller**: 光の意志・質感の物語・沈黙のデザインの3視点で写真を読み解く
+- **Ver.4.0 Dual Trigger Model**: 1投稿に2つのトリガーを埋め込む
+  - **想起トリガー(7割)**: 五感・時間帯・小さな情景 → 店を思い出させる
+  - **来店トリガー(3割)**: 今・数量・具体・小さな理由 → 押さずに動かす
 - 店主ごとの口調・語尾・口癖を学習して投稿に反映
 - 同業種の集合知データでハッシュタグ・文字数を最適化
 
@@ -73,7 +74,7 @@ ai-store-secretary/
 │   │   ├── monthlyFollowerService.js
 │   │   └── errorNotification.js
 │   ├── utils/
-│   │   ├── promptBuilder.js     # ★プロンプト生成（Ver.3.0 The Silent Storyteller）
+│   │   ├── promptBuilder.js     # ★プロンプト生成（Ver.4.0 Dual Trigger Model）
 │   │   └── learningData.js      # 学習データ集約
 │   └── config/
 │       ├── categoryGroups.js    # カテゴリー分類定義
@@ -143,27 +144,39 @@ INSTAGRAM_APP_SECRET=
 
 ## 4. 設計方針
 
-### プロンプト設計（Ver.3.0 The Silent Storyteller）
+### プロンプト設計（Ver.4.0 Dual Trigger Model）
 
-`buildImagePostPrompt`（`promptBuilder.js`）の4層構造：
+**コンセプト**: 1投稿に2つのトリガーを埋め込む
+- **想起トリガー(7割)**: 五感・時間帯・小さな情景 → 店を思い出させる
+- **来店トリガー(3割)**: 今・数量・具体・小さな理由 → 押さずに動かす
+
+**describeImage（五感ベース5項目分析）：**
+1. 何が写っているか — 被写体を具体的に
+2. 視覚的な印象 — 色味・光・質感
+3. 五感の推測 — 香り・音・温度・手触り
+4. 時間帯・季節感
+5. 記憶を呼ぶ要素
+
+**buildImagePostPrompt の出力構成（各案3パート）：**
 
 | パート | 内容 |
 |---|---|
-| 【一瞬の独白】 | 光の意志・質感・沈黙のデザインを詩的に描写（全口調共通） |
-| 【店主のまなざし】 | toneData の口調ルールに従い体温のある言葉で綴る（学習語尾反映） |
-| 【📸 写真家のアドバイス】 | 「〜したくて、〜したのですね」形式で撮影者の心拍数に触れる |
-| 【感性のハッシュタグ】 | 集合知タグ＋感性タグ2個（#光を捉える 等）を必ず含める |
+| 本文 | 店主の口調で自然に（文字数設定に従う） |
+| 想起の一言 | 五感を1つ含める・15〜25文字 |
+| 来店の一文 | 具体的だが押し売りでない（「ぜひ」「おすすめ」禁止） |
+| ハッシュタグ | テンプレ優先→集合知→辞書 |
 
-**写真解析の3視点（describeImage + buildImagePostPrompt の両方に反映）：**
-1. **光の意志** — 何を照らし何を隠すか、光の温度・性質
-2. **質感の物語** — 触れられそうなリアリティ
-3. **沈黙のデザイン** — 撮影者がなぜその瞬間にシャッターを切ったか
+**3案のラベル：**
+- 案A: 記憶に残る日常
+- 案B: さりげない誘い
+- 案C: 店主のひとりごと
+
+**Photo Advice**: 良い点1つ + 次の提案1つ（合計2行以内）
 
 **言葉の禁止ルール：**
-- 「〜しました」「〜してきました」の行動報告は最小限
-- 色を名前で呼ばない（「白い」→「透過する光」「銀色の縁取り」）
 - 禁止ワード：幻想的・素敵・魅力的・素晴らしい・完璧・最高・美しい
-- 禁止ワード：ぜひ・おすすめ・大好評・お得（広告語）
+- 旧芸術語：光の意志・質感の物語・沈黙のデザイン・肖像・独白・心拍数・体温
+- 広告語：ぜひ・おすすめ・大好評・お得
 
 ### 修正指示（buildRevisionPrompt）
 
@@ -283,25 +296,61 @@ const [imageDescription, learningData, blendedInsights, ...] = await Promise.all
 - [x] `advancedPersonalization.js` の `writing_style` / `latest_learnings` 保存バグ修正
 - [x] 「学習リセット」コマンド追加（`textHandler.js`）
 - [x] `dataResetHandler.js` のエラーハンドリング強化
-- [x] **Ver.3.0 The Silent Storyteller** プロンプト全面刷新
-  - `describeImage`: 写真家視点（光・構図・空気感）、max_tokens 700
-  - `buildImagePostPrompt`: Core Identity 付き4層構造
-  - 感性チューニング Ver.2.1（事実を背景に・光への執着・アドバイスの深度）
-  - 最後の一滴（心拍数・体温・「そうせずにはいられなかった理由」）
+- [x] **Ver.3.0 The Silent Storyteller** → **Ver.4.0 Dual Trigger Model** に刷新
+  - `describeImage`: 写真家視点6項目 → 五感ベース5項目（max_tokens 800→600）
+  - `buildImagePostPrompt`: 肖像3案 → Dual Trigger 3案（記憶に残る日常/さりげない誘い/店主のひとりごと）
+  - `buildTextPostPrompt`: 同様に Dual Trigger 出力構成に統一
+  - `buildRevisionPrompt`: Dual Trigger Model ルールに更新
+  - equipmentLevel（機材レベル判定）廃止、Photo Advice 簡略化
 
 ### 未実装・検討中（Phase 3 以降）
 
 - [x] ハッシュタグ人気度ロジック修正（平均保存強度でソート済み）
-- [ ] カテゴリーマッピング拡充（エステ・まつエク・スイーツ等）
-- [ ] Instagram Graph API 審査申請
-- [ ] 集合知データのいいね数範囲調整（5〜100に）
+- [x] カテゴリーマッピング拡充（6グループ27カテゴリー実装済みと確認）
+- [ ] Instagram Graph API 審査申請（Meta Developer 登録でレート制限中→48h待ち）
+- [ ] 集合知データのいいね数範囲調整（5〜100に）（低優先）
 - [x] 学習回数の表示タイミング修正（フィードバック時・学習状況コマンド時のみ表示）
 
 ---
 
 ## 8. 直近のセッションログ
 
-### 2026-02-22（最新・完了）
+### 2026-02-28 #2（最新・完了）
+
+**作業内容：Ver.4.0 Dual Trigger Model 実装**
+1. `claudeService.js` — describeImage を写真家視点6項目 → 五感ベース5項目に変更（max_tokens 800→600）
+2. `promptBuilder.js` — buildImagePostPrompt を全面書き換え
+   - Core Identity: 「良き理解者」→「編集者」
+   - 出力形式: 時間の肖像/誠実の肖像/光の肖像 → 記憶に残る日常/さりげない誘い/店主のひとりごと
+   - 各案: 本文 + 想起の一言（五感）+ 来店の一文（具体）+ ハッシュタグ
+   - Photo Advice: 詳細6カテゴリ → 2行以内に簡略化
+   - equipmentLevel（機材レベル分岐）廃止
+   - 旧芸術語（光の意志/質感の物語/沈黙のデザイン/肖像/独白等）を禁止ワードに追加
+3. `promptBuilder.js` — buildTextPostPrompt を同様に Dual Trigger 構成に更新
+4. `promptBuilder.js` — buildRevisionPrompt を Dual Trigger Model ルールに更新
+5. `pendingImageHandler.js` — equipmentLevel 削除 + ヒント指示を「想起・来店どちらにも反映」に更新
+6. `imageHandler.js` — 未使用の parseEquipmentLevel 関数を削除
+7. テスト — 旧 Scenario 28 を Ver.4.0 対応に書き換え、全126テスト通過
+8. CLAUDE.md — Ver.4.0 記述に全面更新
+
+**次回への引き継ぎ事項：**
+- Ver.4.0 は実装完了・テスト通過。実際にLINEで画像を送って出力確認推奨
+- Meta Developer 登録: 48時間以上空けてから電話番号認証を再試行（レート制限解除待ち）
+- GitHub Pages の有効化: Settings → Pages → main / /docs → Save
+
+---
+
+### 2026-02-28 #1（完了）
+
+**作業内容：**
+1. CLAUDE.md に「ワークフロー原則」セクション（6章）を追加
+2. 未実装タスクの棚卸し — カテゴリーマッピングは6グループ27カテゴリーで実装済みと確認
+3. Instagram Graph API 審査手順の整理 — Meta Developer 登録で電話番号認証がレート制限中
+4. プライバシーポリシーページを `docs/privacy-policy.html` に作成・push済み
+
+---
+
+### 2026-02-22（完了）
 
 **作業内容：**
 1. 未実装タスクの棚卸し — コード調査の結果、以下2件が対応済みと判明

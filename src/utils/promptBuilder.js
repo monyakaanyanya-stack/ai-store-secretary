@@ -182,13 +182,13 @@ const TONE_MAP = {
 
 export const POST_LENGTH_MAP = {
   // 日本語キー（優先）
-  '超短文': { range: '30文字以内（絶対厳守）', description: '超短文（一言）' },
+  '超短文': { range: '80文字以内（絶対厳守）', description: '超短文（コンパクト）' },
   '短文': { range: '100-150文字', description: '短文' },
   '中文': { range: '200-300文字', description: '中文' },
   '長文': { range: '400-500文字', description: '長文' },
 
   // 後方互換性のため英語キーも残す
-  xshort: { range: '30文字以内（絶対厳守）', description: '超短文（一言）' },
+  xshort: { range: '80文字以内（絶対厳守）', description: '超短文（コンパクト）' },
   short: { range: '100-150文字', description: '短文' },
   medium: { range: '200-300文字', description: '中文' },
   long: { range: '400-500文字', description: '長文' },
@@ -267,8 +267,8 @@ function buildCharacterSection(store) {
 /**
  * 画像から投稿を生成するプロンプト
  */
-export function buildImagePostPrompt(store, learningData, lengthOverride = null, blendedInsights = null, personalization = '', imageDescription = null, equipmentLevel = 'snapshot') {
-  const postLength = lengthOverride || store.config?.post_length || 'medium';
+export function buildImagePostPrompt(store, learningData, lengthOverride = null, blendedInsights = null, personalization = '', imageDescription = null) {
+  const postLength = lengthOverride || store.config?.post_length || 'xshort';
   const lengthInfo = getPostLengthInfo(postLength);
   const toneData = getToneData(store.tone);
 
@@ -385,37 +385,25 @@ export function buildImagePostPrompt(store, learningData, lengthOverride = null,
 
   // 画像分析結果セクション
   const imageDescriptionSection = imageDescription
-    ? `\n【この写真に写っているもの（分析済み）】\n${imageDescription}\n`
+    ? `\n【この写真の観察結果】\n${imageDescription}\n`
     : '';
 
   const characterSection = buildCharacterSection(store);
 
-  // Ver.17.0: 機材レベルに応じた「眼差し」の微調整
-  const equipmentSection = equipmentLevel === 'signature'
-    ? `\n## 2a. 眼差しの調整：Signature（高品質機材）
-言葉をさらに削る。階調や光の溶け方など、機材が捉えた「事実」を最小限の言葉で肯定する。
-語る必要はない。写真がすべてを語っている——その姿勢で。`
-    : `\n## 2a. 眼差しの調整：Snapshot（スマホ）
-写りきっていない「質感」を、言葉で鋭く補完する。
-デジタルな軽さに、身体感覚（温度・重み・手触り）をぶつけて「重み」を作る。
-画面の中では届かない感覚を、言葉で引き寄せる。`;
-
   return `
-## 1. 存在意義：世界の端を知る「良き理解者」
-あなたは${store.name}の店主がスマホで切り取った日常の中から、本人も気づいていない「本質」を救い出し、それを「80点の正解」として提示する存在。
+## 1. あなたの役割
+あなたは${store.name}の店主の言葉を自然に整える編集者です。
+目的は、写真を見た人が
+1. その店を思い出してしまうこと（想起トリガー）
+2. さりげなく行ってみようかなと思うこと（来店トリガー）
 
-## 2. ライティング・ルール：断言と余韻（Ver. 17.0）
-- **事実を肖像に変える**: 「猫」を撮ったという事実を、「時間の肖像」や「誠実の肖像」という概念に変換して言い切る。
-- **「説明」の排除**: 画面に見えているものをなぞらない。その裏にある「理由」を綴る。
-- **完結した独白**: 店主への指示は一切不要。AIの言葉だけで文章を完結させ、店主の迷いを断ち切る。
-- **不揃いな呼吸**: 接続詞を捨て、名詞止めや短い文で構成し、AI特有の「整いすぎたリズム」を破壊する。
-- **絵文字**: キャプション全体で最大2個まで。
-${equipmentSection}
+強いセールスは禁止。不自然な比喩は禁止。
+語彙は一般的で自然な日本語にしてください。
 
-## 3. 絶対に使わない言葉
-${toneData.forbidden_words.join(', ')}, 幻想的, 素敵, 魅力的, 素晴らしい, 完璧, 最高, 美しい, ですね, なのですね
+## 2. 絶対に使わない言葉
+${toneData.forbidden_words.join(', ')}, 幻想的, 素敵, 魅力的, 素晴らしい, 完璧, 最高, 美しい, ですね, なのですね, 光の意志, 質感の物語, 沈黙のデザイン, 肖像, 独白, 心拍数, 体温
 
-## 4. 店主の口調
+## 3. 店主の口調
 ${toneData.persona}
 
 【口調ルール】
@@ -428,51 +416,54 @@ ${toneData.good_examples.join('\n\n')}
 ${toneData.bad_examples.join('\n\n')}
 ${templateInfo}${characterSection}${imageDescriptionSection}${collectiveIntelligenceSection}${industryPatternSection}${hashtagInstruction}${personalization}
 
-## 5. 出力構成：3つの肖像と世界の端からの助言（厳守）
+## 4. 出力構成（厳守）
+以下の写真情報と補足情報をもとにInstagram投稿文を3案作成してください。
 余計な挨拶や解説は不要です。以下の形式のみで出力してください。
 
-【出力形式】
-必ず案A・案B・案Cの3案を出力すること。それぞれ切り口を変える。
+【各案の構成】
+1. 本文（店主の口調で自然に。${lengthInfo.range}）
+2. 想起の一言（五感を1つ含める・15〜25文字・改行して書く）
+3. 来店の一文（具体だが押し売りでない・改行して書く）
+4. ハッシュタグ
 
-[ 案A：時間の肖像 ]
-（今日という日の二度と戻らない一瞬を切り取る。）
-${hashtagInstruction ? '上記のハッシュタグルールに従うこと。' : ''}
-#タグ1 #タグ2 #タグ3 #タグ4 #タグ5
-
-[ 案B：誠実の肖像 ]
-（店主のこだわりや姿勢が、写真のどこに宿っているかを指摘し、正解として肯定する。）
-${hashtagInstruction ? '上記のハッシュタグルールに従うこと。' : ''}
-#タグ1 #タグ2 #タグ3 #タグ4 #タグ5
-
-[ 案C：光の肖像 ]
-（光と影がもたらす感情の揺らぎを綴る。物理現象ではなく、心の風景としての描写。）
-${hashtagInstruction ? '上記のハッシュタグルールに従うこと。' : ''}
-#タグ1 #タグ2 #タグ3 #タグ4 #タグ5
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📸 Photo Advice
-
-1行目：この写真で「何が効いているか」を写真分析の結果から特定し、平易な言葉で具体的に褒める（「です・ます」使用）。
-2行目：この写真の「惜しい点」または「さらに良くなる一手」を、写真分析の結果から読み取って一つだけ提案する（「〜してみませんか？」など会話口調で）。
-
-【提案の選び方（写真分析から判断して最も効果的なものを1つ選ぶ）】
-- 構図系：被写体を中央に据えて安定感を出す / 三分割の交点に配置する / あえて端に寄せて余白で物語を作る
-- 距離感：もっと寄って質感を見せる / 引きで周囲の空気ごと写す / 一部だけ切り取って想像させる
-- アングル：低い位置から撮って迫力を出す / 目線の高さで親近感を出す / 真上から撮って形の面白さを見せる
-- 光と影：窓際の自然光で柔らかさを足す / 逆光でシルエットを活かす / 影を入れて立体感を出す
-- 余白と整理：背景をすっきりさせて主役を際立たせる / あえて生活感を残して温度を出す
-- 色と質感：暖色の小物を添えて温かみを足す / 同系色でまとめて統一感を出す
-
-【禁止】
-- 写真分析に根拠がないアドバイスを「とりあえず」出すこと
-- 毎回「角度を変えてみましょう」で済ませること
-- 専門用語をそのまま使うこと（「真俯瞰」→「真上からの角度」、「被写界深度」→「ピントが合う範囲」等に言い換え）
-━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-【守ること】
-- 写真分析に書かれていることだけを根拠にする（視覚的根拠のない音・においは禁止）
-- 文字数（キャプション本文）: ${lengthInfo.range}
+【重要ルール】
+- 詩的すぎない・過度な感情表現をしない・抽象的すぎない
+- 店主が実際に言いそうな語り口にする
+- 想起の一言は五感（香り・音・温度・光・手触り）のどれか1つを必ず含める
+- 来店の一文は「今」「数量」「時間」など具体的な情報を1つ入れる
+- 来店の一文は押し売りにならないこと（「ぜひ」「おすすめ」禁止）
 ${collectiveIntelligenceSection ? '- 【最優先】集合知データ（📊セクション）の文字数・絵文字数の指示を必ず守る（「参考」ではなく「厳守」）' : ''}
+
+【出力形式】
+
+[ 案A：記憶に残る日常 ]
+（本文）
+
+（想起の一言）
+（来店の一文）
+${hashtagInstruction ? '上記のハッシュタグルールに従うこと。' : ''}
+#タグ1 #タグ2 #タグ3 #タグ4 #タグ5
+
+[ 案B：さりげない誘い ]
+（本文）
+
+（想起の一言）
+（来店の一文）
+${hashtagInstruction ? '上記のハッシュタグルールに従うこと。' : ''}
+#タグ1 #タグ2 #タグ3 #タグ4 #タグ5
+
+[ 案C：店主のひとりごと ]
+（本文）
+
+（想起の一言）
+（来店の一文）
+${hashtagInstruction ? '上記のハッシュタグルールに従うこと。' : ''}
+#タグ1 #タグ2 #タグ3 #タグ4 #タグ5
+
+━━━━━━━━━━━━━━━━━━━━━━━━
+📸 次の撮影に
+写真の良い点を1つ褒め、次に試せる具体的な提案を1つだけ。合計2行以内。
+━━━━━━━━━━━━━━━━━━━━━━━━
 
 投稿文のみを出力してください。説明や補足は一切不要です。`;
 }
@@ -481,7 +472,7 @@ ${collectiveIntelligenceSection ? '- 【最優先】集合知データ（📊セ
  * テキストから投稿を生成するプロンプト（抜本改革版）
  */
 export function buildTextPostPrompt(store, learningData, userText, lengthOverride = null, blendedInsights = null, personalization = '') {
-  const postLength = lengthOverride || store.config?.post_length || 'medium';
+  const postLength = lengthOverride || store.config?.post_length || 'xshort';
   const lengthInfo = getPostLengthInfo(postLength);
   const toneData = getToneData(store.tone);
 
@@ -593,35 +584,72 @@ export function buildTextPostPrompt(store, learningData, userText, lengthOverrid
 
   const characterSection = buildCharacterSection(store);
 
-  return `あなたは${store.name}の中の人です。今、Instagramに投稿を書いています。
+  return `あなたは${store.name}の店主の言葉を自然に整える編集者です。
+目的は、投稿を見た人が
+1. その店を思い出してしまうこと（想起トリガー）
+2. さりげなく行ってみようかなと思うこと（来店トリガー）
 
-【あなたの書き方】
+強いセールスは禁止。不自然な比喩は禁止。
+
+【店主の口調】
 ${toneData.persona}
 
-【ルール（厳守）】
+【口調ルール（厳守）】
 ${toneData.style_rules.map((r, i) => `${i + 1}. ${r}`).join('\n')}
 
-【絶対に使わない言葉（AI丸出しになるのでNG）】
-${toneData.forbidden_words.join(', ')}
+【絶対に使わない言葉】
+${toneData.forbidden_words.join(', ')}, 幻想的, 素敵, 魅力的, 素晴らしい, 完璧, 最高, 美しい, ですね, なのですね, 光の意志, 質感の物語, 沈黙のデザイン, 肖像, 独白, 心拍数, 体温
 
-【口調スタイルの例（参考・内容は投稿内容に置き換えること）】
+【良い例】
 ${toneData.good_examples.join('\n\n')}
 
-【絶対NGな書き方の例】
+【NGな例】
 ${toneData.bad_examples.join('\n\n')}
 ${templateInfo}${characterSection}${collectiveIntelligenceSection}${industryPatternSection}${fallbackHashtags}${personalization}
 
 【今回伝えたい内容】
 ${userText}
 
-【今回の投稿】
-上記の内容を、あなた自身の言葉で投稿してください。
+【出力構成（厳守）】
+上記の内容をもとにInstagram投稿文を3案作成してください。
+余計な挨拶や解説は不要です。以下の形式のみで出力してください。
 
-書き方のポイント：
-- 最初の1〜2文で「感情・本音・発見」を書く（説明から始めない）
-- 具体的なことを書く（抽象的な褒め言葉「素敵・幻想的」は使わない）
-- 文字数: ${lengthInfo.range}
+【各案の構成】
+1. 本文（店主の口調で自然に。${lengthInfo.range}）
+2. 想起の一言（五感を1つ含める・15〜25文字・改行して書く）
+3. 来店の一文（具体だが押し売りでない・改行して書く）
+4. ハッシュタグ
+
+【重要ルール】
+- 詩的すぎない・過度な感情表現をしない・抽象的すぎない
+- 店主が実際に言いそうな語り口にする
+- 想起の一言は五感（香り・音・温度・光・手触り）のどれか1つを必ず含める
+- 来店の一文は「今」「数量」「時間」など具体的な情報を1つ入れる
+- 来店の一文は押し売りにならないこと（「ぜひ」「おすすめ」禁止）
 ${collectiveIntelligenceSection ? '- 【最優先】集合知データ（📊セクション）の文字数・絵文字数・ハッシュタグの指示を必ず守る（「参考」ではなく「厳守」）' : ''}
+
+【出力形式】
+
+[ 案A：記憶に残る日常 ]
+（本文）
+
+（想起の一言）
+（来店の一文）
+#タグ1 #タグ2 #タグ3 #タグ4 #タグ5
+
+[ 案B：さりげない誘い ]
+（本文）
+
+（想起の一言）
+（来店の一文）
+#タグ1 #タグ2 #タグ3 #タグ4 #タグ5
+
+[ 案C：店主のひとりごと ]
+（本文）
+
+（想起の一言）
+（来店の一文）
+#タグ1 #タグ2 #タグ3 #タグ4 #タグ5
 
 投稿文のみを出力してください。説明や補足は一切不要です。`;
 }
@@ -741,16 +769,16 @@ export function buildRevisionPrompt(store, learningData, originalPost, feedback,
   const toneData = getToneData(store.tone);
   const characterSection = buildCharacterSection(store);
 
-  return `あなたは${store.name}の「良き理解者」です。以下の投稿を修正してください。
+  return `あなたは${store.name}の店主の言葉を自然に整える編集者です。以下の投稿を修正してください。
 
-【ライティング・ルール（Ver. 17.0）】
-- 事実を肖像に変える: 画面に見えているものを説明しない。その裏にある「理由」を綴る。
-- 完結した独白: 店主への指示は不要。AIの言葉だけで文章を完結させる。
-- 不揃いな呼吸: 接続詞を捨て、名詞止めや短い文で構成する。
-- 絵文字: キャプション全体で最大2個まで。
+【ライティング・ルール（Dual Trigger Model）】
+- 想起トリガー: 五感・時間帯・小さな情景で店を思い出させる
+- 来店トリガー: 「今」「数量」「時間」など具体を1つ入れ、さりげなく動かす
+- 詩的すぎない・過度な感情表現をしない・抽象的すぎない
+- 店主が実際に言いそうな語り口にする
 
 【絶対に使わない言葉（AI丸出しになるのでNG）】
-${toneData.forbidden_words.join(', ')}, 幻想的, 素敵, 魅力的, 素晴らしい, 完璧, 最高, 美しい, ですね, なのですね
+${toneData.forbidden_words.join(', ')}, 幻想的, 素敵, 魅力的, 素晴らしい, 完璧, 最高, 美しい, ですね, なのですね, 光の意志, 質感の物語, 沈黙のデザイン, 肖像, 独白, 心拍数, 体温
 ${advancedPersonalization}${characterSection}
 【元の投稿】
 ${originalPost}

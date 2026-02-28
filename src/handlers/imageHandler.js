@@ -11,19 +11,6 @@ import { extractInsightsFromScreenshot } from '../services/insightsOCRService.js
 import { applyEngagementMetrics } from './reportHandler.js';
 
 /**
- * 画像分析結果から機材レベルを抽出
- * describeImage() の6項目目「機材レベル: Signature/Snapshot」を解析
- * @param {string} imageDescription - 画像分析テキスト
- * @returns {'signature' | 'snapshot'}
- */
-function parseEquipmentLevel(imageDescription) {
-  if (!imageDescription) return 'snapshot';
-  const lower = imageDescription.toLowerCase();
-  if (lower.includes('signature')) return 'signature';
-  return 'snapshot';
-}
-
-/**
  * 画像メッセージ処理: 画像取得 → 画像分析 → 投稿生成 → 返信 → 履歴保存
  */
 export async function handleImageMessage(user, messageId, replyToken) {
