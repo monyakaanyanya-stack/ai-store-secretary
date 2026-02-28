@@ -35,6 +35,7 @@ import { getBlendedInsights, saveEngagementMetrics } from '../services/collectiv
 import { getPersonalizationPromptAddition, getLearningStatus } from '../services/personalizationEngine.js';
 import { getAdvancedPersonalizationPrompt } from '../services/advancedPersonalization.js';
 import { getSeasonalMemoryPromptAddition, getSeasonalMemoryStatus } from '../services/seasonalMemoryService.js';
+import { getRevisionExample, getRevisionQuickReplies } from '../utils/categoryExamples.js';
 
 /**
  * テキストメッセージの振り分け処理
@@ -159,15 +160,18 @@ export async function handleTextMessage(user, text, replyToken) {
       } catch (e) {
         return await replyText(replyToken, '⚠️ 状態の保存に失敗しました。修正内容を「直し: もっとカジュアルに」の形で送ってください。');
       }
+      // カテゴリーに応じたクイックリプライ選択肢を取得
+      let revisionCategory = null;
+      if (user.current_store_id) {
+        try {
+          const storeForCategory = await getStore(user.current_store_id);
+          revisionCategory = storeForCategory?.category ?? null;
+        } catch (_) { /* 取得失敗時はデフォルト選択肢を使用 */ }
+      }
       return await replyWithQuickReply(
         replyToken,
         '✏️ どんな修正をしますか？\n\n修正指示を送ってください（自由入力でもOK）',
-        [
-          { type: 'action', action: { type: 'message', label: 'カジュアルに', text: 'もっとカジュアルに' } },
-          { type: 'action', action: { type: 'message', label: '絵文字を減らして', text: '絵文字を減らして' } },
-          { type: 'action', action: { type: 'message', label: '短くして', text: 'もっと短くして' } },
-          { type: 'action', action: { type: 'message', label: '明るくして', text: 'もっと明るくして' } },
-        ]
+        getRevisionQuickReplies(revisionCategory)
       );
     }
 
@@ -946,6 +950,7 @@ async function handleTextPostGenerationWithLength(user, text, replyToken, length
     console.log(`[Post] テキスト投稿生成完了 (length=${lengthOverride}): store=${store.name}`);
 
     // コピペしやすい形式でフォーマット
+    const revisionExample = getRevisionExample(store.category);
     const formattedReply = `✨ 投稿案ができました！
 
 以下をコピーしてInstagramに貼り付けてください↓
@@ -953,6 +958,7 @@ async function handleTextPostGenerationWithLength(user, text, replyToken, length
 ${postContent}
 ━━━━━━━━━━━
 
+✏️ 直し: ${revisionExample}　→ 指示で修正＋学習
 ※ 「学習状況」と送ると学習内容を確認できます`;
 
     await replyWithQuickReply(replyToken, formattedReply, [

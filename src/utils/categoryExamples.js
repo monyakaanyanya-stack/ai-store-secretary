@@ -1,10 +1,12 @@
 /**
- * カテゴリー別「直し:」例文
+ * カテゴリー別「直し:」例文 / クイックリプライ選択肢
  *
- * 投稿生成後に表示する「✏️ 直し: 〇〇　→ 指示で修正＋学習」の
- * 例文をカテゴリーに合わせて返す。
  * store.category の値（categoryDictionary.js の label）に対応。
  */
+
+// ─────────────────────────────────────────────────────────────
+// 投稿生成後の例文テキスト（「✏️ 直し: 〇〇」の〇〇部分）
+// ─────────────────────────────────────────────────────────────
 
 const CATEGORY_REVISION_EXAMPLES = {
   // 美容系
@@ -62,4 +64,112 @@ const DEFAULT_REVISION_EXAMPLE = 'もっとカジュアルに';
 export function getRevisionExample(category) {
   if (!category) return DEFAULT_REVISION_EXAMPLE;
   return CATEGORY_REVISION_EXAMPLES[category] ?? DEFAULT_REVISION_EXAMPLE;
+}
+
+// ─────────────────────────────────────────────────────────────
+// 「直し」ボタン押下時のクイックリプライ選択肢（グループ別4択）
+// ─────────────────────────────────────────────────────────────
+
+/** カテゴリーラベル → グループ ID */
+const CATEGORY_TO_GROUP = {
+  // 美容系
+  'ネイルサロン':          'beauty',
+  '美容室':               'beauty',
+  'エステサロン':          'beauty',
+  'まつげエクステ':        'beauty',
+  'リラクゼーションサロン': 'beauty',
+  // 飲食系
+  'カフェ':               'food',
+  'レストラン':            'food',
+  'ベーカリー':            'food',
+  'スイーツ店':            'food',
+  'ラーメン店':            'food',
+  '和食店':               'food',
+  'イタリアン':            'food',
+  'フレンチ':              'food',
+  'コーヒー豆専門店':      'food',
+  // 小売系
+  'アパレル':              'retail',
+  '雑貨店':               'retail',
+  '古着屋':               'retail',
+  'アクセサリーショップ':  'retail',
+  '家具店':               'retail',
+  '書店':                 'retail',
+  '花屋':                 'retail',
+  // サービス系
+  'フォトグラファー':      'service',
+  'デザイン事務所':        'service',
+  'コワーキングスペース':  'service',
+  '学習塾':               'service',
+  'ヨガスタジオ':          'service',
+  // 専門職系
+  '士業':                 'professional',
+  'コンサルタント':        'professional',
+  '不動産':               'professional',
+  // クリエイティブ系
+  'ハンドメイド作家':      'creative',
+  'アーティスト':          'creative',
+  '音楽教室':             'creative',
+};
+
+/** グループ別クイックリプライ選択肢 */
+const GROUP_REVISION_OPTIONS = {
+  beauty: [
+    { label: 'トレンド感を出して', text: 'トレンド感をもっと出して' },
+    { label: '特別感を演出して',   text: '特別感をもっと演出して' },
+    { label: '短くして',          text: 'もっと短くして' },
+    { label: '明るくして',        text: 'もっと明るくして' },
+  ],
+  food: [
+    { label: '温かみを出して',    text: '温かみをもっと出して' },
+    { label: '季節感を加えて',    text: '季節感を加えて' },
+    { label: '食欲をそそるように', text: '食欲をそそる表現に直して' },
+    { label: '短くして',          text: 'もっと短くして' },
+  ],
+  retail: [
+    { label: 'おしゃれな表現で',  text: 'もっとおしゃれな表現に直して' },
+    { label: 'カジュアルに',      text: 'もっとカジュアルに' },
+    { label: '短くして',          text: 'もっと短くして' },
+    { label: '明るくして',        text: 'もっと明るくして' },
+  ],
+  service: [
+    { label: '専門性を出して',    text: 'もっと専門性を出して' },
+    { label: '親しみやすくして',  text: 'もっと親しみやすくして' },
+    { label: '感動を伝えて',      text: '感動をもっと伝えて' },
+    { label: '短くして',          text: 'もっと短くして' },
+  ],
+  professional: [
+    { label: '信頼感を高めて',    text: '信頼感をもっと高めて' },
+    { label: '親しみやすくして',  text: 'もっと親しみやすくして' },
+    { label: '実績を前面に',      text: '実績をもっと前面に出して' },
+    { label: '短くして',          text: 'もっと短くして' },
+  ],
+  creative: [
+    { label: '熱量を伝えて',      text: '熱量をもっと伝えて' },
+    { label: '物語性を加えて',    text: '物語性を加えて' },
+    { label: 'カジュアルに',      text: 'もっとカジュアルに' },
+    { label: '短くして',          text: 'もっと短くして' },
+  ],
+};
+
+/** カテゴリー未設定またはマッチしない場合のデフォルト */
+const DEFAULT_REVISION_OPTIONS = [
+  { label: 'カジュアルに',    text: 'もっとカジュアルに' },
+  { label: '絵文字を減らして', text: '絵文字を減らして' },
+  { label: '短くして',        text: 'もっと短くして' },
+  { label: '明るくして',      text: 'もっと明るくして' },
+];
+
+/**
+ * 「直し」ボタン押下時のクイックリプライアイテム配列を返す
+ * @param {string|null|undefined} category - store.category の値
+ * @returns {Array} LINE quickReply items 配列
+ */
+export function getRevisionQuickReplies(category) {
+  const group = category ? CATEGORY_TO_GROUP[category] : null;
+  const options = (group && GROUP_REVISION_OPTIONS[group]) ?? DEFAULT_REVISION_OPTIONS;
+  return options.map(({ label, text }) => ({
+    type: 'action',
+    action: { type: 'message', label, text },
+  }));
 }
