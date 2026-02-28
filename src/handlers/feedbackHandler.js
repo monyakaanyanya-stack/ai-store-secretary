@@ -7,7 +7,6 @@ import {
   updatePostContent,
 } from '../services/supabaseService.js';
 import { buildRevisionPrompt } from '../utils/promptBuilder.js';
-import { aggregateLearningData } from '../utils/learningData.js';
 import { applyFeedbackToProfile, getOrCreateLearningProfile } from '../services/personalizationEngine.js';
 import {
   analyzeFeedbackWithClaude,
@@ -67,9 +66,8 @@ export async function handleFeedback(user, feedback, replyToken) {
 
     // ── 修正生成フェーズ ──────────────────────────────────
     // 「直し:」コマンドなので長短問わず常に修正案を返す
-    const learningData = await aggregateLearningData(store.id);
     const advancedPersonalization = await getAdvancedPersonalizationPrompt(store.id);
-    const prompt = buildRevisionPrompt(store, learningData, latestPost.content, feedback, advancedPersonalization);
+    const prompt = buildRevisionPrompt(store, latestPost.content, feedback, advancedPersonalization);
     const revisedContent = await askClaude(prompt);
 
     // 修正版で既存の投稿履歴を更新（新レコードを作らない）

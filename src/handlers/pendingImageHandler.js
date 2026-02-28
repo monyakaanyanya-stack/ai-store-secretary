@@ -1,4 +1,4 @@
-import { replyText, getImageAsBase64 } from '../services/lineService.js';
+import { replyText, replyWithQuickReply, getImageAsBase64 } from '../services/lineService.js';
 import { askClaude } from '../services/claudeService.js';
 import { getStore, savePostHistory, clearPendingImageContext } from '../services/supabaseService.js';
 import { buildImagePostPrompt } from '../utils/promptBuilder.js';
@@ -28,9 +28,10 @@ export async function handlePendingImageResponse(user, text, replyToken) {
   const ctx = user.pending_image_context;
 
   if (!isValidContext(ctx)) {
-    // 期限切れ or 不正なコンテキスト → クリアして終了
+    // 期限切れ or 不正なコンテキスト → クリアしてユーザーに通知
     await clearPendingImageContext(user.id);
-    return false;
+    await replyText(replyToken, '⏰ 画像の待ち時間が切れました（30分）。\nもう一度画像を送り直してください📸');
+    return true;
   }
 
   // コンテキストをすぐにクリア（2重送信防止）
@@ -58,7 +59,6 @@ export async function handlePendingImageResponse(user, text, replyToken) {
 
     const prompt = buildImagePostPrompt(
       store,
-      ctx.learningData ?? {},
       null,
       ctx.blendedInsights ?? null,
       ctx.personalization ?? '',
@@ -86,8 +86,7 @@ export async function handlePendingImageResponse(user, text, replyToken) {
 ${rawContent}
 ━━━━━━━━━━━
 
-どの案が理想に近いですか？
-A / B / C と送ってください✉️
+どの案が理想に近いですか？👇
 
 【学習させる方法】
 ✏️ 直し: ギャル風にして　→ 指示で修正＋学習
@@ -95,7 +94,11 @@ A / B / C と送ってください✉️
 
 ※ 選択・修正・見本のたびに好みを学習します📚`;
 
-    await replyText(replyToken, formattedReply);
+    await replyWithQuickReply(replyToken, formattedReply, [
+      { type: 'action', action: { type: 'message', label: '✅ A案', text: 'A' } },
+      { type: 'action', action: { type: 'message', label: '✅ B案', text: 'B' } },
+      { type: 'action', action: { type: 'message', label: '✅ C案', text: 'C' } },
+    ]);
     return true;
   } catch (err) {
     console.error('[PendingImage] 投稿生成エラー:', err);

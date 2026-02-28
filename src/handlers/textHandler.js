@@ -28,7 +28,6 @@ import {
   cleanOldConversations
 } from '../services/conversationService.js';
 import { buildStoreParsePrompt, buildTextPostPrompt, POST_LENGTH_MAP, appendTemplateFooter } from '../utils/promptBuilder.js';
-import { aggregateLearningData } from '../utils/learningData.js';
 import { normalizeInput, safeParseInt } from '../utils/inputNormalizer.js';
 import { normalizeCategory } from '../config/categoryDictionary.js';
 import { getBlendedInsights, saveEngagementMetrics } from '../services/collectiveIntelligence.js';
@@ -545,8 +544,6 @@ async function handleTextPostGeneration(user, text, replyToken) {
       return await replyText(replyToken, '選択中の店舗が見つかりません。店舗一覧 で確認してください。');
     }
 
-    const learningData = await aggregateLearningData(store.id);
-
     // 集合知を取得（カテゴリーが設定されている場合のみ）
     let blendedInsights = null;
     if (store.category) {
@@ -560,7 +557,7 @@ async function handleTextPostGeneration(user, text, replyToken) {
     const seasonalMemory = await getSeasonalMemoryPromptAddition(store.id);
     const personalization = basicPersonalization + advancedPersonalization + seasonalMemory;
 
-    const prompt = buildTextPostPrompt(store, learningData, text, null, blendedInsights, personalization);
+    const prompt = buildTextPostPrompt(store, text, null, blendedInsights, personalization);
     const rawContent = await askClaude(prompt);
 
     // テンプレートの住所・営業時間などを末尾に固定追記（AIにアレンジさせない）
@@ -933,7 +930,6 @@ async function handleTextPostGenerationWithLength(user, text, replyToken, length
 
   try {
     const store = await getStore(user.current_store_id);
-    const learningData = await aggregateLearningData(store.id);
 
     // 集合知を取得（カテゴリーが設定されている場合のみ）
     let blendedInsights = null;
@@ -947,7 +943,7 @@ async function handleTextPostGenerationWithLength(user, text, replyToken, length
     const seasonalMemory = await getSeasonalMemoryPromptAddition(store.id);
     const personalization = basicPersonalization + advancedPersonalization + seasonalMemory;
 
-    const prompt = buildTextPostPrompt(store, learningData, text, lengthOverride, blendedInsights, personalization);
+    const prompt = buildTextPostPrompt(store, text, lengthOverride, blendedInsights, personalization);
     const rawContent = await askClaude(prompt);
 
     // テンプレートの住所・営業時間などを末尾に固定追記（AIにアレンジさせない）

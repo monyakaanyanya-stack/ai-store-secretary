@@ -1,8 +1,7 @@
-import { replyText, getImageAsBase64 } from '../services/lineService.js';
+import { replyText, replyWithQuickReply, getImageAsBase64 } from '../services/lineService.js';
 import { askClaude, describeImage } from '../services/claudeService.js';
 import { getStore, savePostHistory, savePendingImageContext, clearPendingImageContext } from '../services/supabaseService.js';
 import { buildImagePostPrompt, appendTemplateFooter } from '../utils/promptBuilder.js';
-import { aggregateLearningData } from '../utils/learningData.js';
 import { getBlendedInsights, saveEngagementMetrics } from '../services/collectiveIntelligence.js';
 import { getPersonalizationPromptAddition, getPersonalizationLevel } from '../services/personalizationEngine.js';
 import { getAdvancedPersonalizationPrompt } from '../services/advancedPersonalization.js';
@@ -90,14 +89,12 @@ export async function handleImageMessage(user, messageId, replyToken) {
     // → catch ブロックでユーザーに適切なエラーメッセージを返せる
     const [
       imageDescription,
-      learningData,
       blendedInsights,
       basicPersonalization,
       advancedPersonalization,
       seasonalMemory,
     ] = await Promise.all([
       describeImage(imageBase64), // 必須: 失敗時はcatchブロックへ（S9で throw に変更済み）
-      safeResolve(aggregateLearningData(store.id), {}, 'learningData'),
       safeResolve(
         store.category ? getBlendedInsights(store.id, store.category) : Promise.resolve(null),
         null, 'blendedInsights'
@@ -121,24 +118,24 @@ export async function handleImageMessage(user, messageId, replyToken) {
       messageId,
       imageDescription,
       storeId: store.id,
-      learningData,
       blendedInsights: blendedInsights ?? null,
       personalization,
       createdAt: new Date().toISOString(),
     });
 
-    await replyText(replyToken, `📸 写真を受け取りました！
+    await replyWithQuickReply(
+      replyToken,
+      `📸 写真を受け取りました！
 
 この写真の「伝えたいこと」を一言だけ教えてください👇
-
-例）
-・イチゴパフェ 本日限定10食
-・新メニュー追加しました
-・3周年記念セール開催中
-・今日のおすすめランチ
-
-スキップしてすぐ生成する場合は
-「スキップ」と送ってください`);
+（自由入力でもOK）`,
+      [
+        { type: 'action', action: { type: 'message', label: 'お知らせ', text: 'お知らせ' } },
+        { type: 'action', action: { type: 'message', label: '日常感', text: '日常感' } },
+        { type: 'action', action: { type: 'message', label: 'お役立ち', text: 'お役立ち情報' } },
+        { type: 'action', action: { type: 'message', label: 'スキップ', text: 'スキップ' } },
+      ]
+    );
   } catch (err) {
     console.error('[Image] 画像投稿生成エラー:', err);
     await replyText(replyToken, '投稿生成中にエラーが発生しました。しばらくしてから再度お試しください。');

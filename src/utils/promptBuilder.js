@@ -267,7 +267,7 @@ function buildCharacterSection(store) {
 /**
  * 画像から投稿を生成するプロンプト
  */
-export function buildImagePostPrompt(store, learningData, lengthOverride = null, blendedInsights = null, personalization = '', imageDescription = null) {
+export function buildImagePostPrompt(store, lengthOverride = null, blendedInsights = null, personalization = '', imageDescription = null) {
   const postLength = lengthOverride || store.config?.post_length || 'xshort';
   const lengthInfo = getPostLengthInfo(postLength);
   const toneData = getToneData(store.tone);
@@ -472,7 +472,7 @@ ${hashtagInstruction ? '上記のハッシュタグルールに従うこと。' 
 /**
  * テキストから投稿を生成するプロンプト（抜本改革版）
  */
-export function buildTextPostPrompt(store, learningData, userText, lengthOverride = null, blendedInsights = null, personalization = '') {
+export function buildTextPostPrompt(store, userText, lengthOverride = null, blendedInsights = null, personalization = '') {
   const postLength = lengthOverride || store.config?.post_length || 'xshort';
   const lengthInfo = getPostLengthInfo(postLength);
   const toneData = getToneData(store.tone);
@@ -767,7 +767,7 @@ function buildConfidenceLabel(level) {
 /**
  * フィードバックに基づく修正プロンプト
  */
-export function buildRevisionPrompt(store, learningData, originalPost, feedback, advancedPersonalization = '') {
+export function buildRevisionPrompt(store, originalPost, feedback, advancedPersonalization = '') {
   const toneData = getToneData(store.tone);
   const characterSection = buildCharacterSection(store);
 

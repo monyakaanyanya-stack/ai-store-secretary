@@ -54,6 +54,38 @@ export async function pushMessage(lineUserId, messages) {
 }
 
 /**
+ * LINE にクイックリプライ付きテキストを返信
+ * @param {string} replyToken
+ * @param {string} text - 本文
+ * @param {Array} items - QuickReply items: [{ type: 'action', action: { type: 'message', label: 'A', text: 'A' } }]
+ */
+export async function replyWithQuickReply(replyToken, text, items) {
+  const trimmed = text.length > 5000 ? text.slice(0, 4990) + '\n...' : text;
+
+  const res = await fetch(`${LINE_API_BASE}/message/reply`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${CHANNEL_ACCESS_TOKEN}`,
+    },
+    body: JSON.stringify({
+      replyToken,
+      messages: [{
+        type: 'text',
+        text: trimmed,
+        quickReply: { items },
+      }],
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    console.error(`[LINE] QuickReply返信失敗 status=${res.status} body=${body.slice(0, 200)}`);
+    throw new Error(`LINE QuickReply返信失敗: ${res.status}`);
+  }
+}
+
+/**
  * LINE Content API から画像バイナリを取得し Base64 文字列で返す
  */
 export async function getImageAsBase64(messageId) {

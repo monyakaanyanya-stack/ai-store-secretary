@@ -1063,7 +1063,7 @@ describe('Scenario 28: Ver.4.0 Dual Trigger Model', async () => {
   it('buildImagePostPrompt に Dual Trigger 出力形式がある', async () => {
     const { buildImagePostPrompt } = await import('../src/utils/promptBuilder.js');
     const store = { name: 'テスト店', tone: 'カジュアル', config: {} };
-    const prompt = buildImagePostPrompt(store, {}, null, null, '', 'テスト画像説明');
+    const prompt = buildImagePostPrompt(store, null, null, '', 'テスト画像説明');
 
     assert.ok(prompt.includes('想起トリガー'),
       'Should include recall trigger concept');
@@ -1078,7 +1078,7 @@ describe('Scenario 28: Ver.4.0 Dual Trigger Model', async () => {
   it('Dual Trigger の出力形式に新3案ラベルがある', async () => {
     const { buildImagePostPrompt } = await import('../src/utils/promptBuilder.js');
     const store = { name: 'テスト店', tone: 'フレンドリー', config: {} };
-    const prompt = buildImagePostPrompt(store, {}, null, null, '', 'テスト画像');
+    const prompt = buildImagePostPrompt(store, null, null, '', 'テスト画像');
 
     assert.ok(prompt.includes('[ 案A：記憶に残る日常 ]'),
       'Output format should include [ 案A：記憶に残る日常 ]');
@@ -1095,7 +1095,7 @@ describe('Scenario 28: Ver.4.0 Dual Trigger Model', async () => {
   it('旧Ver.17.0の芸術語が禁止ワードに含まれる', async () => {
     const { buildImagePostPrompt } = await import('../src/utils/promptBuilder.js');
     const store = { name: 'テスト店', tone: '丁寧', config: {} };
-    const prompt = buildImagePostPrompt(store, {}, null, null, '', 'テスト画像');
+    const prompt = buildImagePostPrompt(store, null, null, '', 'テスト画像');
 
     assert.ok(prompt.includes('肖像'),
       'Should forbid old artistic term: 肖像');
@@ -1110,7 +1110,7 @@ describe('Scenario 28: Ver.4.0 Dual Trigger Model', async () => {
   it('Dual Trigger のアイデンティティ: 編集者', async () => {
     const { buildImagePostPrompt } = await import('../src/utils/promptBuilder.js');
     const store = { name: 'テスト店', tone: 'カジュアル', config: {} };
-    const prompt = buildImagePostPrompt(store, {}, null, null, '', 'テスト画像');
+    const prompt = buildImagePostPrompt(store, null, null, '', 'テスト画像');
 
     assert.ok(!prompt.includes('良き理解者'),
       'Old identity should be removed');
@@ -1123,7 +1123,7 @@ describe('Scenario 28: Ver.4.0 Dual Trigger Model', async () => {
   it('buildRevisionPrompt に Dual Trigger ルールが含まれる', async () => {
     const { buildRevisionPrompt } = await import('../src/utils/promptBuilder.js');
     const store = { name: 'テスト店', tone: 'カジュアル', config: {} };
-    const prompt = buildRevisionPrompt(store, {}, '元の投稿', 'もっと短く');
+    const prompt = buildRevisionPrompt(store, '元の投稿', 'もっと短く');
 
     assert.ok(prompt.includes('Dual Trigger Model'),
       'Revision prompt should include Dual Trigger Model rules');
@@ -1324,7 +1324,7 @@ describe('Scenario 29: 案A/B/C選択 + スタイル学習', async () => {
     const pending = fs.readFileSync(
       new URL('../src/handlers/pendingImageHandler.js', import.meta.url), 'utf-8'
     );
-    assert.ok(pending.includes('A / B / C と送ってください'),
+    assert.ok(pending.includes('どの案が理想に近いですか'),
       'Reply should ask user to select A/B/C');
     assert.ok(pending.includes('3つの投稿案ができました'),
       'Reply should mention 3 proposals');
