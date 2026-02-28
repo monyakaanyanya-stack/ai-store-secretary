@@ -374,7 +374,7 @@ async function handleStoreInfoInput(user, state, input, replyToken) {
 
     await replyText(replyToken, successMessage);
 
-    console.log(`[Onboarding] 店舗登録完了: store=${storeName}, category=${state.selected_category}`);
+    console.log(`[Onboarding] 店舗登録完了: category=${state.selected_category}`);
 
     return true;
   } catch (error) {

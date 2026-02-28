@@ -1,4 +1,4 @@
-import { replyText, replyWithQuickReply, getImageAsBase64 } from '../services/lineService.js';
+import { replyText, replyWithQuickReply } from '../services/lineService.js';
 import { askClaude } from '../services/claudeService.js';
 import { getStore, savePostHistory, clearPendingImageContext } from '../services/supabaseService.js';
 import { buildImagePostPrompt } from '../utils/promptBuilder.js';
@@ -49,10 +49,9 @@ export async function handlePendingImageResponse(user, text, replyToken) {
       return await replyText(replyToken, '店舗情報が見つかりません。店舗一覧 で確認してください。');
     }
 
-    // 画像を再取得
-    const imageBase64 = await getImageAsBase64(ctx.messageId);
-
     // ヒントがある場合は imageDescription に追記してプロンプトに反映
+    // ※ 画像は初回送信時に Claude Vision で分析済み（ctx.imageDescription に保存）
+    //    再取得は不要。LINE のメッセージサーバーから画像が削除されても問題なし。
     // ヒントは想起トリガー・来店トリガーどちらにも自然に反映してよい
     const enrichedDescription = hint
       ? `${ctx.imageDescription}\n\n【店主からの補足情報（想起・来店どちらのトリガーにも自然に反映してよい）】${hint}`

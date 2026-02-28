@@ -173,14 +173,13 @@ function analyzeEngagementData(data) {
 export async function getBlendedInsights(storeId, category, contentCategory = null) {
   const categoryGroup = getCategoryGroup(category) ?? 'other';
 
-  // 自店舗の学習データ（50%）
-  const ownData = await getOwnStoreInsights(storeId);
-
-  // 同カテゴリーの集合知（30%）
-  let categoryData = await getCategoryInsights(category);
-
-  // 大グループの集合知（20%）
-  const groupData = await getGroupInsights(categoryGroup);
+  // 3つのDB呼び出しを並列実行（直列だと ~300ms×3 かかるところを ~300ms に短縮）
+  const [ownData, rawCategoryData, groupData] = await Promise.all([
+    getOwnStoreInsights(storeId),
+    getCategoryInsights(category),
+    getGroupInsights(categoryGroup),
+  ]);
+  let categoryData = rawCategoryData;
 
   // 被写体カテゴリーが検出され、かつ店舗カテゴリーと異なる場合はハッシュタグをブレンド
   let detectedContentCategory = null;
@@ -196,7 +195,7 @@ export async function getBlendedInsights(storeId, category, contentCategory = nu
         const deduped = [...new Set(merged)].slice(0, 10);
         categoryData = { ...(categoryData ?? {}), topHashtags: deduped };
         detectedContentCategory = contentCategory;
-        console.log(`[CollectiveIntelligence] 被写体カテゴリーブレンド: store=${category} + content=${contentCategory} → ${deduped.slice(0, 5).join(', ')}`);
+        console.log(`[CollectiveIntelligence] 被写体カテゴリーブレンド: ${category} + ${contentCategory} → ${deduped.length}件`);
       }
     } catch (err) {
       console.warn('[CollectiveIntelligence] 被写体カテゴリーデータ取得失敗（続行）:', err.message);
