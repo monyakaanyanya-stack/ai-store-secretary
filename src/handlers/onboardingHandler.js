@@ -1,11 +1,33 @@
-import { replyText } from '../services/lineService.js';
+import { replyText, replyWithQuickReply } from '../services/lineService.js';
 import { supabase, createStore } from '../services/supabaseService.js';
 import {
   getCategoryGroupByNumber,
+  getCategoryGroupNames,
+  getCategoriesByGroup,
   getCategoryByNumber,
   generateGroupSelectionMessage,
   generateDetailCategoryMessage
 } from '../config/categoryGroups.js';
+
+/** グループ選択用 Quick Reply アイテムを生成 */
+function buildGroupQuickReply() {
+  return getCategoryGroupNames().map(name => ({
+    type: 'action',
+    action: { type: 'message', label: name, text: name },
+  }));
+}
+
+/** 詳細カテゴリー選択用 Quick Reply アイテムを生成 */
+function buildDetailQuickReply(groupLabel) {
+  const cats = getCategoriesByGroup(groupLabel);
+  return [
+    ...cats.map(cat => ({
+      type: 'action',
+      action: { type: 'message', label: cat, text: cat },
+    })),
+    { type: 'action', action: { type: 'message', label: 'その他', text: 'その他' } },
+  ];
+}
 
 /**
  * オンボーディングステップの管理
@@ -29,14 +51,14 @@ export async function handleOnboardingStart(user, replyToken) {
       onConflict: 'user_id'
     });
 
-  // 大カテゴリー選択メニューを表示
+  // 大カテゴリー選択メニューをボタン付きで表示
   const message = `✨ AI店舗秘書へようこそ！
 
 まず、あなたのお店を登録しましょう。
 
-${generateGroupSelectionMessage()}`;
+👇 業種に近いグループを選んでください`;
 
-  await replyText(replyToken, message);
+  await replyWithQuickReply(replyToken, message, buildGroupQuickReply());
 }
 
 /**
@@ -109,17 +131,21 @@ export async function handleOnboardingResponse(user, message, replyToken) {
  * 大カテゴリー選択処理
  */
 async function handleCategoryGroupSelection(user, input, replyToken) {
+  // ボタン（グループ名）または番号の両方を受け付ける
+  let selectedGroup = null;
   const groupNumber = parseInt(input, 10);
-
-  if (isNaN(groupNumber) || groupNumber < 1 || groupNumber > 6) {
-    return await replyText(replyToken, '番号が正しくありません。\n\n1〜6の番号を送ってください。\n\nキャンセルする場合は「キャンセル」と送信してください。');
+  if (!isNaN(groupNumber) && groupNumber >= 1 && groupNumber <= 6) {
+    selectedGroup = getCategoryGroupByNumber(groupNumber);
+  } else if (getCategoryGroupNames().includes(input)) {
+    selectedGroup = input;
   }
 
-  const selectedGroup = getCategoryGroupByNumber(groupNumber);
-
-  // 念のため null チェック（categoryGroups.js 側に番号が未定義の場合）
   if (!selectedGroup) {
-    return await replyText(replyToken, '番号が正しくありません。\n\n1〜6の番号を送ってください。');
+    return await replyWithQuickReply(
+      replyToken,
+      'ボタンか番号（1〜6）で選んでください。\n\n「キャンセル」で中断できます。',
+      buildGroupQuickReply()
+    );
   }
 
   // 状態を更新
@@ -132,9 +158,12 @@ async function handleCategoryGroupSelection(user, input, replyToken) {
     })
     .eq('user_id', user.id);
 
-  // 詳細カテゴリー選択メニューを表示
-  const message = generateDetailCategoryMessage(selectedGroup);
-  await replyText(replyToken, message);
+  // 詳細カテゴリー選択メニューをボタン付きで表示
+  await replyWithQuickReply(
+    replyToken,
+    `【${selectedGroup}】\n👇 業種を選んでください`,
+    buildDetailQuickReply(selectedGroup)
+  );
 
   return true;
 }
@@ -201,10 +230,10 @@ async function handleCustomCategoryInput(user, state, input, replyToken) {
  * 詳細カテゴリー選択処理
  */
 async function handleCategoryDetailSelection(user, state, input, replyToken) {
-  const categoryNumber = parseInt(input, 10);
+  const cats = getCategoriesByGroup(state.selected_group);
 
-  // 0 = その他（自由入力）
-  if (categoryNumber === 0) {
+  // 「その他」または「0」= 自由入力
+  if (input === 'その他' || input === '0') {
     await supabase
       .from('onboarding_state')
       .update({
@@ -225,12 +254,21 @@ async function handleCategoryDetailSelection(user, state, input, replyToken) {
     return true;
   }
 
-  const selectedCategory = getCategoryByNumber(state.selected_group, categoryNumber);
+  // ボタン（カテゴリー名）または番号の両方を受け付ける
+  let selectedCategory = null;
+  const categoryNumber = parseInt(input, 10);
+  if (!isNaN(categoryNumber) && categoryNumber >= 1) {
+    selectedCategory = getCategoryByNumber(state.selected_group, categoryNumber);
+  } else if (cats.includes(input)) {
+    selectedCategory = input;
+  }
 
   if (!selectedCategory) {
-    // 範囲外の番号
-    const message = generateDetailCategoryMessage(state.selected_group);
-    return await replyText(replyToken, `番号が範囲外です。\n\n${message}`);
+    return await replyWithQuickReply(
+      replyToken,
+      `ボタンか番号で選んでください。`,
+      buildDetailQuickReply(state.selected_group)
+    );
   }
 
   // 状態を更新

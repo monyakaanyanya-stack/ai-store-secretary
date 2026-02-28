@@ -293,8 +293,13 @@ export async function handleTextMessage(user, text, replyToken) {
     return await handleTemplate(user, templateData, replyToken);
   }
 
-  // 設定確認
-  if (trimmed === 'テンプレート確認' || trimmed === '設定確認') {
+  // 設定確認（完全一致 + 前方一致で「表示して」などの変形にも対応）
+  if (
+    trimmed === 'テンプレート確認' || trimmed === '設定確認' ||
+    trimmed === 'テンプレート表示' || trimmed === 'テンプレ表示' || trimmed === 'テンプレ確認' ||
+    trimmed.startsWith('テンプレート表示') || trimmed.startsWith('テンプレ表示') ||
+    trimmed.startsWith('テンプレート確認') || trimmed.startsWith('テンプレ確認')
+  ) {
     return await handleShowSettings(user, replyToken);
   }
 

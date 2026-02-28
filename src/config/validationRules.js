@@ -135,6 +135,10 @@ export function isStatisticalOutlier(values, newValue) {
     return false; // 分散ゼロでは外れ値判定しない（データが不十分）
   }
 
-  const zScore = Math.abs((newValue - mean) / stdDev);
+  // 最小stdDevフロア: サンプル数が少なく偶然値が近似した場合に誤検出を防ぐ
+  // mean * 0.25 = 平均の25%を最小分散として使用（3σ範囲が mean ± 75% 以上になる）
+  const effectiveStdDev = Math.max(stdDev, mean * 0.25);
+
+  const zScore = Math.abs((newValue - mean) / effectiveStdDev);
   return zScore > 3; // 3σを超えたら外れ値
 }

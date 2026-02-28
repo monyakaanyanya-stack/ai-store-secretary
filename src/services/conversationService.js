@@ -181,6 +181,9 @@ export async function generateConversationalResponse(user, store, userMessage, c
 - 「切替: 店名」 → 別の店舗に切り替え
 - 「店舗登録」 → 新しい店舗を追加
 
+■ 設定確認
+- 「テンプレート確認」「テンプレート表示」「テンプレ表示」「設定確認」 → 登録済みテンプレート・設定を表示
+
 ■ その他
 - 「季節提案」 → 季節・イベントに合った投稿ネタを提案
 - 「ヘルプ」 → コマンド一覧を表示

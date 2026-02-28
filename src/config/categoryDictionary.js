@@ -230,6 +230,19 @@ export const CATEGORIES = [
     ],
     validation: null,
   },
+  {
+    id: 'coffee_roaster',
+    label: 'コーヒー豆専門店',
+    groupId: 'food',
+    synonyms: ['焙煎所', 'コーヒーロースター', '珈琲豆専門店'],
+    hashtags: [
+      '#コーヒー豆', '#珈琲豆', '#焙煎', '#自家焙煎', '#スペシャルティコーヒー',
+      '#specialtycoffee', '#シングルオリジン', '#コーヒーのある暮らし',
+      '#珈琲好き', '#coffee', '#coffeeroaster', '#焙煎士',
+      '#コーヒー好きな人と繋がりたい', '#産地', '#豆から挽く',
+    ],
+    validation: null,
+  },
 
   // ─── 小売系 ───
   {
