@@ -3,6 +3,29 @@ import { encrypt, decrypt } from '../utils/security.js';
 
 // Facebook Graph API（ビジネスアカウント経由のInstagram）
 const GRAPH_API_BASE = 'https://graph.facebook.com/v21.0';
+// Instagram Business Login API
+const INSTAGRAM_API_BASE = 'https://graph.instagram.com/v21.0';
+
+/**
+ * Graph API リクエスト共通関数
+ * @param {string} baseUrl - API ベース URL
+ */
+async function graphApiRequestBase(baseUrl, path, accessToken, params = {}) {
+  const url = new URL(`${baseUrl}${path}`);
+  url.searchParams.set('access_token', accessToken);
+  for (const [k, v] of Object.entries(params)) {
+    url.searchParams.set(k, v);
+  }
+
+  const res = await fetch(url.toString());
+  const data = await res.json();
+
+  if (data.error) {
+    throw new Error(`Graph API エラー: ${data.error.message} (code: ${data.error.code})`);
+  }
+
+  return data;
+}
 
 /**
  * Facebook Graph API リクエスト共通関数
@@ -118,7 +141,7 @@ export async function connectInstagramAccount(storeId, userAccessToken, knownPag
   // Instagram Business Login トークン（IGA/IGQ で始まる）は直接接続
   if (userAccessToken.startsWith('IGA') || userAccessToken.startsWith('IGQ') || userAccessToken.startsWith('IG')) {
     console.log('[Instagram] Instagram Business Login トークン検出 → 直接接続モード');
-    const meInfo = await graphApiRequest('/me', userAccessToken, {
+    const meInfo = await graphApiRequestBase(INSTAGRAM_API_BASE, '/me', userAccessToken, {
       fields: 'id,username,followers_count,media_count,name,biography',
     });
     if (!meInfo.id) throw new Error('Instagram トークンが無効です。');
@@ -301,8 +324,12 @@ export async function syncInstagramPosts(storeId, limit = 25) {
   const igAccountId = account.instagram_user_id;
   const accessToken = account.access_token;
 
-  // メディア一覧を取得（Facebook Graph API 経由）
-  const mediaList = await graphApiRequest(`/${igAccountId}/media`, accessToken, {
+  // Instagram Business Login トークンか Facebook トークンかで API ベースを切り替え
+  const apiBase = accessToken.startsWith('IG') ? INSTAGRAM_API_BASE : GRAPH_API_BASE;
+  const apiRequest = (path, token, params) => graphApiRequestBase(apiBase, path, token, params);
+
+  // メディア一覧を取得
+  const mediaList = await apiRequest(`/${igAccountId}/media`, accessToken, {
     fields: 'id,caption,media_type,permalink,timestamp',
     limit: String(limit),
   });
