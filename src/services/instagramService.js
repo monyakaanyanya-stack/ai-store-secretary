@@ -359,16 +359,14 @@ export async function syncInstagramPosts(storeId, limit = 25) {
       const likes = media.like_count || 0;
       const comments = media.comments_count || 0;
 
-      // インサイトデータを取得（メディアタイプで分岐）
-      // REELS: reach,saved,plays（impressions は非対応、plays = 再生数）
-      // IMAGE/CAROUSEL/VIDEO: reach,saved
+      // インサイトデータを取得（全タイプ共通: reach,saved）
+      // ※ impressions は REELS 非対応、plays も基本権限では非対応のため除外
       const isReel = media.media_product_type === 'REELS' || media.media_product_type === 'REEL';
-      const insightMetric = isReel ? 'reach,saved,plays' : 'reach,saved';
 
       let insightsData = {};
       try {
         const insights = await apiRequest(`/${media.id}/insights`, accessToken, {
-          metric: insightMetric,
+          metric: 'reach,saved',
         });
 
         if (insights.data) {
@@ -383,8 +381,7 @@ export async function syncInstagramPosts(storeId, limit = 25) {
 
       const saves = insightsData.saved || 0;
       const reach = insightsData.reach || 0;
-      // Reels は plays を impressions として保存
-      const impressions = isReel ? (insightsData.plays || 0) : (insightsData.impressions || 0);
+      const impressions = 0; // 基本権限では取得不可
       const engagementRate = reach > 0
         ? parseFloat(((likes + comments + saves) / reach * 100).toFixed(2))
         : 0;
