@@ -123,7 +123,24 @@ export async function connectInstagramAccount(storeId, userAccessToken) {
   }
 
   // 2. Facebook ページ経由で Page Access Token を取得
-  const { pageId, pageAccessToken, pageName } = await getPageAccessToken(longLivedToken);
+  //    ユーザートークンで /me/accounts が失敗した場合、ページトークンとして直接試行
+  let pageId, pageAccessToken, pageName;
+  try {
+    const pageInfo = await getPageAccessToken(longLivedToken);
+    pageId = pageInfo.pageId;
+    pageAccessToken = pageInfo.pageAccessToken;
+    pageName = pageInfo.pageName;
+  } catch (userTokenErr) {
+    console.warn('[Instagram] /me/accounts 失敗、ページトークンとして試行:', userTokenErr.message);
+    // ページアクセストークンとして /me を呼び出す
+    const meInfo = await graphApiRequest('/me', longLivedToken, {
+      fields: 'id,name',
+    });
+    if (!meInfo.id) throw new Error('トークンが無効です。ユーザートークンまたはページトークンを確認してください。');
+    pageId = meInfo.id;
+    pageAccessToken = longLivedToken;
+    pageName = meInfo.name || 'Unknown Page';
+  }
   console.log(`[Instagram] ページ取得: ${pageName} (${pageId})`);
 
   // 3. Instagram Business Account ID を取得
