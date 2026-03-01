@@ -126,15 +126,44 @@ export async function connectInstagramAccount(storeId, userAccessToken, knownPag
   let pageId, pageAccessToken, pageName;
 
   if (knownPageId) {
-    // ページIDが直接指定された場合：/{pageId}?fields=access_token,name で取得
+    // ページIDが直接指定された場合：instagram_business_account も同時取得
     console.log(`[Instagram] ページID直接指定モード: ${knownPageId}`);
     const pageInfo = await graphApiRequest(`/${knownPageId}`, longLivedToken, {
-      fields: 'id,name,access_token',
+      fields: 'id,name,access_token,instagram_business_account',
     });
     if (!pageInfo.id) throw new Error('指定されたページIDが無効です。');
+    console.log(`[Instagram] ページ情報: access_token=${pageInfo.access_token ? 'あり' : 'なし'}, ig=${JSON.stringify(pageInfo.instagram_business_account)}`);
     pageId = pageInfo.id;
     pageAccessToken = pageInfo.access_token || longLivedToken;
     pageName = pageInfo.name || knownPageId;
+
+    // instagram_business_account が直接取得できた場合はスキップ
+    if (pageInfo.instagram_business_account?.id) {
+      const igAccountId = pageInfo.instagram_business_account.id;
+      console.log(`[Instagram] Instagram Business Account ID (直接取得): ${igAccountId}`);
+      const accountInfo = await getInstagramAccountInfo(igAccountId, pageAccessToken);
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 60);
+      const encryptedToken = encrypt(pageAccessToken);
+      const { data, error } = await supabase
+        .from('instagram_accounts')
+        .upsert({
+          store_id: storeId,
+          instagram_user_id: igAccountId,
+          instagram_username: accountInfo.username,
+          access_token: encryptedToken,
+          token_expires_at: expiresAt.toISOString(),
+          followers_count: accountInfo.followers_count || 0,
+          media_count: accountInfo.media_count || 0,
+          last_synced_at: new Date().toISOString(),
+          is_active: true,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'store_id' })
+        .select()
+        .single();
+      if (error) throw new Error(`連携登録失敗: ${error.message}`);
+      return { account: data, accountInfo };
+    }
   } else {
     // 通常フロー: /me/accounts → 失敗時はページトークンとして試行
     try {
