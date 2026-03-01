@@ -11,6 +11,7 @@ import {
   updateStoreTemplates,
   setPendingCommand,
   clearPendingCommand,
+  getLatestPost,
 } from '../services/supabaseService.js';
 import { handleFeedback, handleStyleLearning } from './feedbackHandler.js';
 import { handleEngagementReport, handlePostSelection } from './reportHandler.js';
@@ -26,14 +27,15 @@ import {
   generateConversationalResponse,
   saveConversation,
   getRecentConversations,
-  cleanOldConversations
+  cleanOldConversations,
+  classifyIntent,
 } from '../services/conversationService.js';
 import { buildStoreParsePrompt, buildTextPostPrompt, POST_LENGTH_MAP, appendTemplateFooter } from '../utils/promptBuilder.js';
 import { normalizeInput } from '../utils/inputNormalizer.js';
 import { normalizeCategory } from '../config/categoryDictionary.js';
 import { getBlendedInsights, saveEngagementMetrics } from '../services/collectiveIntelligence.js';
 import { getPersonalizationPromptAddition, getLearningStatus } from '../services/personalizationEngine.js';
-import { getAdvancedPersonalizationPrompt } from '../services/advancedPersonalization.js';
+import { getAdvancedPersonalizationPrompt, addSimpleBelief } from '../services/advancedPersonalization.js';
 import { getSeasonalMemoryPromptAddition, getSeasonalMemoryStatus } from '../services/seasonalMemoryService.js';
 import { getRevisionExample, getRevisionQuickReplies } from '../utils/categoryExamples.js';
 
@@ -360,7 +362,7 @@ ${contactEmail}
   // キャンセル（データリセット・店舗削除・入力待ち共通）
   if (trimmed === 'キャンセル' || trimmed === 'cancel') {
     if (user.pending_command) await clearPendingCommand(user.id);
-    return await replyText(replyToken, '✅ キャンセルしました。');
+    return await replyText(replyToken, 'キャンセルしました！');
   }
 
   // キャラクター設定
@@ -457,6 +459,49 @@ ${contactEmail}
     const length = lengthMap[lengthMatch[1]];
     const content = lengthMatch[2];
     return await handleTextPostGenerationWithLength(user, content, replyToken, length);
+  }
+
+  // ========== 意図分類ルーティング ==========
+  // 明示コマンドに一致しなかったメッセージの意図をAIで分類
+  if (user.current_store_id) {
+    const intentStore = await getStore(user.current_store_id);
+    if (intentStore) {
+      const latestPost = await getLatestPost(intentStore.id);
+
+      if (latestPost) {
+        const hasProposals = /\[\s*案A[：:]/.test(latestPost.content);
+        const intent = await classifyIntent(trimmed, {
+          hasProposals,
+          hasPost: true,
+        });
+
+        console.log(`[Intent] 分類結果: "${trimmed.slice(0, 30)}" → ${intent}`);
+
+        if (intent === 'revision') {
+          if (hasProposals) {
+            return await replyText(replyToken, '先にA・B・Cのどれか選んでもらえますか？そのあと修正しますね');
+          }
+          return await handleFeedback(user, trimmed, replyToken);
+        }
+
+        if (intent === 'positive') {
+          return await handlePositiveFeedback(user, replyToken);
+        }
+
+        if (intent === 'negative') {
+          return await handleNegativeFeedback(user, replyToken);
+        }
+
+        if (intent.startsWith('select_') && hasProposals) {
+          const selectionMap = { select_a: 'A', select_b: 'B', select_c: 'C' };
+          const selection = selectionMap[intent];
+          const { handleProposalSelection } = await import('./proposalHandler.js');
+          return await handleProposalSelection(user, intentStore, latestPost, selection, replyToken);
+        }
+
+        // intent === 'conversation' → 通常会話フローへ
+      }
+    }
   }
 
   // ========== 自然な会話機能 ==========
@@ -556,7 +601,7 @@ async function handleStoreSwitch(user, storeName, replyToken) {
     }
 
     await updateCurrentStore(user.id, target.id);
-    await replyText(replyToken, `✅ 店舗を「${target.name}」に切り替えました。`);
+    await replyText(replyToken, `「${target.name}」に切り替えました！`);
   } catch (err) {
     console.error('[Store] 切替エラー:', err);
     await replyText(replyToken, '店舗切替中にエラーが発生しました。しばらくしてから再度お試しください。');
@@ -578,7 +623,7 @@ async function handleStoreList(user, replyToken) {
       return `${i + 1}. ${s.name}${current}`;
     }).join('\n');
 
-    await replyText(replyToken, `📋 登録済み店舗:\n${list}\n\n切替: 店舗名 で切り替えられます。`);
+    await replyText(replyToken, `登録済みの店舗です👇\n${list}\n\n「切替: 店舗名」で切り替えられます`);
   } catch (err) {
     console.error('[Store] 一覧エラー:', err.message);
     await replyText(replyToken, 'エラーが発生しました。');
@@ -589,7 +634,7 @@ async function handleStoreList(user, replyToken) {
 
 async function handleStoreUpdatePrompt(user, replyToken) {
   if (!user.current_store_id) {
-    return await replyText(replyToken, '店舗が選択されていません。先に店舗を登録してください。');
+    return await replyText(replyToken, '店舗が選択されていません。');
   }
 
   try {
@@ -700,7 +745,7 @@ async function handleStoreUpdate(user, updateData, replyToken) {
     if (updates.tone) summary.push(`口調: ${updates.tone}`);
 
     console.log(`[Store] 更新完了: ${store.name} → ${summary.join(', ')}`);
-    await replyText(replyToken, `✅ 店舗情報を更新しました！\n\n${summary.join('\n')}`);
+    await replyText(replyToken, `更新しました！\n\n${summary.join('\n')}`);
   } catch (err) {
     console.error('[Store] 更新エラー:', err);
     await replyText(replyToken, '更新中にエラーが発生しました。しばらくしてから再度お試しください。');
@@ -733,7 +778,7 @@ async function handlePostLength(user, lengthParam, replyToken) {
 
     const lengthInfo = POST_LENGTH_MAP[lengthParam];
     await replyText(replyToken,
-      `✅ デフォルトの投稿長を「${lengthInfo.description} (${lengthInfo.range})」に設定しました。`
+      `次から「${lengthInfo.description}（${lengthInfo.range}）」で書きますね！`
     );
   } catch (err) {
     console.error('[Settings] 長さ設定エラー:', err);
@@ -802,7 +847,7 @@ async function handleTemplate(user, templateData, replyToken) {
       };
       await updateStoreConfig(store.id, newConfig);
       await replyText(replyToken,
-        `✅ ハッシュタグを更新しました:\n\n${templates.hashtags.join(' ')}`
+        `ハッシュタグ登録しました！\n\n${templates.hashtags.join(' ')}`
       );
       return;
     }
@@ -857,7 +902,7 @@ async function handleTemplate(user, templateData, replyToken) {
     }
 
     await replyText(replyToken,
-      `✅ テンプレート情報を更新しました:\n\n${summary.join('\n')}`
+      `テンプレート登録しました！\n\n${summary.join('\n')}\n\n投稿のたびに自動で反映されます`
     );
   } catch (err) {
     console.error('[Template] 更新エラー:', err);
@@ -913,7 +958,7 @@ async function handleShowSettings(user, replyToken) {
 
 async function handleTextPostGenerationWithLength(user, text, replyToken, lengthOverride) {
   if (!user.current_store_id) {
-    return await replyText(replyToken, '店舗が選択されていません。先に店舗を登録してください。');
+    return await replyText(replyToken, '店舗が選択されていません。');
   }
 
   try {
@@ -951,15 +996,12 @@ async function handleTextPostGenerationWithLength(user, text, replyToken, length
 
     // コピペしやすい形式でフォーマット
     const revisionExample = getRevisionExample(store.category);
-    const formattedReply = `✨ 投稿案ができました！
-
-以下をコピーしてInstagramに貼り付けてください↓
+    const formattedReply = `できました！そのままコピペでどうぞ👇
 ━━━━━━━━━━━
 ${postContent}
 ━━━━━━━━━━━
 
-✏️ 直し: ${revisionExample}　→ 指示で修正＋学習
-※ 「学習状況」と送ると学習内容を確認できます`;
+気になるところがあれば「直し: ${revisionExample}」で修正できます`;
 
     await replyWithQuickReply(replyToken, formattedReply, [
       { type: 'action', action: { type: 'message', label: '👍 良い', text: '👍' } },
@@ -1040,7 +1082,7 @@ async function handleTemplateDelete(user, fieldToDelete, replyToken) {
         templates: {}
       };
       await updateStoreConfig(store.id, newConfig);
-      return await replyText(replyToken, '✅ すべてのテンプレートを削除しました。');
+      return await replyText(replyToken, 'テンプレートをすべて削除しました！');
     }
 
     // 個別削除
@@ -1088,7 +1130,7 @@ async function handleTemplateDelete(user, fieldToDelete, replyToken) {
     };
     await updateStoreConfig(store.id, newConfig);
 
-    await replyText(replyToken, `✅ テンプレートを削除しました:\n${deletedFields.join(', ')}`);
+    await replyText(replyToken, `${deletedFields.join('・')} を削除しました！`);
   } catch (err) {
     console.error('[Template] 削除エラー:', err);
     await replyText(replyToken, '削除中にエラーが発生しました。しばらくしてから再度お試しください。');
@@ -1192,7 +1234,7 @@ async function handleCharacterSettingsSave(user, text, replyToken) {
     if (character_settings.ng_words.length > 0) summary.push(`NGワード: ${character_settings.ng_words.join('、')}`);
     if (character_settings.personality) summary.push(`個性: ${character_settings.personality}`);
 
-    await replyText(replyToken, `✅ キャラクター設定を保存しました！\n\n${summary.join('\n')}\n\n次回の投稿からこの個性が反映されます🎭`);
+    await replyText(replyToken, `キャラ設定を覚えました！\n\n${summary.join('\n')}\n\n次の投稿から反映しますね`);
   } catch (err) {
     console.error('[Character] 設定保存エラー:', err);
     await replyText(replyToken, 'エラーが発生しました。しばらくしてから再度お試しください。');
@@ -1255,11 +1297,30 @@ async function handlePositiveFeedback(user, replyToken) {
       return await replyText(replyToken, 'まだ投稿がありません。');
     }
 
-    // L3修正: static importを使用（冗長なdynamic import削除）
+    // 👍 は interaction_count のみインクリメント（旧式プロファイル経由）
     await applyFeedbackToProfile(store.id, '👍 良い投稿として学習', latestPost.content);
 
+    // 連続3回 👍 → 思想ログに追加（単発は追加しない）
+    const { data: profile } = await supabase
+      .from('learning_profiles')
+      .select('profile_data')
+      .eq('store_id', store.id)
+      .single();
+    const consecutivePositive = (profile?.profile_data?._consecutive_positive || 0) + 1;
+    if (consecutivePositive >= 3) {
+      await addSimpleBelief(store.id, '現在の文体バランスに満足している', 'positive');
+      // カウントリセット
+      await supabase.from('learning_profiles').update({
+        profile_data: { ...profile.profile_data, _consecutive_positive: 0 },
+      }).eq('store_id', store.id);
+    } else if (profile) {
+      await supabase.from('learning_profiles').update({
+        profile_data: { ...profile.profile_data, _consecutive_positive: consecutivePositive },
+      }).eq('store_id', store.id);
+    }
+
     console.log(`[Feedback] 👍 良い評価: store=${store.name}`);
-    await replyText(replyToken, '👍 ありがとうございます！\n\nこのスタイルを学習しました。次回からこの方向性で生成します！');
+    await replyText(replyToken, '👍 了解です！この感じ、覚えておきますね');
   } catch (err) {
     console.error('[Feedback] 👍 処理エラー:', err);
     await replyText(replyToken, 'エラーが発生しました。しばらくしてから再度お試しください。');
@@ -1287,11 +1348,22 @@ async function handleNegativeFeedback(user, replyToken) {
       return await replyText(replyToken, 'まだ投稿がありません。');
     }
 
-    // L3修正: static importを使用（冗長なdynamic import削除）
     await applyFeedbackToProfile(store.id, '👎 イマイチな投稿として学習', latestPost.content);
 
+    // 連続 👍 カウントをリセット
+    const { data: profile } = await supabase
+      .from('learning_profiles')
+      .select('profile_data')
+      .eq('store_id', store.id)
+      .single();
+    if (profile?.profile_data?._consecutive_positive) {
+      await supabase.from('learning_profiles').update({
+        profile_data: { ...profile.profile_data, _consecutive_positive: 0 },
+      }).eq('store_id', store.id);
+    }
+
     console.log(`[Feedback] 👎 イマイチ評価: store=${store.name}`);
-    await replyText(replyToken, '👎 フィードバックありがとうございます。\n\n「直し: 〜」で具体的に修正指示を送っていただけると、より精度が上がります！');
+    await replyText(replyToken, '👎 なるほど、ちょっと違いましたか。\n\n「直し: 〜」で教えてもらえると次はもっと上手くやれます！');
   } catch (err) {
     console.error('[Feedback] 👎 処理エラー:', err);
     await replyText(replyToken, 'エラーが発生しました。しばらくしてから再度お試しください。');
@@ -1310,7 +1382,7 @@ async function handleDisableReminder(user, replyToken) {
     if (error) throw error;
 
     console.log(`[Reminder] リマインダー停止`);
-    await replyText(replyToken, '✅ デイリーリマインダーを停止しました。\n\n再開したい場合は「リマインダー再開」と送信してください。');
+    await replyText(replyToken, 'リマインダー止めました！再開したいときは「リマインダー再開」でどうぞ');
   } catch (err) {
     console.error('[Reminder] 停止エラー:', err);
     await replyText(replyToken, 'エラーが発生しました。しばらくしてから再度お試しください。');
@@ -1329,7 +1401,7 @@ async function handleEnableReminder(user, replyToken) {
     if (error) throw error;
 
     console.log(`[Reminder] リマインダー再開`);
-    await replyText(replyToken, '✅ デイリーリマインダーを再開しました。\n\n毎朝10時に報告のリマインドをお送りします！');
+    await replyText(replyToken, 'リマインダー再開しました！毎朝10時にお知らせしますね');
   } catch (err) {
     console.error('[Reminder] 再開エラー:', err);
     await replyText(replyToken, 'エラーが発生しました。しばらくしてから再度お試しください。');

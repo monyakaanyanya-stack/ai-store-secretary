@@ -1,10 +1,11 @@
 import { supabase } from './supabaseService.js';
 import { encrypt, decrypt } from '../utils/security.js';
 
-const GRAPH_API_BASE = 'https://graph.instagram.com/v21.0';
+// Facebook Graph API（ビジネスアカウント経由のInstagram）
+const GRAPH_API_BASE = 'https://graph.facebook.com/v21.0';
 
 /**
- * Instagram Graph API リクエスト共通関数
+ * Facebook Graph API リクエスト共通関数
  */
 async function graphApiRequest(path, accessToken, params = {}) {
   const url = new URL(`${GRAPH_API_BASE}${path}`);
@@ -17,16 +18,16 @@ async function graphApiRequest(path, accessToken, params = {}) {
   const data = await res.json();
 
   if (data.error) {
-    throw new Error(`Instagram API エラー: ${data.error.message} (code: ${data.error.code})`);
+    throw new Error(`Graph API エラー: ${data.error.message} (code: ${data.error.code})`);
   }
 
   return data;
 }
 
 /**
- * 短期アクセストークンを長期トークンに交換
- * @param {string} shortToken - 短期トークン（ユーザーがOAuth後に取得）
- * @returns {Object} - { access_token, token_type, expires_in }
+ * Facebook User Access Token を長期トークンに交換（60日間有効）
+ * @param {string} shortToken - Graph API Explorer で取得したトークン
+ * @returns {{ access_token, token_type, expires_in }}
  */
 export async function exchangeForLongLivedToken(shortToken) {
   const appId = process.env.INSTAGRAM_APP_ID;
@@ -36,10 +37,11 @@ export async function exchangeForLongLivedToken(shortToken) {
     throw new Error('INSTAGRAM_APP_ID または INSTAGRAM_APP_SECRET が設定されていません');
   }
 
-  const url = new URL('https://graph.instagram.com/access_token');
-  url.searchParams.set('grant_type', 'ig_exchange_token');
+  const url = new URL(`${GRAPH_API_BASE}/oauth/access_token`);
+  url.searchParams.set('grant_type', 'fb_exchange_token');
+  url.searchParams.set('client_id', appId);
   url.searchParams.set('client_secret', appSecret);
-  url.searchParams.set('access_token', shortToken);
+  url.searchParams.set('fb_exchange_token', shortToken);
 
   const res = await fetch(url.toString());
   const data = await res.json();
@@ -52,38 +54,97 @@ export async function exchangeForLongLivedToken(shortToken) {
 }
 
 /**
- * Instagram アカウント情報を取得
- * @param {string} accessToken - アクセストークン
- * @returns {Object} - アカウント情報
+ * 長期 User Token から Facebook Page の Access Token を取得
+ * @param {string} userToken - 長期ユーザートークン
+ * @returns {{ pageId, pageAccessToken, pageName }}
  */
-export async function getInstagramAccountInfo(accessToken) {
-  return await graphApiRequest('/me', accessToken, {
-    fields: 'id,username,followers_count,media_count,name,biography'
+async function getPageAccessToken(userToken) {
+  const result = await graphApiRequest('/me/accounts', userToken);
+
+  if (!result.data || result.data.length === 0) {
+    throw new Error('接続されている Facebook ページが見つかりません。ページが作成済みか確認してください。');
+  }
+
+  // 最初のページを使用
+  const page = result.data[0];
+  return {
+    pageId: page.id,
+    pageAccessToken: page.access_token,
+    pageName: page.name,
+  };
+}
+
+/**
+ * Facebook Page から Instagram Business Account ID を取得
+ * @param {string} pageId - Facebook ページ ID
+ * @param {string} pageAccessToken - ページアクセストークン
+ * @returns {string} Instagram Business Account ID
+ */
+async function getInstagramBusinessAccountId(pageId, pageAccessToken) {
+  const result = await graphApiRequest(`/${pageId}`, pageAccessToken, {
+    fields: 'instagram_business_account',
+  });
+
+  if (!result.instagram_business_account?.id) {
+    throw new Error('Instagram ビジネスアカウントが見つかりません。Instagram をプロアカウント（ビジネス）に変換して Facebook ページに接続してください。');
+  }
+
+  return result.instagram_business_account.id;
+}
+
+/**
+ * Instagram ビジネスアカウントの基本情報を取得
+ * @param {string} igAccountId - Instagram Business Account ID
+ * @param {string} pageAccessToken - ページアクセストークン
+ */
+async function getInstagramAccountInfo(igAccountId, pageAccessToken) {
+  return await graphApiRequest(`/${igAccountId}`, pageAccessToken, {
+    fields: 'id,username,followers_count,media_count,name,biography',
   });
 }
 
 /**
  * Instagram 連携を登録/更新
  * @param {string} storeId - 店舗ID
- * @param {string} accessToken - 長期アクセストークン
- * @returns {Object} - 連携結果
+ * @param {string} userAccessToken - Graph API Explorer で取得したユーザートークン
+ * @returns {{ account, accountInfo }}
  */
-export async function connectInstagramAccount(storeId, accessToken) {
-  // アカウント情報を取得して検証
-  const accountInfo = await getInstagramAccountInfo(accessToken);
+export async function connectInstagramAccount(storeId, userAccessToken) {
+  // 1. 長期トークンに交換
+  let longLivedToken;
+  try {
+    const tokenData = await exchangeForLongLivedToken(userAccessToken);
+    longLivedToken = tokenData.access_token;
+    console.log('[Instagram] 長期トークン取得成功');
+  } catch (err) {
+    // App Secret が未設定の場合はそのまま使用（開発テスト用）
+    console.warn('[Instagram] 長期トークン交換スキップ（テストモード）:', err.message);
+    longLivedToken = userAccessToken;
+  }
 
-  // トークン有効期限（60日後）
+  // 2. Facebook ページ経由で Page Access Token を取得
+  const { pageId, pageAccessToken, pageName } = await getPageAccessToken(longLivedToken);
+  console.log(`[Instagram] ページ取得: ${pageName} (${pageId})`);
+
+  // 3. Instagram Business Account ID を取得
+  const igAccountId = await getInstagramBusinessAccountId(pageId, pageAccessToken);
+  console.log(`[Instagram] Instagram Business Account ID: ${igAccountId}`);
+
+  // 4. アカウント情報を取得
+  const accountInfo = await getInstagramAccountInfo(igAccountId, pageAccessToken);
+
+  // 5. トークン有効期限（60日後）
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 60);
 
-  // トークンを暗号化して保存
-  const encryptedToken = encrypt(accessToken);
+  // 6. トークンを暗号化して保存
+  const encryptedToken = encrypt(pageAccessToken);
 
   const { data, error } = await supabase
     .from('instagram_accounts')
     .upsert({
       store_id: storeId,
-      instagram_user_id: accountInfo.id,
+      instagram_user_id: igAccountId,
       instagram_username: accountInfo.username,
       access_token: encryptedToken,
       token_expires_at: expiresAt.toISOString(),
@@ -102,9 +163,8 @@ export async function connectInstagramAccount(storeId, accessToken) {
 }
 
 /**
- * 店舗のInstagram連携情報を取得
+ * 店舗の Instagram 連携情報を取得
  * @param {string} storeId - 店舗ID
- * @returns {Object|null}
  */
 export async function getInstagramAccount(storeId) {
   const { data } = await supabase
@@ -116,13 +176,11 @@ export async function getInstagramAccount(storeId) {
 
   if (!data) return null;
 
-  // S6修正: 平文フォールバックを廃止（DB漏洩時のトークン露出防止）
   if (data.access_token) {
     try {
       data.access_token = decrypt(data.access_token);
     } catch (decryptErr) {
       console.error('[Instagram] トークン復号失敗:', decryptErr.message);
-      console.error('[Instagram] 再連携が必要です。/instagram connect で再設定してください。');
       return null;
     }
   }
@@ -131,22 +189,24 @@ export async function getInstagramAccount(storeId) {
 }
 
 /**
- * Instagram の最新投稿を取得してDBに同期
+ * Instagram の最新投稿を取得して DB に同期
  * @param {string} storeId - 店舗ID
- * @param {number} limit - 取得件数 (最大50)
+ * @param {number} limit - 取得件数（最大50）
  * @returns {number} - 同期した件数
  */
 export async function syncInstagramPosts(storeId, limit = 25) {
   const account = await getInstagramAccount(storeId);
   if (!account) throw new Error('Instagram が連携されていません');
 
-  // トークン有効期限チェック
   if (account.token_expires_at && new Date(account.token_expires_at) < new Date()) {
     throw new Error('アクセストークンの有効期限が切れています。再連携が必要です');
   }
 
-  // メディア一覧を取得
-  const mediaList = await graphApiRequest(`/${account.instagram_user_id}/media`, account.access_token, {
+  const igAccountId = account.instagram_user_id;
+  const accessToken = account.access_token;
+
+  // メディア一覧を取得（Facebook Graph API 経由）
+  const mediaList = await graphApiRequest(`/${igAccountId}/media`, accessToken, {
     fields: 'id,caption,media_type,permalink,timestamp',
     limit: String(limit),
   });
@@ -159,7 +219,6 @@ export async function syncInstagramPosts(storeId, limit = 25) {
 
   for (const media of mediaList.data) {
     try {
-      // 既に同期済みかチェック
       const { data: existing } = await supabase
         .from('instagram_posts')
         .select('id')
@@ -168,16 +227,16 @@ export async function syncInstagramPosts(storeId, limit = 25) {
 
       if (existing) continue;
 
-      // インサイトデータを取得（ビジネスアカウントのみ）
+      // インサイトデータを取得
       let insightsData = {};
       try {
-        const insights = await graphApiRequest(`/${media.id}/insights`, account.access_token, {
-          metric: 'likes,comments,saved,reach,impressions',
+        const insights = await graphApiRequest(`/${media.id}/insights`, accessToken, {
+          metric: 'impressions,reach,saved,likes,comments',
         });
 
         if (insights.data) {
           insights.data.forEach(metric => {
-            insightsData[metric.name] = metric.values?.[0]?.value || 0;
+            insightsData[metric.name] = metric.values?.[0]?.value || metric.value || 0;
           });
         }
       } catch (insightErr) {
@@ -227,12 +286,10 @@ export async function syncInstagramPosts(storeId, limit = 25) {
     }
   }
 
-  // 最終同期日時を更新
   await supabase
     .from('instagram_accounts')
     .update({
       last_synced_at: new Date().toISOString(),
-      followers_count: account.followers_count,
       updated_at: new Date().toISOString(),
     })
     .eq('id', account.id);
@@ -242,9 +299,8 @@ export async function syncInstagramPosts(storeId, limit = 25) {
 }
 
 /**
- * Instagram投稿の統計サマリーを取得
+ * Instagram 投稿の統計サマリーを取得
  * @param {string} storeId - 店舗ID
- * @returns {Object|null}
  */
 export async function getInstagramStats(storeId) {
   const { data: posts } = await supabase
@@ -260,7 +316,6 @@ export async function getInstagramStats(storeId) {
   const totalReach = posts.reduce((sum, p) => sum + (p.reach || 0), 0);
   const avgER = posts.reduce((sum, p) => sum + (p.engagement_rate || 0), 0) / posts.length;
 
-  // 人気ハッシュタグ（ER順）
   const hashtagMetrics = {};
   posts.forEach(p => {
     if (p.hashtags && p.engagement_rate != null) {
@@ -282,7 +337,6 @@ export async function getInstagramStats(storeId) {
     .slice(0, 5)
     .map(item => item.tag);
 
-  // 最高エンゲージメント投稿
   const topPost = [...posts].sort((a, b) => (b.engagement_rate || 0) - (a.engagement_rate || 0))[0];
 
   return {
@@ -297,9 +351,8 @@ export async function getInstagramStats(storeId) {
 }
 
 /**
- * Instagram連携状態を確認するメッセージ
+ * Instagram 連携状態を確認するメッセージ
  * @param {string} storeId - 店舗ID
- * @returns {string}
  */
 export async function getInstagramConnectionStatus(storeId) {
   const account = await getInstagramAccount(storeId);
@@ -310,13 +363,13 @@ export async function getInstagramConnectionStatus(storeId) {
 まだ連携されていません。
 
 【連携方法】
-1. Instagramをプロアカウント（ビジネス or クリエイター）に変換
-2. Meta for Developers でアプリ作成後、アクセストークンを取得
-3. 以下のコマンドで連携:
+1. Meta for Developers (developers.facebook.com) でアプリ作成
+2. Graph API Explorer でアクセストークンを生成
+3. LINEで以下を送信:
 
 /instagram connect [アクセストークン]
 
-詳しい手順は「ヘルプ」→「Instagram連携」をご覧ください。`;
+※ Instagram はプロアカウント（ビジネス）に変換し、Facebook ページと接続しておく必要があります。`;
   }
 
   const expiresAt = account.token_expires_at

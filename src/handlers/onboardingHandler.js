@@ -50,11 +50,9 @@ export async function handleOnboardingStart(user, replyToken) {
     });
 
   // 大カテゴリー選択メニューをボタン付きで表示
-  const message = `✨ AI店舗秘書へようこそ！
+  const message = `はじめまして！お店の登録をしていきましょう。
 
-まず、あなたのお店を登録しましょう。
-
-👇 業種に近いグループを選んでください`;
+まず業種を選んでください👇`;
 
   await replyWithQuickReply(replyToken, message, buildGroupQuickReply());
 }
@@ -102,7 +100,7 @@ export async function handleOnboardingResponse(user, message, replyToken) {
       .delete()
       .eq('user_id', user.id);
 
-    return await replyText(replyToken, '登録をキャンセルしました。\n\n「登録」でいつでも再開できます。');
+    return await replyText(replyToken, 'キャンセルしました！「登録」でいつでも再開できます');
   }
 
   // ステップごとの処理
@@ -159,7 +157,7 @@ async function handleCategoryGroupSelection(user, input, replyToken) {
   // 詳細カテゴリー選択メニューをボタン付きで表示
   await replyWithQuickReply(
     replyToken,
-    `【${selectedGroup}】\n👇 業種を選んでください`,
+    `【${selectedGroup}】ですね！どれが一番近いですか？`,
     buildDetailQuickReply(selectedGroup)
   );
 
@@ -173,7 +171,7 @@ async function handleCustomCategoryInput(user, state, input, replyToken) {
   const customCategory = input.trim();
 
   if (!customCategory || customCategory.length > 30) {
-    return await replyText(replyToken, '業種名は1〜30文字で入力してください。\n\n例: ペットサロン');
+    return await replyText(replyToken, '業種名を30文字以内で送ってください！\n\n例: ペットサロン');
   }
 
   // category_requests テーブルに記録（管理者が後で確認してリストに追加可能）
@@ -202,23 +200,16 @@ async function handleCustomCategoryInput(user, state, input, replyToken) {
     })
     .eq('user_id', user.id);
 
-  const storeInfoMessage = `業種: ${customCategory} ✅
+  const storeInfoMessage = `${customCategory}ですね！
 
-次に、以下の情報を入力してください：
+次は「店名,こだわり,口調」を教えてください
 
-━━━━━━━━━━━━━━━
-店名,こだわり,口調
-━━━━━━━━━━━━━━━
+例: 幸福堂,天然酵母の手作りパン,フレンドリー
 
-【例】
-幸福堂,天然酵母の手作りパン,フレンドリー
-
-【口調の例】
+口調はこんな感じで👇
 ・フレンドリー（明るい・親しみやすい）
 ・カジュアル（タメ口・親しみやすい）
-・丁寧（ビジネス的・プロフェッショナル）
-
-カンマ区切りで入力してください。`;
+・丁寧（ビジネス的・プロフェッショナル）`;
 
   await replyText(replyToken, storeInfoMessage);
   return true;
@@ -240,15 +231,9 @@ async function handleCategoryDetailSelection(user, state, input, replyToken) {
       })
       .eq('user_id', user.id);
 
-    await replyText(replyToken, `業種名を入力してください 📝
+    await replyText(replyToken, `業種名をそのまま送ってください！
 
-例:
-・ペットサロン
-・占い師
-・整骨院
-・建築事務所
-
-そのまま業種名を送ってください。`);
+例: ペットサロン、占い師、整骨院 など`);
     return true;
   }
 
@@ -280,30 +265,18 @@ async function handleCategoryDetailSelection(user, state, input, replyToken) {
     .eq('user_id', user.id);
 
   // 店舗情報入力案内を表示
-  const message = `業種: ${selectedCategory} ✅
+  const message = `${selectedCategory}ですね！
 
-次に、以下の情報を入力してください：
+次は「店名,こだわり,口調」を教えてください
 
-━━━━━━━━━━━━━━━
-店名,こだわり,口調
-━━━━━━━━━━━━━━━
+例: 幸福堂,天然酵母の手作りパン,フレンドリー
 
-【例】
-幸福堂,天然酵母の手作りパン,フレンドリー
-
-【こだわりの例】
-・シンプルで美味しいパン
-・国産小麦100%使用
-・毎朝焼きたて提供
-
-【口調の例】
+口調はこんな感じで👇
 ・フレンドリー（明るい・親しみやすい）
 ・カジュアル（タメ口・親しみやすい）
 ・丁寧（ビジネス的・プロフェッショナル）
 ・元気（ハイテンション）
-・落ち着いた（穏やか）
-
-カンマ区切りで入力してください。`;
+・落ち着いた（穏やか）`;
 
   await replyText(replyToken, message);
 
@@ -318,13 +291,13 @@ async function handleStoreInfoInput(user, state, input, replyToken) {
   const parts = input.split(/[,，、]/).map(s => s.trim());
 
   if (parts.length !== 3) {
-    return await replyText(replyToken, '入力形式が正しくありません。\n\n「店名,こだわり,口調」の形式で入力してください。\n\n例: 幸福堂,天然酵母の手作りパン,フレンドリー');
+    return await replyText(replyToken, '「店名,こだわり,口調」の3つをカンマで区切って送ってください！\n\n例: 幸福堂,天然酵母の手作りパン,フレンドリー');
   }
 
   const [storeName, strength, tone] = parts;
 
   if (!storeName || !strength || !tone) {
-    return await replyText(replyToken, 'すべての項目を入力してください。\n\n「店名,こだわり,口調」の形式で入力してください。');
+    return await replyText(replyToken, '3つとも必要です！「店名,こだわり,口調」で送ってください');
   }
 
   try {
@@ -351,26 +324,16 @@ async function handleStoreInfoInput(user, state, input, replyToken) {
       .delete()
       .eq('user_id', user.id);
 
-    const successMessage = `✅ 店舗「${storeName}」を登録しました！
+    const successMessage = `「${storeName}」を登録しました！
 
-【登録内容】
 業種: ${state.selected_category}
-店名: ${storeName}
 こだわり: ${strength}
 口調: ${tone}
 
-━━━━━━━━━━━━━━━
-📋 テンプレート登録はありますか？
+さっそく投稿を作ってみましょう！
+画像かテキストを送るだけでOKです
 
-住所・営業時間・ハッシュタグなど、毎回投稿に自動で追加したい情報を登録できます。
-
-登録する場合は「テンプレート登録」と送ってください。
-スキップして投稿を始める場合は、画像またはテキストを送ってください 👇
-
-📸 画像を送信 → 画像から投稿案を作成
-✏️ テキストを送信 → 内容から投稿案を作成
-
-例: 新作のパンができました`;
+住所やハッシュタグを毎回つけたい場合は「テンプレート登録」と送ってください`;
 
     await replyText(replyToken, successMessage);
 
@@ -379,7 +342,7 @@ async function handleStoreInfoInput(user, state, input, replyToken) {
     return true;
   } catch (error) {
     console.error('[Onboarding] 店舗登録エラー:', error);
-    await replyText(replyToken, 'エラーが発生しました。「登録」でもう一度やり直してください。');
+    await replyText(replyToken, 'うまくいきませんでした...「登録」でもう一度やり直してみてください');
     return true;
   }
 }

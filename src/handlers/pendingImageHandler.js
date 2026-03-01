@@ -31,7 +31,7 @@ export async function handlePendingImageResponse(user, text, replyToken) {
   if (!isValidContext(ctx)) {
     // 期限切れ or 不正なコンテキスト → クリアしてユーザーに通知
     await clearPendingImageContext(user.id);
-    await replyText(replyToken, '⏰ 画像の待ち時間が切れました（30分）。\nもう一度画像を送り直してください📸');
+    await replyText(replyToken, 'ちょっと時間が空いちゃったので、もう一度画像を送ってもらえますか？');
     return true;
   }
 
@@ -46,7 +46,7 @@ export async function handlePendingImageResponse(user, text, replyToken) {
   try {
     const store = await getStore(ctx.storeId);
     if (!store) {
-      return await replyText(replyToken, '店舗情報が見つかりません。店舗一覧 で確認してください。');
+      return await replyText(replyToken, '店舗が見つかりません。「店舗一覧」で確認してみてください');
     }
 
     // ヒントがある場合は imageDescription に追記してプロンプトに反映
@@ -82,18 +82,12 @@ export async function handlePendingImageResponse(user, text, replyToken) {
     console.log(`[PendingImage] 投稿生成完了: store=${store.name}`);
 
     const revisionExample = getRevisionExample(store.category);
-    const formattedReply = `✨ 3つの投稿案ができました！
+    const formattedReply = `3つの投稿案ができました！どの案が理想に近いですか？👇
 ━━━━━━━━━━━
 ${rawContent}
 ━━━━━━━━━━━
 
-どの案が理想に近いですか？👇
-
-【学習させる方法】
-✏️ 直し: ${revisionExample}　→ 指示で修正＋学習
-📝 学習: [自分で書いた文章]　→ 見本を送って直接学習
-
-※ 選択・修正・見本のたびに好みを学習します📚`;
+A・B・C を選んだあと「直し: ${revisionExample}」で微調整もできます`;
 
     await replyWithQuickReply(replyToken, formattedReply, [
       { type: 'action', action: { type: 'message', label: '✅ A案', text: 'A' } },
@@ -105,7 +99,7 @@ ${rawContent}
     return true;
   } catch (err) {
     console.error('[PendingImage] 投稿生成エラー:', err);
-    await replyText(replyToken, '投稿生成中にエラーが発生しました。もう一度画像を送ってください。');
+    await replyText(replyToken, 'うまくいきませんでした...もう一度画像を送ってみてください');
     return true;
   }
 }

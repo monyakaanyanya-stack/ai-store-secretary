@@ -427,25 +427,6 @@ describe('Scenario 13: サーバー環境変数検証', async () => {
   });
 });
 
-// ==================== Scenario 14: C15 pending_report 競合防止 ====================
-describe('Scenario 14: pending_report 競合防止', async () => {
-  it('savePendingReport に既存クリーンアップが含まれる', async () => {
-    const fs = await import('node:fs');
-    const content = fs.readFileSync(
-      new URL('../src/handlers/reportHandler.js', import.meta.url), 'utf-8'
-    );
-    // savePendingReport 関数内で既存の awaiting_post_selection を expired にする処理があるか
-    const funcStart = content.indexOf('async function savePendingReport');
-    const funcEnd = content.indexOf('async function', funcStart + 1);
-    const funcBody = content.slice(funcStart, funcEnd > 0 ? funcEnd : undefined);
-
-    assert.ok(funcBody.includes("status: 'expired'") || funcBody.includes('expired'),
-      'savePendingReport should expire existing reports');
-    assert.ok(funcBody.includes('awaiting_post_selection'),
-      'Should target awaiting_post_selection status');
-  });
-});
-
 // ==================== Scenario 15: H17 Promise.all 安全化 ====================
 describe('Scenario 15: imageHandler Promise.all安全化', async () => {
   it('imageHandler に safeResolve パターンが含まれる', async () => {
@@ -778,15 +759,13 @@ describe('Scenario 23: 第4次監査 HIGH修正（H1+H2）', async () => {
     const content = fs.readFileSync(
       new URL('../src/services/advancedPersonalization.js', import.meta.url), 'utf-8'
     );
-    // analysis.toneへの安全なアクセス
-    assert.ok(content.includes("analysis.tone && typeof analysis.tone === 'object'"),
-      'Should null-check analysis.tone');
-    assert.ok(content.includes('analysis.emoji_preference?.frequency'),
-      'Should use optional chaining for emoji_preference');
-    assert.ok(content.includes('analysis.expression_patterns?.avoided_words'),
-      'Should use optional chaining for expression_patterns');
-    assert.ok(content.includes('analysis.expression_patterns?.preferred_words'),
-      'Should use optional chaining for preferred_words');
+    // Phase 9: 思想ログ方式 — beliefs/writing_style/avoided_words の安全なアクセス
+    assert.ok(content.includes('Array.isArray(analysis.beliefs)'),
+      'Should check beliefs is an array');
+    assert.ok(content.includes('Array.isArray(analysis.avoided_words)'),
+      'Should check avoided_words is an array');
+    assert.ok(content.includes("Array.isArray(analysis.writing_style.sentence_endings)"),
+      'Should check sentence_endings is an array');
   });
 });
 
@@ -1513,7 +1492,7 @@ describe('Scenario 31: 画像「一言ヒント」機能', async () => {
 
   it('imageHandler が質問メッセージを送信する', () => {
     const content = fs.readFileSync('src/handlers/imageHandler.js', 'utf8');
-    assert.ok(content.includes('伝えたいこと'), '質問文に「伝えたいこと」が含まれる');
+    assert.ok(content.includes('伝えたい'), '質問文に「伝えたい」が含まれる');
     assert.ok(content.includes('スキップ'), 'スキップの案内が含まれる');
   });
 

@@ -1,15 +1,22 @@
 import { supabase } from './supabaseService.js';
 import { askClaude } from './claudeService.js';
 
+// 思想ログの上限
+const MAX_BELIEF_LOGS = 20;
+// 人格要約の履歴上限
+const MAX_PERSONA_HISTORY = 5;
+// 人格要約生成の最低ログ数
+const MIN_BELIEFS_FOR_PERSONA = 5;
+
 /**
- * 高度なフィードバック分析（Claude APIを使用）
+ * フィードバックから店主の思想・価値観を抽出（Claude APIを使用）
  * @param {string} feedback - フィードバック内容
  * @param {string} originalPost - 元の投稿
  * @param {string} revisedPost - 修正後の投稿（もしあれば）
- * @returns {Object} - 構造化されたフィードバック分析
+ * @returns {Object|null} - 思想ログ用の分析結果
  */
 export async function analyzeFeedbackWithClaude(feedback, originalPost, revisedPost = null) {
-  const prompt = `以下のフィードバックを分析して、ユーザーの好みを構造化してください。
+  const prompt = `以下のフィードバックを分析して、この店主の「文章に対する思想・価値観・好み」を抽出してください。
 
 【元の投稿】
 ${originalPost}
@@ -21,63 +28,33 @@ ${feedback}
 
 以下のJSON形式で出力してください（それ以外は何も出力しないこと）:
 {
-  "tone": {
-    "casual": number (-5 〜 +5),
-    "formal": number (-5 〜 +5),
-    "friendly": number (-5 〜 +5),
-    "professional": number (-5 〜 +5)
-  },
-  "emoji_preference": {
-    "frequency": "minimal" | "moderate" | "rich",
-    "change_degree": number (-5 〜 +5)
-  },
-  "length_preference": {
-    "prefer_short": number (-5 〜 +5),
-    "prefer_long": number (-5 〜 +5),
-    "target_chars": number | null
-  },
-  "expression_patterns": {
-    "avoided_words": [string],
-    "preferred_words": [string],
-    "avoided_phrases": [string],
-    "preferred_phrases": [string]
-  },
+  "beliefs": [string],
   "writing_style": {
     "sentence_endings": [string],
     "catchphrases": [string],
-    "line_break_style": "frequent" | "normal" | null,
-    "punctuation": string | null
+    "line_break_style": "frequent" | "normal" | null
   },
-  "hashtag_preference": {
-    "quantity": number (-5 〜 +5),
-    "style": "trending" | "niche" | "mixed"
-  },
-  "call_to_action": {
-    "strength": number (-5 〜 +5),
-    "style": "direct" | "soft" | "none"
-  },
-  "summary": string,
+  "avoided_words": [string],
+  "preferred_words": [string],
   "human_readable_learnings": [string]
 }
 
 説明:
-- 数値は-5（とても減らす）〜+5（とても増やす）のスケール
-- 変化がない場合は0
-- フィードバックから明確に読み取れる内容のみ記載
+- beliefs: この店主の文章に対する思想・価値観を短い日本語文で1〜3件抽出（例: "売り込みは強くしたくない", "余韻を残す文章が好き", "カジュアルだけど安っぽくはしたくない"）。フィードバックの背景にある「なぜそう直したいのか」を読み取って言語化する
 - writing_style.sentence_endings: 「〜だわ」「〜じゃん」「笑」「w」など語尾・文末表現をそのまま抽出
 - writing_style.catchphrases: 「まじ」「やばい」など口癖となりうる表現
-- human_readable_learnings: ユーザーに見せる「今回学習したこと」を箇条書きで3件以内（例: ["語尾を「〜だわ」スタイルに変更", "絵文字を減らす", "短文中心にする"]）`;
+- avoided_words: 避けるべき表現・単語
+- preferred_words: 好まれる表現・単語
+- human_readable_learnings: ユーザーに見せる「今回学習したこと」を3件以内（例: ["余韻を残す表現を重視", "売り込み表現を控えめに"]）`;
 
   try {
     const response = await askClaude(prompt, {
-      max_tokens: 1000,
+      max_tokens: 800,
       temperature: 0.2,
     });
 
-    // S16修正: JSON.parseを明示的にtry-catchし、Claude応答に余分なテキストがある場合も対応
     let analysis;
     try {
-      // JSONブロックだけを抽出（Claudeが前後にテキストを付けることがある）
       const jsonMatch = response.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
         throw new Error('JSON部分が見つかりません');
@@ -96,9 +73,9 @@ ${feedback}
 }
 
 /**
- * 高度な学習プロファイルの更新
+ * 思想ログベースのプロファイル更新
  * @param {string} storeId - 店舗ID
- * @param {Object} analysis - Claude APIによる分析結果
+ * @param {Object} analysis - analyzeFeedbackWithClaude の結果
  */
 export async function updateAdvancedProfile(storeId, analysis) {
   if (!analysis) return;
@@ -113,79 +90,38 @@ export async function updateAdvancedProfile(storeId, analysis) {
 
   const profileData = profile.profile_data || {};
 
-  // H2修正: Claude応答が不完全な場合に備え、各プロパティをnullチェック
-
-  // 口調の累積学習（重み付け平均）
-  const toneAdj = profileData.tone_adjustments || {};
-  if (analysis.tone && typeof analysis.tone === 'object') {
-    Object.entries(analysis.tone).forEach(([key, value]) => {
-      if (value !== 0) {
-        const current = toneAdj[key] || 0;
-        // 新しい値を加重平均で反映（最近のフィードバックに重みを置く）
-        toneAdj[key] = current * 0.7 + value * 0.3;
-      }
-    });
-  }
-
-  // 絵文字の好み
-  if (analysis.emoji_preference?.frequency) {
-    profileData.emoji_style = analysis.emoji_preference.frequency;
-  }
-
-  // 文章長の好み
-  const lengthPrefs = profileData.length_preferences || {};
-  if (analysis.length_preference) {
-    if (analysis.length_preference.prefer_short !== 0) {
-      lengthPrefs.prefer_short = (lengthPrefs.prefer_short || 0) + analysis.length_preference.prefer_short;
+  // ── 1. 思想ログ（belief_logs）に追加 ──
+  const beliefLogs = profileData.belief_logs || [];
+  if (Array.isArray(analysis.beliefs)) {
+    const now = new Date().toISOString();
+    for (const belief of analysis.beliefs) {
+      if (!belief || typeof belief !== 'string') continue;
+      // 重複排除（完全一致）
+      if (beliefLogs.some(b => b.text === belief)) continue;
+      beliefLogs.push({ text: belief, source: 'feedback', created_at: now });
     }
-    if (analysis.length_preference.prefer_long !== 0) {
-      lengthPrefs.prefer_long = (lengthPrefs.prefer_long || 0) + analysis.length_preference.prefer_long;
-    }
-    if (analysis.length_preference.target_chars) {
-      lengthPrefs.target_chars = analysis.length_preference.target_chars;
+    // 上限超過時は古いものから削除
+    while (beliefLogs.length > MAX_BELIEF_LOGS) {
+      beliefLogs.shift();
     }
   }
+  profileData.belief_logs = beliefLogs;
 
-  // 表現パターン
-  const wordPrefs = profileData.word_preferences || {};
-
-  // M8修正: avoided_wordsにサイズ上限（50件）を設定
-  const MAX_AVOIDED_WORDS = 50;
-  // 避けるべき単語
-  const avoidedWords = profileData.avoided_words || [];
-  if (Array.isArray(analysis.expression_patterns?.avoided_words)) {
-    analysis.expression_patterns.avoided_words.forEach(word => {
-      if (!avoidedWords.includes(word) && avoidedWords.length < MAX_AVOIDED_WORDS) {
-        avoidedWords.push(word);
-      }
-    });
-  }
-
-  // 好まれる単語
-  if (Array.isArray(analysis.expression_patterns?.preferred_words)) {
-    analysis.expression_patterns.preferred_words.forEach(word => {
-      wordPrefs[word] = (wordPrefs[word] || 0) + 5;
-    });
-  }
-
-  // 語尾・文体スタイル（最重要：次回投稿に直接反映される）
+  // ── 2. 語尾・口癖（writing_style）は既存ロジック維持 ──
   if (analysis.writing_style) {
     const writingStyle = profileData.writing_style || {};
 
-    // 語尾パターン（上書きではなく蓄積）
-    if (analysis.writing_style.sentence_endings && analysis.writing_style.sentence_endings.length > 0) {
+    if (Array.isArray(analysis.writing_style.sentence_endings) && analysis.writing_style.sentence_endings.length > 0) {
       const currentEndings = writingStyle.sentence_endings || [];
       analysis.writing_style.sentence_endings.forEach(ending => {
         if (!currentEndings.includes(ending)) {
           currentEndings.push(ending);
         }
       });
-      // 最新5件のみ保持
       writingStyle.sentence_endings = currentEndings.slice(-5);
     }
 
-    // 口癖・フレーズ
-    if (analysis.writing_style.catchphrases && analysis.writing_style.catchphrases.length > 0) {
+    if (Array.isArray(analysis.writing_style.catchphrases) && analysis.writing_style.catchphrases.length > 0) {
       const currentPhrases = writingStyle.catchphrases || [];
       analysis.writing_style.catchphrases.forEach(phrase => {
         if (!currentPhrases.includes(phrase)) {
@@ -195,86 +131,210 @@ export async function updateAdvancedProfile(storeId, analysis) {
       writingStyle.catchphrases = currentPhrases.slice(-10);
     }
 
-    // 改行スタイル
     if (analysis.writing_style.line_break_style) {
       writingStyle.line_break_style = analysis.writing_style.line_break_style;
-    }
-
-    // 句読点スタイル
-    if (analysis.writing_style.punctuation) {
-      writingStyle.punctuation = analysis.writing_style.punctuation;
     }
 
     profileData.writing_style = writingStyle;
   }
 
-  // 人間に見せる学習サマリー
-  if (analysis.human_readable_learnings && analysis.human_readable_learnings.length > 0) {
+  // ── 3. 避ける単語・好む単語 ──
+  const MAX_AVOIDED_WORDS = 50;
+  const avoidedWords = profileData.avoided_words || [];
+  if (Array.isArray(analysis.avoided_words)) {
+    analysis.avoided_words.forEach(word => {
+      if (!avoidedWords.includes(word) && avoidedWords.length < MAX_AVOIDED_WORDS) {
+        avoidedWords.push(word);
+      }
+    });
+  }
+  profileData.avoided_words = avoidedWords;
+
+  const wordPrefs = profileData.word_preferences || {};
+  if (Array.isArray(analysis.preferred_words)) {
+    analysis.preferred_words.forEach(word => {
+      wordPrefs[word] = (wordPrefs[word] || 0) + 5;
+    });
+  }
+  profileData.word_preferences = wordPrefs;
+
+  // ── 4. 人間に見せる学習サマリー ──
+  if (Array.isArray(analysis.human_readable_learnings) && analysis.human_readable_learnings.length > 0) {
     profileData.latest_learnings = analysis.human_readable_learnings;
   }
 
-  // ハッシュタグスタイル
-  const hashtagPrefs = profileData.hashtag_preferences || {};
-  if (analysis.hashtag_preference) {
-    if (analysis.hashtag_preference.quantity !== 0) {
-      hashtagPrefs.quantity_adjustment = (hashtagPrefs.quantity_adjustment || 0) + analysis.hashtag_preference.quantity;
-    }
-    if (analysis.hashtag_preference.style) {
-      hashtagPrefs.style = analysis.hashtag_preference.style;
-    }
-  }
-
-  // CTAの好み
-  const ctaPrefs = profileData.cta_preferences || {};
-  if (analysis.call_to_action) {
-    if (analysis.call_to_action.strength !== 0) {
-      ctaPrefs.strength = (ctaPrefs.strength || 0) + analysis.call_to_action.strength;
-    }
-    if (analysis.call_to_action.style) {
-      ctaPrefs.style = analysis.call_to_action.style;
-    }
-  }
-
-  // 学習サマリーを保存
-  const learningSummaries = profileData.learning_summaries || [];
-  learningSummaries.push({
-    timestamp: new Date().toISOString(),
-    summary: analysis.summary,
-  });
-
-  // 最新10件のみ保持
-  if (learningSummaries.length > 10) {
-    learningSummaries.shift();
-  }
-
-  // プロファイルを更新
+  // ── 5. プロファイル更新 ──
+  const newInteractionCount = profile.interaction_count + 1;
   await supabase
     .from('learning_profiles')
     .update({
-      profile_data: {
-        ...profileData,
-        tone_adjustments: toneAdj,
-        length_preferences: lengthPrefs,
-        word_preferences: wordPrefs,
-        avoided_words: avoidedWords,
-        hashtag_preferences: hashtagPrefs,
-        cta_preferences: ctaPrefs,
-        learning_summaries: learningSummaries,
-        writing_style: profileData.writing_style || {},       // 語尾・口癖・文体スタイル
-        latest_learnings: profileData.latest_learnings || [], // ユーザーに見せる学習内容
-      },
-      interaction_count: profile.interaction_count + 1,
+      profile_data: profileData,
+      interaction_count: newInteractionCount,
       last_feedback_at: new Date().toISOString(),
     })
     .eq('store_id', storeId);
 
-  console.log(`[AdvancedPersonalization] 高度な学習完了: ${analysis.summary}`);
+  console.log(`[AdvancedPersonalization] 思想ログ更新: beliefs=${beliefLogs.length}件, interaction=${newInteractionCount}`);
+
+  // ── 6. 人格要約の生成（条件付き） ──
+  if (beliefLogs.length >= MIN_BELIEFS_FOR_PERSONA) {
+    const prevBeliefCount = profileData._last_persona_belief_count || 0;
+    const newBeliefsAdded = beliefLogs.length - prevBeliefCount;
+    // 初回生成 or 前回から3件以上新規ログがあれば再生成
+    if (!profileData.persona_definition || newBeliefsAdded >= 3) {
+      try {
+        await regeneratePersonaDefinition(storeId, profileData, beliefLogs);
+      } catch (personaErr) {
+        console.error('[AdvancedPersonalization] 人格要約生成エラー（学習は成功）:', personaErr.message);
+      }
+    }
+  }
 }
 
 /**
- * 高度な学習プロファイルをプロンプトに反映
+ * 思想ログを直接追加（Claude API 呼び出しなし）
+ * A/B/C選択や👍評価など、軽量な思想追加に使用
  * @param {string} storeId - 店舗ID
- * @returns {string} - プロンプト用の詳細な学習情報
+ * @param {string} beliefText - 思想テキスト
+ * @param {string} source - ソース種別
+ */
+export async function addSimpleBelief(storeId, beliefText, source) {
+  const { data: profile } = await supabase
+    .from('learning_profiles')
+    .select('profile_data')
+    .eq('store_id', storeId)
+    .single();
+
+  if (!profile) return;
+
+  const profileData = profile.profile_data || {};
+  const beliefLogs = profileData.belief_logs || [];
+
+  // 重複排除
+  if (beliefLogs.some(b => b.text === beliefText)) return;
+
+  beliefLogs.push({ text: beliefText, source, created_at: new Date().toISOString() });
+  while (beliefLogs.length > MAX_BELIEF_LOGS) {
+    beliefLogs.shift();
+  }
+  profileData.belief_logs = beliefLogs;
+
+  await supabase
+    .from('learning_profiles')
+    .update({ profile_data: profileData })
+    .eq('store_id', storeId);
+
+  console.log(`[AdvancedPersonalization] 思想ログ追加: "${beliefText}" (${source})`);
+}
+
+/**
+ * 人格要約を生成・更新
+ */
+async function regeneratePersonaDefinition(storeId, profileData, beliefLogs) {
+  const prompt = `以下はある店主がInstagram投稿文に対して出したフィードバックから抽出した思想ログです。
+
+${beliefLogs.map(b => `・${b.text}`).join('\n')}
+
+この店主の「文章に対する人格」を箇条書きで簡潔に定義してください。
+・で始まる箇条書き、5項目以内
+・「この店主は〜」という主語は不要、特徴のみ書く
+・矛盾するログがあれば新しいほう（下のほう）を優先
+・抽象的すぎず、具体的な文体の好みが伝わるように`;
+
+  const definition = await askClaude(prompt, {
+    max_tokens: 300,
+    temperature: 0.3,
+  });
+
+  if (!definition || definition.trim().length === 0) return;
+
+  // バージョニング
+  const history = profileData.persona_history || [];
+  const newVersion = (profileData.persona_version || 0) + 1;
+  history.push({
+    version: newVersion,
+    definition: definition.trim(),
+    created_at: new Date().toISOString(),
+    belief_count: beliefLogs.length,
+  });
+  while (history.length > MAX_PERSONA_HISTORY) {
+    history.shift();
+  }
+
+  profileData.persona_definition = definition.trim();
+  profileData.persona_version = newVersion;
+  profileData.persona_history = history;
+  profileData._last_persona_belief_count = beliefLogs.length;
+
+  await supabase
+    .from('learning_profiles')
+    .update({ profile_data: profileData })
+    .eq('store_id', storeId);
+
+  console.log(`[AdvancedPersonalization] 人格要約 Ver.${newVersion} 生成完了`);
+}
+
+/**
+ * エンゲージメントデータから投稿の成功要因を自動分析し belief_logs に追加
+ * @param {string} storeId
+ * @param {string} postContent - 投稿本文
+ * @param {{ likes: number, saves: number, comments: number }} metrics
+ * @param {number} avgSaveIntensity - この店舗の平均保存率
+ * @returns {{ type: 'high'|'low', beliefs?: string[], saveIntensity: number }|null}
+ */
+export async function analyzeEngagementWithClaude(storeId, postContent, metrics, avgSaveIntensity) {
+  const saveIntensity = metrics.likes > 0 ? metrics.saves / metrics.likes : 0;
+
+  // 平均の1.5倍以上 or 保存率0.08以上 → 高パフォーマンス分析
+  const isHighPerformer = saveIntensity >= Math.max(avgSaveIntensity * 1.5, 0.08);
+  // 平均の0.5倍以下 → 低パフォーマンス記録（平均データがある場合のみ）
+  const isLowPerformer = avgSaveIntensity > 0 && saveIntensity < avgSaveIntensity * 0.5;
+
+  if (!isHighPerformer && !isLowPerformer) return null; // 平均的 → スキップ
+
+  if (isHighPerformer) {
+    const prompt = `以下の投稿が高い保存率（${(saveIntensity * 100).toFixed(1)}%、平均${(avgSaveIntensity * 100).toFixed(1)}%）を達成しました。
+
+【投稿内容】
+${postContent.slice(0, 500)}
+
+【数値】いいね${metrics.likes} 保存${metrics.saves} コメント${metrics.comments}
+
+この投稿が保存された理由を、文体・構成・表現の観点から箇条書きで1〜2項目だけ抽出してください。
+・で始まる短い日本語文で。「この投稿は〜」という主語は不要。`;
+
+    try {
+      const result = await askClaude(prompt, { max_tokens: 100, temperature: 0.3 });
+      const beliefs = result
+        .split('\n')
+        .map(l => l.replace(/^[・\-\*]\s*/, '').trim())
+        .filter(l => l.length > 5 && l.length < 80);
+
+      for (const belief of beliefs.slice(0, 2)) {
+        await addSimpleBelief(storeId, belief, 'engagement_auto');
+      }
+
+      console.log(`[AutoLearn] 高パフォーマンス分析完了: saveIntensity=${saveIntensity.toFixed(2)}, beliefs=${beliefs.slice(0, 2).length}件`);
+      return { type: 'high', beliefs: beliefs.slice(0, 2), saveIntensity };
+    } catch (err) {
+      console.error('[AutoLearn] 高パフォーマンス分析エラー:', err.message);
+      return null;
+    }
+  }
+
+  if (isLowPerformer) {
+    await addSimpleBelief(storeId, '前回の投稿は反応が薄かった — 構成を変えてみる', 'engagement_auto');
+    console.log(`[AutoLearn] 低パフォーマンス記録: saveIntensity=${saveIntensity.toFixed(2)}`);
+    return { type: 'low', saveIntensity };
+  }
+
+  return null;
+}
+
+/**
+ * 学習プロファイルをプロンプトに反映（人格定義ベース）
+ * @param {string} storeId - 店舗ID
+ * @returns {string} - プロンプト用の人格定義テキスト
  */
 export async function getAdvancedPersonalizationPrompt(storeId) {
   const { data: profile } = await supabase
@@ -283,111 +343,47 @@ export async function getAdvancedPersonalizationPrompt(storeId) {
     .eq('store_id', storeId)
     .single();
 
-  if (!profile || profile.interaction_count === 0) {
+  if (!profile || profile.interaction_count < 1) {
     return '';
   }
 
   const profileData = profile.profile_data || {};
-  const additions = [];
+  const parts = [];
 
-  // 口調の詳細な調整
-  const toneAdj = profileData.tone_adjustments || {};
-  Object.entries(toneAdj).forEach(([key, value]) => {
-    if (Math.abs(value) > 0.5) {
-      const direction = value > 0 ? 'より' : 'やや控えめに';
-      const intensity = Math.abs(value) > 3 ? '強く' : '';
-      additions.push(`・${key}な表現を${intensity}${direction}使う`);
+  // ★ 人格定義（最重要）
+  if (profileData.persona_definition) {
+    parts.push(`\n━━━━━━━━━━━━━━━━━━━━━━━━\n【最重要：この店主の人格定義 Ver.${profileData.persona_version || 1}】\n${profileData.persona_definition}\n※ 必ずこの人格に従って文章を生成せよ。他の指示と矛盾する場合はこちらを優先。\n━━━━━━━━━━━━━━━━━━━━━━━━`);
+  }
+
+  // 語尾・口癖（具体的で有用なので維持）
+  const ws = profileData.writing_style || {};
+  const styleParts = [];
+  if (ws.sentence_endings?.length > 0) {
+    styleParts.push(`・語尾: 「${ws.sentence_endings.join('」「')}」を使う`);
+  }
+  if (ws.catchphrases?.length > 0) {
+    styleParts.push(`・口癖: 「${ws.catchphrases.join('」「')}」を自然に使う`);
+  }
+  if (ws.line_break_style === 'frequent') {
+    styleParts.push('・改行を多めに使って縦に展開する');
+  }
+  if (styleParts.length > 0) {
+    parts.push(`【文体ルール】\n${styleParts.join('\n')}`);
+  }
+
+  // 避ける表現
+  const avoided = profileData.avoided_words || [];
+  if (avoided.length > 0) {
+    parts.push(`・避ける表現: ${avoided.join(', ')}`);
+  }
+
+  // 人格未生成時（belief_logs < 5）はログをそのまま表示
+  if (!profileData.persona_definition) {
+    const beliefLogs = profileData.belief_logs || [];
+    if (beliefLogs.length > 0) {
+      parts.push(`【この店主の好み（学習中・${beliefLogs.length}件）】\n${beliefLogs.map(b => `・${b.text}`).join('\n')}`);
     }
-  });
-
-  // 絵文字の好み
-  if (profileData.emoji_style === 'minimal') {
-    additions.push('・絵文字は最小限（1-2個程度）');
-  } else if (profileData.emoji_style === 'rich') {
-    additions.push('・絵文字を豊富に使う（5個以上）');
   }
 
-  // 文章長
-  const lengthPrefs = profileData.length_preferences || {};
-  if (lengthPrefs.target_chars) {
-    additions.push(`・目標文字数: 約${lengthPrefs.target_chars}文字`);
-  } else {
-    if (lengthPrefs.prefer_short > 2) {
-      additions.push('・簡潔な表現を強く好む');
-    } else if (lengthPrefs.prefer_long > 2) {
-      additions.push('・詳細な説明を好む');
-    }
-  }
-
-  // 避けるべき表現
-  const avoidedWords = profileData.avoided_words || [];
-  if (avoidedWords.length > 0) {
-    additions.push(`・避ける表現: ${avoidedWords.join(', ')}`);
-  }
-
-  // 好まれる表現
-  const wordPrefs = profileData.word_preferences || {};
-  const topWords = Object.entries(wordPrefs)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
-    .map(([word]) => word);
-  if (topWords.length > 0) {
-    additions.push(`・好む表現: ${topWords.join(', ')}`);
-  }
-
-  // ハッシュタグスタイル
-  const hashtagPrefs = profileData.hashtag_preferences || {};
-  if (hashtagPrefs.style) {
-    const styleDesc = {
-      trending: 'トレンド重視',
-      niche: 'ニッチなタグ重視',
-      mixed: 'バランス型',
-    };
-    additions.push(`・ハッシュタグ: ${styleDesc[hashtagPrefs.style]}`);
-  }
-
-  // CTA
-  const ctaPrefs = profileData.cta_preferences || {};
-  if (ctaPrefs.style) {
-    const styleDesc = {
-      direct: '直接的な行動喚起',
-      soft: '柔らかい誘導',
-      none: '行動喚起なし',
-    };
-    additions.push(`・CTA: ${styleDesc[ctaPrefs.style]}`);
-  }
-
-  // 語尾・文体スタイル（最重要：最初に記載して優先度を上げる）
-  const writingStyle = profileData.writing_style || {};
-  const writingAdditions = [];
-
-  if (writingStyle.sentence_endings && writingStyle.sentence_endings.length > 0) {
-    writingAdditions.push(`語尾は「${writingStyle.sentence_endings.join('」「')}」のスタイルを使う（厳守）`);
-  }
-  if (writingStyle.catchphrases && writingStyle.catchphrases.length > 0) {
-    writingAdditions.push(`「${writingStyle.catchphrases.join('」「')}」などの口癖を自然に使う`);
-  }
-  if (writingStyle.line_break_style === 'frequent') {
-    writingAdditions.push('改行を多めに使って縦に展開する');
-  }
-
-  // 最近の学習サマリー
-  const summaries = profileData.learning_summaries || [];
-  if (summaries.length > 0) {
-    const recentSummaries = summaries.slice(-3).map(s => s.summary);
-    additions.push(`・最近の学習: ${recentSummaries.join(' / ')}`);
-  }
-
-  if (writingAdditions.length === 0 && additions.length === 0) return '';
-
-  const writingSection = writingAdditions.length > 0
-    ? `\n【この人の文体（最優先で反映）】\n${writingAdditions.map(a => `・${a}`).join('\n')}`
-    : '';
-
-  const generalSection = additions.length > 0
-    ? `\n【高度なパーソナライゼーション（${profile.interaction_count}回の学習）】\n${additions.join('\n')}`
-    : '';
-
-  return writingSection + generalSection;
+  return parts.length > 0 ? '\n' + parts.join('\n') : '';
 }
-

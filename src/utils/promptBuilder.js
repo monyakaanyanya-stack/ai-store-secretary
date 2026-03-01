@@ -390,7 +390,7 @@ export function buildImagePostPrompt(store, lengthOverride = null, blendedInsigh
 
   const characterSection = buildCharacterSection(store);
 
-  return `
+  return `${personalization}
 ## 1. あなたの役割
 あなたは${store.name}の店主の言葉を自然に整える編集者です。
 目的は、写真を見た人が
@@ -414,7 +414,7 @@ ${toneData.good_examples.join('\n\n')}
 
 【NGな例】
 ${toneData.bad_examples.join('\n\n')}
-${templateInfo}${characterSection}${imageDescriptionSection}${collectiveIntelligenceSection}${industryPatternSection}${hashtagInstruction}${personalization}
+${templateInfo}${characterSection}${imageDescriptionSection}${collectiveIntelligenceSection}${industryPatternSection}${hashtagInstruction}
 
 ## 4. 出力構成（厳守）
 以下の写真情報と補足情報をもとにInstagram投稿文を3案作成してください。
@@ -585,7 +585,8 @@ export function buildTextPostPrompt(store, userText, lengthOverride = null, blen
 
   const characterSection = buildCharacterSection(store);
 
-  return `あなたは${store.name}の店主の言葉を自然に整える編集者です。
+  return `${personalization}
+あなたは${store.name}の店主の言葉を自然に整える編集者です。
 目的は、投稿を見た人が
 1. その店を思い出してしまうこと（想起トリガー）
 2. さりげなく行ってみようかなと思うこと（来店トリガー）
@@ -606,7 +607,7 @@ ${toneData.good_examples.join('\n\n')}
 
 【NGな例】
 ${toneData.bad_examples.join('\n\n')}
-${templateInfo}${characterSection}${collectiveIntelligenceSection}${industryPatternSection}${fallbackHashtags}${personalization}
+${templateInfo}${characterSection}${collectiveIntelligenceSection}${industryPatternSection}${fallbackHashtags}
 
 【今回伝えたい内容】
 ${userText}
@@ -771,7 +772,8 @@ export function buildRevisionPrompt(store, originalPost, feedback, advancedPerso
   const toneData = getToneData(store.tone);
   const characterSection = buildCharacterSection(store);
 
-  return `あなたは${store.name}の店主の言葉を自然に整える編集者です。以下の投稿を修正してください。
+  return `${advancedPersonalization}
+あなたは${store.name}の店主の言葉を自然に整える編集者です。以下の投稿を修正してください。
 
 【ライティング・ルール（Dual Trigger Model）】
 - 想起トリガー: 五感・時間帯・小さな情景で店を思い出させる
@@ -781,7 +783,7 @@ export function buildRevisionPrompt(store, originalPost, feedback, advancedPerso
 
 【絶対に使わない言葉（AI丸出しになるのでNG）】
 ${toneData.forbidden_words.join(', ')}, 幻想的, 素敵, 魅力的, 素晴らしい, 完璧, 最高, 美しい, ですね, なのですね, 光の意志, 質感の物語, 沈黙のデザイン, 肖像, 独白, 心拍数, 体温
-${advancedPersonalization}${characterSection}
+${characterSection}
 【元の投稿】
 ${originalPost}
 

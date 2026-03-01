@@ -159,7 +159,7 @@ export async function handleStoreDeleteExecution(user, replyToken) {
   try {
     const store = await getStore(user.current_store_id);
     if (!store) {
-      return await replyText(replyToken, '店舗が見つかりません。');
+      return await replyText(replyToken, '選択中の店舗が見つかりません。');
     }
 
     const storeName = store.name;

@@ -5,6 +5,7 @@
 import { replyText } from '../services/lineService.js';
 import { updatePostContent, supabase } from '../services/supabaseService.js';
 import { appendTemplateFooter } from '../utils/promptBuilder.js';
+import { addSimpleBelief } from '../services/advancedPersonalization.js';
 
 // スタイル名マッピング（Ver.17.0）
 const STYLE_MAP = { A: '時間の肖像', B: '誠実の肖像', C: '光の肖像' };
@@ -21,13 +22,13 @@ export async function handleProposalSelection(user, store, latestPost, input, re
   // 1. 入力を正規化: "案A" "a" "1" → "A"
   const selection = normalizeSelection(input);
   if (!selection) {
-    return await replyText(replyToken, 'A・B・C のいずれかを送ってください');
+    return await replyText(replyToken, 'A・B・C のどれにしますか？');
   }
 
   // 2. 選択した案を抽出
   const rawExtracted = extractSelectedProposal(latestPost.content, selection);
   if (!rawExtracted) {
-    return await replyText(replyToken, `案${selection}の抽出に失敗しました。もう一度画像を送ってお試しください。`);
+    return await replyText(replyToken, `案${selection}がうまく取り出せませんでした。もう一度画像を送ってみてください`);
   }
 
   try {
@@ -42,21 +43,21 @@ export async function handleProposalSelection(user, store, latestPost, input, re
     const styleName = STYLE_MAP[selection];
     await updateStylePreference(store.id, styleName);
 
+    // 5. 同じ案を3回以上連続選択 → 思想ログに追加
+    await addBeliefFromSelection(store.id, selection);
+
     console.log(`[Proposal] 案${selection}（${styleName}）を選択: store=${store.name}`);
 
     // 5. 返信
-    return await replyText(replyToken, `✅ 案${selection}（${styleName}）を選びました！
-
-コピーしてInstagramに貼り付けてください↓
+    return await replyText(replyToken, `案${selection}（${styleName}）ですね！コピペでどうぞ👇
 ━━━━━━━━━━━
 ${finalContent}
 ━━━━━━━━━━━
 
-修正があれば「直し: 〜」でどうぞ
-👍 良い / 👎 イマイチ で学習します`);
+気になるところがあれば「直し: 〜」で修正できます`);
   } catch (err) {
     console.error(`[Proposal] 案選択エラー: store=${store.name}`, err);
-    return await replyText(replyToken, 'エラーが発生しました。もう一度画像を送ってお試しください。');
+    return await replyText(replyToken, 'うまくいきませんでした...もう一度画像を送ってみてください');
   }
 }
 
@@ -178,5 +179,40 @@ async function updateStylePreference(storeId, styleName) {
     console.log(`[Proposal] スタイル学習: ${styleName} (累計: 時間${selections['時間の肖像'] || 0}/誠実${selections['誠実の肖像'] || 0}/光${selections['光の肖像'] || 0})`);
   } catch (err) {
     console.warn('[Proposal] スタイル学習エラー（続行）:', err.message);
+  }
+}
+
+/**
+ * 同じ案を3回以上連続選択した場合、思想ログに追加
+ */
+const STYLE_BELIEFS = {
+  A: '日常の一瞬を切り取る表現を好む',
+  B: '誠実で正直な語り口を好む',
+  C: '店主の独り言のような親しみやすさを好む',
+};
+
+async function addBeliefFromSelection(storeId, selection) {
+  try {
+    const { data: profile } = await supabase
+      .from('learning_profiles')
+      .select('profile_data')
+      .eq('store_id', storeId)
+      .single();
+
+    if (!profile) return;
+
+    const profileData = profile.profile_data || {};
+    const selections = profileData.style_selections || {};
+    const count = selections[STYLE_MAP[selection]] || 0;
+
+    // 3回以上選択した場合のみ思想ログに追加
+    if (count >= 3) {
+      const belief = STYLE_BELIEFS[selection];
+      if (belief) {
+        await addSimpleBelief(storeId, belief, 'selection');
+      }
+    }
+  } catch (err) {
+    console.warn('[Proposal] 思想ログ追加エラー（続行）:', err.message);
   }
 }

@@ -17,7 +17,7 @@ export async function handleImageMessage(user, messageId, replyToken) {
   // 店舗が未設定の場合
   if (!user.current_store_id) {
     return await replyText(replyToken,
-      '店舗が選択されていません。\n\nまず店舗を登録してください:\n1: 店名,こだわり,口調\n\n例: 1: ベーカリー幸福堂,天然酵母の手作りパン,friendly'
+      'まだ店舗が登録されていないみたいです。「登録」で始められます！'
     );
   }
 
@@ -25,7 +25,7 @@ export async function handleImageMessage(user, messageId, replyToken) {
     // 店舗情報を取得
     const store = await getStore(user.current_store_id);
     if (!store) {
-      return await replyText(replyToken, '選択中の店舗が見つかりません。店舗一覧 で確認してください。');
+      return await replyText(replyToken, '店舗が見つかりません。「店舗一覧」で確認してみてください');
     }
 
     // 画像をBase64で取得
@@ -55,7 +55,7 @@ export async function handleImageMessage(user, messageId, replyToken) {
 
         if (!latestPost) {
           return await replyText(replyToken,
-            'スクショを読み取りましたが、まだ投稿履歴がありません。\n先に投稿を生成してから送ってください。'
+            'スクショは読めたんですが、まだ投稿がないみたいです。先に投稿を作ってから送ってください！'
           );
         }
 
@@ -114,7 +114,7 @@ export async function handleImageMessage(user, messageId, replyToken) {
 
     // S9修正: imageDescription が万が一 null/undefined の場合のガード
     if (!imageDescription) {
-      return await replyText(replyToken, '画像の分析に失敗しました。別の画像で再度お試しください。');
+      return await replyText(replyToken, '画像がうまく読み取れませんでした。別の画像で試してみてください');
     }
 
     // ── 一言ヒント機能: 画像分析後に1つだけ質問して待機 ──
@@ -130,10 +130,11 @@ export async function handleImageMessage(user, messageId, replyToken) {
 
     await replyWithQuickReply(
       replyToken,
-      `📸 写真を受け取りました！
+      `写真見ました！この写真で何を伝えたいですか？
 
-この写真の「伝えたいこと」を一言だけ教えてください👇
-（自由入力でもOK）`,
+例：今週末限定メニュー
+例：朝の光が綺麗だった
+例：常連さんへの感謝`,
       [
         { type: 'action', action: { type: 'message', label: 'お知らせ', text: 'お知らせ' } },
         { type: 'action', action: { type: 'message', label: '日常感', text: '日常感' } },
@@ -143,6 +144,6 @@ export async function handleImageMessage(user, messageId, replyToken) {
     );
   } catch (err) {
     console.error('[Image] 画像投稿生成エラー:', err);
-    await replyText(replyToken, '投稿生成中にエラーが発生しました。しばらくしてから再度お試しください。');
+    await replyText(replyToken, 'うまくいきませんでした...もう一度試してみてください');
   }
 }

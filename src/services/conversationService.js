@@ -240,3 +240,61 @@ ${historyText || 'なし'}
     return 'すみません、エラーが発生しました。もう一度お試しください。';
   }
 }
+
+/**
+ * ユーザーメッセージの意図を分類する（軽量Claude呼び出し）
+ * @param {string} message - ユーザーのメッセージ
+ * @param {object} context - { hasProposals: boolean, hasPost: boolean }
+ * @returns {string} 意図ラベル
+ */
+export async function classifyIntent(message, context) {
+  if (!context.hasPost && !context.hasProposals) return 'conversation';
+
+  const availableIntents = [];
+
+  if (context.hasProposals) {
+    availableIntents.push(
+      'select_a - ユーザーが1つ目/A案を選んでいる',
+      'select_b - ユーザーが2つ目/B案を選んでいる',
+      'select_c - ユーザーが3つ目/C案を選んでいる',
+    );
+  }
+
+  if (context.hasPost) {
+    availableIntents.push(
+      'revision - 投稿を修正・変更してほしい（短く、長く、カジュアルに、絵文字減らす等）',
+      'positive - 投稿が良い・気に入った（いいね、好き、これでOK等）',
+      'negative - 投稿がイマイチ・違和感（微妙、違う、もう一回等）',
+    );
+  }
+
+  availableIntents.push('conversation - 上記のどれにも当てはまらない一般的な会話・質問');
+
+  const systemPrompt = `あなたはユーザーメッセージの意図を分類する分類器です。
+以下の選択肢から最も適切な意図ラベルを1つだけ出力してください。ラベルのみ出力。説明不要。
+
+選択肢:
+${availableIntents.map(i => `- ${i}`).join('\n')}`;
+
+  try {
+    const result = await askClaude(`メッセージ: 「${message}」`, {
+      max_tokens: 20,
+      temperature: 0,
+      system: systemPrompt,
+    });
+
+    const label = result.trim().toLowerCase();
+    const validLabels = ['revision', 'positive', 'negative', 'select_a', 'select_b', 'select_c', 'conversation'];
+    if (validLabels.includes(label)) return label;
+
+    for (const v of validLabels) {
+      if (label.includes(v)) return v;
+    }
+
+    console.warn(`[Intent] 不明な分類結果: "${result}" → conversation にフォールバック`);
+    return 'conversation';
+  } catch (err) {
+    console.error('[Intent] 分類エラー（会話にフォールバック）:', err.message);
+    return 'conversation';
+  }
+}

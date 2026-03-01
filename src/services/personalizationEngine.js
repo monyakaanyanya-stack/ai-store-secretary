@@ -305,7 +305,6 @@ export async function getLearningStatus(storeId, category) {
   if (!profile || profile.interaction_count === 0) {
     return `📊 学習状況
 
-【パーソナライゼーション】
 まだ学習データがありません。
 
 フィードバックを送ると、あなたの好みに合わせた投稿を生成できるようになります！
@@ -317,48 +316,52 @@ export async function getLearningStatus(storeId, category) {
   }
 
   const profileData = profile.profile_data || {};
+  const beliefLogs = profileData.belief_logs || [];
+  let sections = [];
 
-  // パーソナライゼーション情報（レベル表示を削除し、学習回数のみ表示）
-  let personalizationInfo = `【パーソナライゼーション】\n・学習回数: ${profile.interaction_count}回\n・フィードバックを重ねるほど精度が向上します\n`;
-
-  // 口調の好み
-  const toneAdj = profileData.tone_adjustments || {};
-  if (toneAdj.casual > 0) {
-    personalizationInfo += `・カジュアル好み: ${'⭐'.repeat(Math.min(toneAdj.casual, 5))}\n`;
-  }
-  if (toneAdj.formal > 0) {
-    personalizationInfo += `・フォーマル好み: ${'⭐'.repeat(Math.min(toneAdj.formal, 5))}\n`;
+  // ── 人格定義セクション ──
+  if (profileData.persona_definition) {
+    sections.push(`【人格定義 Ver.${profileData.persona_version || 1}】\n${profileData.persona_definition}`);
+  } else if (beliefLogs.length > 0) {
+    // 人格未生成時はログをそのまま表示
+    sections.push(`【学習中の好み】\n${beliefLogs.map(b => `・${b.text}`).join('\n')}\n\nあと${Math.max(0, 5 - beliefLogs.length)}回フィードバックすると人格定義が生成されます！`);
   }
 
-  // 絵文字スタイル
-  if (profileData.emoji_style === 'minimal') {
-    personalizationInfo += '・絵文字: 控えめ 🔇\n';
-  } else if (profileData.emoji_style === 'rich') {
-    personalizationInfo += '・絵文字: 豊富 🎉\n';
+  // ── 進化の軌跡セクション ──
+  const history = profileData.persona_history || [];
+  if (history.length > 0) {
+    const historyLines = history.map(h => {
+      const date = new Date(h.created_at);
+      const dateStr = `${date.getMonth() + 1}/${date.getDate()}`;
+      return `Ver.${h.version} (${dateStr})`;
+    });
+    sections.push(`【進化の軌跡】\n${historyLines.join('\n')}`);
   }
 
-  // 文章長の好み
-  const lengthPrefs = profileData.length_preferences || {};
-  if (lengthPrefs.prefer_short > 0) {
-    personalizationInfo += '・文章: 簡潔派 📝\n';
-  }
-  if (lengthPrefs.prefer_long > 0) {
-    personalizationInfo += '・文章: 詳細派 📖\n';
+  // ── 学習データセクション ──
+  let dataInfo = `【学習データ】\n・学習回数: ${profile.interaction_count}回`;
+  if (beliefLogs.length > 0) {
+    dataInfo += `\n・思想ログ: ${beliefLogs.length}件`;
   }
 
-  // 好まれる表現
-  const wordPrefs = profileData.word_preferences || {};
-  const topWords = Object.entries(wordPrefs)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
-    .map(([word]) => word);
-
-  if (topWords.length > 0) {
-    personalizationInfo += `・好まれる表現: ${topWords.join(', ')}\n`;
+  // 語尾・口癖
+  const ws = profileData.writing_style || {};
+  if (ws.sentence_endings?.length > 0) {
+    dataInfo += `\n・語尾: 「${ws.sentence_endings.join('」「')}」`;
+  }
+  if (ws.catchphrases?.length > 0) {
+    dataInfo += `\n・口癖: 「${ws.catchphrases.join('」「')}」`;
   }
 
-  // 集合知データ
-  let collectiveInfo = '';
+  // 避ける表現
+  const avoided = profileData.avoided_words || [];
+  if (avoided.length > 0) {
+    dataInfo += `\n・避ける表現: ${avoided.slice(0, 5).join(', ')}${avoided.length > 5 ? '...' : ''}`;
+  }
+
+  sections.push(dataInfo);
+
+  // ── 集合知データ ──
   if (category) {
     const { data: metrics } = await supabase
       .from('engagement_metrics')
@@ -367,9 +370,8 @@ export async function getLearningStatus(storeId, category) {
       .limit(100);
 
     if (metrics && metrics.length > 0) {
-      collectiveInfo = `\n【集合知データ】\n・同業種データ数: ${metrics.length}件\n`;
+      let collectiveInfo = `【集合知データ】\n・同業種データ数: ${metrics.length}件`;
 
-      // 人気ハッシュタグ（使用回数ではなくエンゲージメント率で判定）
       const hashtagMetrics = {};
       metrics.forEach(m => {
         if (m.hashtags && m.engagement_rate != null) {
@@ -392,18 +394,15 @@ export async function getLearningStatus(storeId, category) {
         .map(item => item.tag);
 
       if (topHashtags.length > 0) {
-        collectiveInfo += `・人気ハッシュタグ: ${topHashtags.join(', ')}\n`;
+        collectiveInfo += `\n・人気ハッシュタグ: ${topHashtags.join(', ')}`;
       }
-    } else {
-      collectiveInfo = `\n【集合知データ】\nまだ同業種のデータがありません。\n投稿を重ねることで、業界のトレンドを学習していきます。\n`;
+      sections.push(collectiveInfo);
     }
   }
 
   return `📊 学習状況
 
-${personalizationInfo}${collectiveInfo}
+${sections.join('\n\n')}
 
-💡 ヒント:
-・フィードバックを送るほど、あなた好みの投稿になります
-・「直し: 〜」で投稿を修正すると自動で学習します`;
+💡 「直し: 〜」で修正するほど人格が育ちます`;
 }

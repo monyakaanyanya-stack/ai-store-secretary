@@ -3,6 +3,7 @@ import { replyText } from '../services/lineService.js';
 import { getStore, supabase } from '../services/supabaseService.js';
 import { saveEngagementMetrics } from '../services/collectiveIntelligence.js';
 import { applyEngagementToProfile } from '../services/personalizationEngine.js';
+import { analyzeEngagementWithClaude } from '../services/advancedPersonalization.js';
 import { normalizeInput, safeParseInt } from '../utils/inputNormalizer.js';
 
 /**
@@ -177,6 +178,31 @@ export async function applyEngagementMetrics(user, store, metrics, latestPost, r
 
   await applyEngagementToProfile(store.id, latestPost.content, metricsData);
 
+  // ========== 自動学習 ==========
+  let autoLearnResult = null;
+  try {
+    // この店舗の平均保存率を取得
+    const { data: storeMetrics } = await supabase
+      .from('engagement_metrics')
+      .select('save_intensity')
+      .eq('store_id', store.id)
+      .eq('status', '報告済')
+      .not('save_intensity', 'is', null);
+
+    const avgSaveIntensity = storeMetrics?.length > 0
+      ? storeMetrics.reduce((sum, m) => sum + m.save_intensity, 0) / storeMetrics.length
+      : 0.05; // デフォルト5%
+
+    autoLearnResult = await analyzeEngagementWithClaude(
+      store.id,
+      latestPost.content,
+      metrics,
+      avgSaveIntensity,
+    );
+  } catch (err) {
+    console.error('[AutoLearn] 自動学習エラー（報告は成功）:', err.message);
+  }
+
   console.log(`[Report] エンゲージメント報告完了: store=${store.name}, likes=${metrics.likes}, save_intensity=${saveIntensity}`);
 
   const reportCount = await getMonthlyReportCount(user.id, store.id);
@@ -198,6 +224,15 @@ export async function applyEngagementMetrics(user, store, metrics, latestPost, r
     engagementLine = `\n📈 エンゲージメント率: ${engagementRate}%（実リーチ${metrics.reach?.toLocaleString()}より算出）`;
   }
 
+  let autoLearnLine = '';
+  if (autoLearnResult?.type === 'high' && autoLearnResult.beliefs?.length > 0) {
+    autoLearnLine = `\n\n🧠 自動学習:`;
+    for (const b of autoLearnResult.beliefs) {
+      autoLearnLine += `\n・${b}`;
+    }
+    autoLearnLine += `\n→ 次の投稿に自動で反映します`;
+  }
+
   const feedbackMessage = `✅ 報告完了！（最新の投稿に適用されました）
 
 【報告内容】
@@ -213,7 +248,7 @@ ${postContent}...
 🌱 集合知データベースに追加されました！
 今月の報告回数: ${reportCount}回
 
-💡 リーチがわかる場合は「リーチ:800」を追加すると精度が上がります`;
+💡 リーチがわかる場合は「リーチ:800」を追加すると精度が上がります${autoLearnLine}`;
 
   await replyText(replyToken, feedbackMessage);
 }
@@ -262,9 +297,7 @@ export async function handlePostSelection(user, postNumber, replyToken) {
     // 店舗情報を取得（フォロワー数を含む）
     const store = await getStore(user.current_store_id);
 
-    // 投稿内容からハッシュタグを抽出
-    let postContent = selectedPost.content.split('#')[0].trim().slice(0, 50);
-    const hashtags = extractHashtags(selectedPost.content);
+    const postContent = selectedPost.content.split('#')[0].trim().slice(0, 50);
 
     // 正直な指標を計算
     const metrics = {
@@ -359,15 +392,6 @@ ${postContent}...
   }
 }
 
-/**
- * ハッシュタグを抽出
- */
-function extractHashtags(text) {
-  const hashtagRegex = /#[^\s#]+/g;
-  const matches = text.match(hashtagRegex);
-  return matches || [];
-}
-
 // L9修正: getLatestPostHistory削除（getRecentPostHistory(userId, storeId, 1)と重複）
 
 /**
@@ -396,45 +420,6 @@ async function getMonthlyReportCount(userId, storeId) {
   }
 
   return count || 0;
-}
-
-/**
- * pending_reportsにメトリクスを保存
- * C4注記: 現在未使用（handleEngagementReportが最新投稿に直接適用するため）
- * マルチ投稿選択フロー実装時に有効化する予定
- * C15修正: 既存の awaiting_post_selection を先にクリーンアップ（競合防止）
- */
-async function savePendingReport(userId, storeId, metrics) {
-  // L2修正: static importを使用
-
-  // 既存の awaiting_post_selection を expired に変更（競合防止）
-  await supabase
-    .from('pending_reports')
-    .update({ status: 'expired' })
-    .eq('user_id', userId)
-    .eq('store_id', storeId)
-    .eq('status', 'awaiting_post_selection');
-
-  const { data, error } = await supabase
-    .from('pending_reports')
-    .insert({
-      user_id: userId,
-      store_id: storeId,
-      likes_count: metrics.likes,
-      saves_count: metrics.saves,
-      comments_count: metrics.comments,
-      status: 'awaiting_post_selection'
-    })
-    .select()
-    .single();
-
-  if (error) {
-    console.error('[Report] pending_reports保存エラー:', error.message);
-    throw new Error('報告の保存に失敗しました');
-  }
-
-  console.log(`[Report] pending_report作成`);
-  return data;
 }
 
 /**

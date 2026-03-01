@@ -19,24 +19,24 @@ import {
  */
 export async function handleFeedback(user, feedback, replyToken) {
   if (!user.current_store_id) {
-    return await replyText(replyToken, '店舗が選択されていません。先に店舗を登録してください。');
+    return await replyText(replyToken, 'まだ店舗が登録されていないみたいです。「登録」で始められます！');
   }
 
   // S14修正: フィードバックの長さ制限（Claude APIトークン浪費防止）
   if (feedback.length > 500) {
-    return await replyText(replyToken, '修正指示が長すぎます。500文字以内でお願いします。');
+    return await replyText(replyToken, 'ちょっと長すぎるかも...500文字以内でお願いします！');
   }
 
   try {
     const store = await getStore(user.current_store_id);
     if (!store) {
-      return await replyText(replyToken, '選択中の店舗が見つかりません。');
+      return await replyText(replyToken, '店舗が見つかりません。「店舗一覧」で確認してみてください');
     }
 
     // 最新の投稿を取得
     const latestPost = await getLatestPost(store.id);
     if (!latestPost) {
-      return await replyText(replyToken, 'まだ投稿がありません。先に画像やテキストを送って投稿案を作成してください。');
+      return await replyText(replyToken, 'まだ投稿がないみたいです。先に画像やテキストを送ってください！');
     }
 
     // ========== ハイブリッド学習方式 ==========
@@ -53,7 +53,7 @@ export async function handleFeedback(user, feedback, replyToken) {
 
     if (analysis) {
       await updateAdvancedProfile(store.id, analysis);
-      console.log(`[Feedback] 高度な学習完了: ${analysis.summary}`);
+      console.log(`[Feedback] 思想ログ学習完了: beliefs=${analysis.beliefs?.length || 0}件`);
     }
 
     await saveLearningData(
@@ -76,36 +76,38 @@ export async function handleFeedback(user, feedback, replyToken) {
 
     console.log(`[Feedback] 修正完了: store=${store.name}`);
 
-    // M8: 学習プロファイルを取得して学習回数・学習内容を確認（static import済み）
+    // 学習プロファイルを取得して学習回数・学習内容を確認
     const profile = await getOrCreateLearningProfile(store.id);
     const profileData = profile?.profile_data || {};
 
     // 今回学習した具体的な内容を取得
     const latestLearnings = profileData.latest_learnings || [];
 
-    // 応答メッセージ
+    // 応答メッセージ（進化ログUI）
     const learningList = latestLearnings.length > 0
       ? latestLearnings.map(l => `✅ ${l}`).join('\n')
       : `✅ ${feedback}`;
 
-    const message = `🧠 学習しました！
+    // 人格定義セクション（あれば表示）
+    let personaSection = '';
+    if (profileData.persona_definition) {
+      personaSection = `\n【現在の人格定義 Ver.${profileData.persona_version || 1}】\n${profileData.persona_definition}\n`;
+    }
 
-${learningList}
-
-次回からずっと反映されます。
-
+    const message = `覚えました！修正版はこちら👇
 ━━━━━━━━━━━
 ${revisedContent}
 ━━━━━━━━━━━
 
-📚 累計学習回数: ${profile.interaction_count}回
-
-「学習状況」で学習内容を確認できます。`;
+【学んだこと】
+${learningList}
+${personaSection}
+📚 ${profile.interaction_count}回目の学習${profileData.persona_version ? `（人格 Ver.${profileData.persona_version}）` : ''}`;
 
     await replyText(replyToken, message);
   } catch (err) {
     console.error('[Feedback] 処理エラー:', err);
-    await replyText(replyToken, '修正中にエラーが発生しました。しばらくしてから再度お試しください。');
+    await replyText(replyToken, 'うまくいきませんでした...もう一度試してみてください');
   }
 }
 
@@ -115,22 +117,22 @@ ${revisedContent}
  */
 export async function handleStyleLearning(user, userRewrite, replyToken) {
   if (!user.current_store_id) {
-    return await replyText(replyToken, '店舗が選択されていません。先に店舗を登録してください。');
+    return await replyText(replyToken, 'まだ店舗が登録されていないみたいです。「登録」で始められます！');
   }
 
   if (!userRewrite.trim()) {
-    return await replyText(replyToken, '書き直した文章を「学習:」の後に入れてください。\n\n例: 学習: α7C来たよ！まじ持ちやすくてやばい💫');
+    return await replyText(replyToken, '「学習:」の後に書き直した文章を入れてください！\n\n例: 学習: α7C来たよ！まじ持ちやすくてやばい💫');
   }
 
   try {
     const store = await getStore(user.current_store_id);
     if (!store) {
-      return await replyText(replyToken, '選択中の店舗が見つかりません。');
+      return await replyText(replyToken, '店舗が見つかりません。「店舗一覧」で確認してみてください');
     }
 
     const latestPost = await getLatestPost(store.id);
     if (!latestPost) {
-      return await replyText(replyToken, 'まだ投稿がありません。先に投稿案を生成してから送ってください。');
+      return await replyText(replyToken, 'まだ投稿がないみたいです。先に投稿案を作ってから送ってください！');
     }
 
     console.log(`[StyleLearning] 見本学習開始: store=${store.name}, len=${userRewrite.length}`);
@@ -145,7 +147,7 @@ export async function handleStyleLearning(user, userRewrite, replyToken) {
 
     if (analysis) {
       await updateAdvancedProfile(store.id, analysis);
-      console.log(`[StyleLearning] 見本学習完了: ${analysis.summary}`);
+      console.log(`[StyleLearning] 見本学習完了: beliefs=${analysis.beliefs?.length || 0}件`);
     }
 
     await saveLearningData(
@@ -164,18 +166,20 @@ export async function handleStyleLearning(user, userRewrite, replyToken) {
       ? latestLearnings.map(l => `✅ ${l}`).join('\n')
       : '✅ 文体パターンを学習しました';
 
-    await replyText(replyToken, `🧠 見本から学習しました！
+    let personaSection = '';
+    if (profileData.persona_definition) {
+      personaSection = `\n【現在の人格定義 Ver.${profileData.persona_version || 1}】\n${profileData.persona_definition}\n`;
+    }
 
+    await replyText(replyToken, `見本から学習しました！
+
+【学んだこと】
 ${learningList}
-
-次回からずっと反映されます。
-
-📚 累計学習回数: ${profile.interaction_count}回
-
-「学習状況」で学習内容を確認できます。`);
+${personaSection}
+📚 ${profile.interaction_count}回目の学習${profileData.persona_version ? `（人格 Ver.${profileData.persona_version}）` : ''}`);
   } catch (err) {
     console.error('[StyleLearning] エラー:', err);
-    await replyText(replyToken, '学習中にエラーが発生しました。しばらくしてから再度お試しください。');
+    await replyText(replyToken, 'うまくいきませんでした...もう一度試してみてください');
   }
 }
 
