@@ -339,10 +339,6 @@ export async function syncInstagramPosts(storeId, limit = 25) {
     return 0;
   }
 
-  // デバッグ: 最初のメディアの生データを確認
-  const firstMedia = mediaList.data[0];
-  console.log('[Instagram DEBUG] 最初のメディア生データ:', JSON.stringify(firstMedia));
-
   let synced = 0;
 
   for (const media of mediaList.data) {
@@ -374,9 +370,8 @@ export async function syncInstagramPosts(storeId, limit = 25) {
             insightsData[metric.name] = metric.values?.[0]?.value ?? metric.value ?? 0;
           });
         }
-        console.log(`[Instagram DEBUG] ${media.id} (${media.media_type}/${media.media_product_type}) insights:`, JSON.stringify(insightsData));
       } catch (insightErr) {
-        console.log(`[Instagram DEBUG] インサイトエラー (${media.media_type}/${media.media_product_type}): ${insightErr.message}`);
+        console.log(`[Instagram] インサイト取得スキップ: ${media.id} - ${insightErr.message}`);
       }
 
       const saves = insightsData.saved || 0;
