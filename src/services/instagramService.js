@@ -109,7 +109,7 @@ async function getInstagramAccountInfo(igAccountId, pageAccessToken) {
  * @param {string} userAccessToken - Graph API Explorer で取得したユーザートークン
  * @returns {{ account, accountInfo }}
  */
-export async function connectInstagramAccount(storeId, userAccessToken) {
+export async function connectInstagramAccount(storeId, userAccessToken, knownPageId = null) {
   // 1. 長期トークンに交換
   let longLivedToken;
   try {
@@ -123,23 +123,35 @@ export async function connectInstagramAccount(storeId, userAccessToken) {
   }
 
   // 2. Facebook ページ経由で Page Access Token を取得
-  //    ユーザートークンで /me/accounts が失敗した場合、ページトークンとして直接試行
   let pageId, pageAccessToken, pageName;
-  try {
-    const pageInfo = await getPageAccessToken(longLivedToken);
-    pageId = pageInfo.pageId;
-    pageAccessToken = pageInfo.pageAccessToken;
-    pageName = pageInfo.pageName;
-  } catch (userTokenErr) {
-    console.warn('[Instagram] /me/accounts 失敗、ページトークンとして試行:', userTokenErr.message);
-    // ページアクセストークンとして /me を呼び出す
-    const meInfo = await graphApiRequest('/me', longLivedToken, {
-      fields: 'id,name',
+
+  if (knownPageId) {
+    // ページIDが直接指定された場合：/{pageId}?fields=access_token,name で取得
+    console.log(`[Instagram] ページID直接指定モード: ${knownPageId}`);
+    const pageInfo = await graphApiRequest(`/${knownPageId}`, longLivedToken, {
+      fields: 'id,name,access_token',
     });
-    if (!meInfo.id) throw new Error('トークンが無効です。ユーザートークンまたはページトークンを確認してください。');
-    pageId = meInfo.id;
-    pageAccessToken = longLivedToken;
-    pageName = meInfo.name || 'Unknown Page';
+    if (!pageInfo.id) throw new Error('指定されたページIDが無効です。');
+    pageId = pageInfo.id;
+    pageAccessToken = pageInfo.access_token || longLivedToken;
+    pageName = pageInfo.name || knownPageId;
+  } else {
+    // 通常フロー: /me/accounts → 失敗時はページトークンとして試行
+    try {
+      const pageInfo = await getPageAccessToken(longLivedToken);
+      pageId = pageInfo.pageId;
+      pageAccessToken = pageInfo.pageAccessToken;
+      pageName = pageInfo.pageName;
+    } catch (userTokenErr) {
+      console.warn('[Instagram] /me/accounts 失敗、ページトークンとして試行:', userTokenErr.message);
+      const meInfo = await graphApiRequest('/me', longLivedToken, {
+        fields: 'id,name',
+      });
+      if (!meInfo.id) throw new Error('トークンが無効です。ユーザートークンまたはページトークンを確認してください。');
+      pageId = meInfo.id;
+      pageAccessToken = longLivedToken;
+      pageName = meInfo.name || 'Unknown Page';
+    }
   }
   console.log(`[Instagram] ページ取得: ${pageName} (${pageId})`);
 

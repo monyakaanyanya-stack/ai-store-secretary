@@ -31,8 +31,10 @@ export async function handleInstagramCommand(user, args, replyToken) {
   }
 
   if (subCommand === 'connect') {
-    const token = rest.join('');
-    return await handleInstagramConnect(user, token, replyToken);
+    // rest[0] = token, rest[1] = optional pageId
+    const token = rest[0] || '';
+    const pageId = rest[1] || null;
+    return await handleInstagramConnect(user, token, pageId, replyToken);
   }
 
   if (subCommand === 'sync') {
@@ -69,7 +71,7 @@ async function handleInstagramStatus(user, replyToken) {
   return true;
 }
 
-async function handleInstagramConnect(user, token, replyToken) {
+async function handleInstagramConnect(user, token, pageId, replyToken) {
   if (!token) {
     await replyText(replyToken, `📸 Instagram連携
 
@@ -89,7 +91,7 @@ async function handleInstagramConnect(user, token, replyToken) {
 
   try {
     // H1修正: replyTokenは1回しか使えないため、中間メッセージを削除し結果のみ返す
-    const { account, accountInfo } = await connectInstagramAccount(user.current_store_id, token);
+    const { account, accountInfo } = await connectInstagramAccount(user.current_store_id, token, pageId);
 
     await replyText(replyToken, `✅ Instagram連携完了！
 
