@@ -82,14 +82,19 @@ async function getPageAccessToken(userToken) {
  */
 async function getInstagramBusinessAccountId(pageId, pageAccessToken) {
   const result = await graphApiRequest(`/${pageId}`, pageAccessToken, {
-    fields: 'instagram_business_account',
+    fields: 'instagram_business_account,connected_instagram_account',
   });
 
-  if (!result.instagram_business_account?.id) {
+  console.log(`[Instagram] IGアカウント検索: business=${JSON.stringify(result.instagram_business_account)}, connected=${JSON.stringify(result.connected_instagram_account)}`);
+
+  // instagram_business_account を優先、なければ connected_instagram_account を使用
+  const igAccount = result.instagram_business_account || result.connected_instagram_account;
+
+  if (!igAccount?.id) {
     throw new Error('Instagram ビジネスアカウントが見つかりません。Instagram をプロアカウント（ビジネス）に変換して Facebook ページに接続してください。');
   }
 
-  return result.instagram_business_account.id;
+  return igAccount.id;
 }
 
 /**
