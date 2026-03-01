@@ -353,7 +353,7 @@ export async function syncInstagramPosts(storeId, limit = 25) {
       // インサイトデータを取得
       let insightsData = {};
       try {
-        const insights = await graphApiRequest(`/${media.id}/insights`, accessToken, {
+        const insights = await apiRequest(`/${media.id}/insights`, accessToken, {
           metric: 'impressions,reach,saved,likes,comments',
         });
 
