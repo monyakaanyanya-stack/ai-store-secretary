@@ -115,7 +115,40 @@ async function getInstagramAccountInfo(igAccountId, pageAccessToken) {
  * @returns {{ account, accountInfo }}
  */
 export async function connectInstagramAccount(storeId, userAccessToken, knownPageId = null) {
-  // 1. 長期トークンに交換
+  // Instagram Business Login トークン（IGA/IGQ で始まる）は直接接続
+  if (userAccessToken.startsWith('IGA') || userAccessToken.startsWith('IGQ') || userAccessToken.startsWith('IG')) {
+    console.log('[Instagram] Instagram Business Login トークン検出 → 直接接続モード');
+    const meInfo = await graphApiRequest('/me', userAccessToken, {
+      fields: 'id,username,followers_count,media_count,name,biography',
+    });
+    if (!meInfo.id) throw new Error('Instagram トークンが無効です。');
+    console.log(`[Instagram] Instagram アカウント: @${meInfo.username} (${meInfo.id})`);
+
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 60);
+    const encryptedToken = encrypt(userAccessToken);
+
+    const { data, error } = await supabase
+      .from('instagram_accounts')
+      .upsert({
+        store_id: storeId,
+        instagram_user_id: meInfo.id,
+        instagram_username: meInfo.username,
+        access_token: encryptedToken,
+        token_expires_at: expiresAt.toISOString(),
+        followers_count: meInfo.followers_count || 0,
+        media_count: meInfo.media_count || 0,
+        last_synced_at: new Date().toISOString(),
+        is_active: true,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'store_id' })
+      .select()
+      .single();
+    if (error) throw new Error(`連携登録失敗: ${error.message}`);
+    return { account: data, accountInfo: meInfo };
+  }
+
+  // 1. 長期トークンに交換（Facebook トークンの場合）
   let longLivedToken;
   try {
     const tokenData = await exchangeForLongLivedToken(userAccessToken);
