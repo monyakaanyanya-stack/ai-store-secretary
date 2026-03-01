@@ -328,15 +328,20 @@ export async function syncInstagramPosts(storeId, limit = 25) {
   const apiBase = accessToken.startsWith('IG') ? INSTAGRAM_API_BASE : GRAPH_API_BASE;
   const apiRequest = (path, token, params) => graphApiRequestBase(apiBase, path, token, params);
 
-  // メディア一覧を取得
+  // メディア一覧を取得（like_count/comments_count をメディアフィールドから直接取得）
+  // media_product_type: REELS / POST / IGTV など
   const mediaList = await apiRequest(`/${igAccountId}/media`, accessToken, {
-    fields: 'id,caption,media_type,permalink,timestamp',
+    fields: 'id,caption,media_type,media_product_type,permalink,timestamp,like_count,comments_count',
     limit: String(limit),
   });
 
   if (!mediaList.data || mediaList.data.length === 0) {
     return 0;
   }
+
+  // デバッグ: 最初のメディアの生データを確認
+  const firstMedia = mediaList.data[0];
+  console.log('[Instagram DEBUG] 最初のメディア生データ:', JSON.stringify(firstMedia));
 
   let synced = 0;
 
@@ -350,26 +355,36 @@ export async function syncInstagramPosts(storeId, limit = 25) {
 
       if (existing) continue;
 
-      // インサイトデータを取得
+      // メディアフィールドからいいね・コメントを直接取得
+      const likes = media.like_count || 0;
+      const comments = media.comments_count || 0;
+
+      // インサイトデータを取得（メディアタイプで分岐）
+      // REELS: reach,saved,plays（impressions は非対応、plays = 再生数）
+      // IMAGE/CAROUSEL/VIDEO: reach,saved
+      const isReel = media.media_product_type === 'REELS' || media.media_product_type === 'REEL';
+      const insightMetric = isReel ? 'reach,saved,plays' : 'reach,saved';
+
       let insightsData = {};
       try {
         const insights = await apiRequest(`/${media.id}/insights`, accessToken, {
-          metric: 'impressions,reach,saved,likes,comments',
+          metric: insightMetric,
         });
 
         if (insights.data) {
           insights.data.forEach(metric => {
-            insightsData[metric.name] = metric.values?.[0]?.value || metric.value || 0;
+            insightsData[metric.name] = metric.values?.[0]?.value ?? metric.value ?? 0;
           });
         }
+        console.log(`[Instagram DEBUG] ${media.id} (${media.media_type}/${media.media_product_type}) insights:`, JSON.stringify(insightsData));
       } catch (insightErr) {
-        console.log(`[Instagram] インサイト取得スキップ: ${media.id} - ${insightErr.message}`);
+        console.log(`[Instagram DEBUG] インサイトエラー (${media.media_type}/${media.media_product_type}): ${insightErr.message}`);
       }
 
-      const likes = insightsData.likes || 0;
-      const comments = insightsData.comments || 0;
       const saves = insightsData.saved || 0;
       const reach = insightsData.reach || 0;
+      // Reels は plays を impressions として保存
+      const impressions = isReel ? (insightsData.plays || 0) : (insightsData.impressions || 0);
       const engagementRate = reach > 0
         ? parseFloat(((likes + comments + saves) / reach * 100).toFixed(2))
         : 0;
@@ -393,7 +408,7 @@ export async function syncInstagramPosts(storeId, limit = 25) {
         comments_count: comments,
         saves_count: saves,
         reach,
-        impressions: insightsData.impressions || 0,
+        impressions,
         engagement_rate: engagementRate,
         hashtags,
         post_length: caption.replace(/#[^\s#]+/g, '').trim().length,
