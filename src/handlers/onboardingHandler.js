@@ -370,12 +370,16 @@ export async function handleHelpMenu(user, replyToken) {
 5️⃣ 【学習】
 　　AI学習・フィードバック機能
 
-💬 「問い合わせ」でサポート連絡先を確認
+💬 「問い合わせ」でサポート連絡先を確認`;
 
-番号またはカテゴリー名を送信してください。
-例: 「1」または「店舗登録」`;
-
-  await replyText(replyToken, message);
+  await replyWithQuickReply(replyToken, message, [
+    { type: 'action', action: { type: 'message', label: '店舗登録', text: '店舗登録' } },
+    { type: 'action', action: { type: 'message', label: '投稿', text: '投稿' } },
+    { type: 'action', action: { type: 'message', label: '報告', text: '報告' } },
+    { type: 'action', action: { type: 'message', label: '設定', text: '設定' } },
+    { type: 'action', action: { type: 'message', label: '学習', text: '学習' } },
+    { type: 'action', action: { type: 'message', label: '問い合わせ', text: '問い合わせ' } },
+  ]);
 }
 
 /**
