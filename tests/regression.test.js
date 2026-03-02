@@ -1492,7 +1492,7 @@ describe('Scenario 31: 画像「一言ヒント」機能', async () => {
 
   it('imageHandler が質問メッセージを送信する', () => {
     const content = fs.readFileSync('src/handlers/imageHandler.js', 'utf8');
-    assert.ok(content.includes('伝えたい'), '質問文に「伝えたい」が含まれる');
+    assert.ok(content.includes('一言もらえると'), '質問文にヒント誘導が含まれる');
     assert.ok(content.includes('スキップ'), 'スキップの案内が含まれる');
   });
 

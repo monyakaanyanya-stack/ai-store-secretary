@@ -130,11 +130,11 @@ export async function handleImageMessage(user, messageId, replyToken) {
 
     await replyWithQuickReply(
       replyToken,
-      `写真見ました！この写真で何を伝えたいですか？
+      `いい写真ですね！今日あったこと、思ったこと、一言もらえるとグッと「あなたらしい」投稿になります💡
 
-例：今週末限定メニュー
-例：朝の光が綺麗だった
-例：常連さんへの感謝`,
+例：今朝これ焼けたとき嬉しかった
+例：常連さんが褒めてくれた
+例：新作、自信ある`,
       [
         { type: 'action', action: { type: 'message', label: 'お知らせ', text: 'お知らせ' } },
         { type: 'action', action: { type: 'message', label: '日常感', text: '日常感' } },
