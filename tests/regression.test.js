@@ -1508,10 +1508,11 @@ describe('Scenario 31: 画像「一言ヒント」機能', async () => {
     assert.ok(content.includes('export async function clearPendingImageContext'), 'クリア関数が存在する');
   });
 
-  it('キャンセルコマンドは pending を無視してスルー', () => {
+  it('システムコマンドは pending を無視してスルー', () => {
     const content = fs.readFileSync('src/handlers/textHandler.js', 'utf8');
-    assert.ok(content.includes('isCancelCommand'), 'キャンセル判定がある');
+    assert.ok(content.includes('isSystemCommand'), 'システムコマンド判定がある');
     assert.ok(content.includes("'キャンセル'"), 'キャンセルが除外される');
+    assert.ok(content.includes("切替:"), '店舗切替が除外される');
   });
 
   it('pendingImageHandler でスキップを検出する', () => {

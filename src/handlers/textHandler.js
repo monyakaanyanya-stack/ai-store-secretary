@@ -97,16 +97,18 @@ export async function handleTextMessage(user, text, replyToken) {
   }
 
   // 画像「一言ヒント」待ち状態の処理
-  // （キャンセル・リセット系コマンド以外はここで受け取る）
-  const isCancelCommand = ['キャンセル', 'cancel', 'リセット', 'データリセット'].includes(trimmed);
-  if (user.pending_image_context && !isCancelCommand) {
+  // （システムコマンドはスキップ、それ以外はここで受け取る）
+  const isSystemCommand = ['キャンセル', 'cancel', 'リセット', 'データリセット',
+    '店舗一覧', '店舗削除', 'ヘルプ', 'help', '学習状況', '問い合わせ', '登録'].includes(trimmed)
+    || trimmed.startsWith('切替:') || trimmed.startsWith('/');
+  if (user.pending_image_context && !isSystemCommand) {
     const handled = await handlePendingImageResponse(user, trimmed, replyToken);
     if (handled) return;
   }
 
   // 「直し」「学習」ボタン後の入力待ち状態の処理
   // ボタンを押した後の次のメッセージをそれぞれのコマンドとして処理
-  if (user.pending_command && !isCancelCommand) {
+  if (user.pending_command && !isSystemCommand) {
     const cmd = user.pending_command;
     await clearPendingCommand(user.id);
     if (cmd === 'revision') {
