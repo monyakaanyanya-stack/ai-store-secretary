@@ -623,7 +623,20 @@ async function handleStoreList(user, replyToken) {
       return `${i + 1}. ${s.name}${current}`;
     }).join('\n');
 
-    await replyText(replyToken, `登録済みの店舗です👇\n${list}\n\n「切替: 店舗名」で切り替えられます`);
+    // 選択中以外の店舗をクイックリプライボタンにする（最大13個、LINE制限）
+    const switchButtons = stores
+      .filter(s => s.id !== user.current_store_id)
+      .slice(0, 13)
+      .map(s => ({
+        type: 'action',
+        action: { type: 'message', label: s.name.slice(0, 20), text: `切替:${s.name}` },
+      }));
+
+    if (switchButtons.length > 0) {
+      await replyWithQuickReply(replyToken, `登録済みの店舗です👇\n${list}`, switchButtons);
+    } else {
+      await replyText(replyToken, `登録済みの店舗です👇\n${list}`);
+    }
   } catch (err) {
     console.error('[Store] 一覧エラー:', err.message);
     await replyText(replyToken, 'エラーが発生しました。');
