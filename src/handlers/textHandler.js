@@ -625,14 +625,22 @@ async function handleStoreList(user, replyToken) {
       return `${i + 1}. ${s.name}${current}`;
     }).join('\n');
 
-    // 選択中以外の店舗をクイックリプライボタンにする（最大13個、LINE制限）
+    // 選択中以外の店舗をクイックリプライボタンにする（最大12個、LINE制限13 - 削除ボタン1）
     const switchButtons = stores
       .filter(s => s.id !== user.current_store_id)
-      .slice(0, 13)
+      .slice(0, 12)
       .map(s => ({
         type: 'action',
         action: { type: 'message', label: s.name.slice(0, 20), text: `切替:${s.name}` },
       }));
+
+    // 削除ボタンを末尾に追加（選択中の店舗を削除）
+    if (user.current_store_id) {
+      switchButtons.push({
+        type: 'action',
+        action: { type: 'message', label: '🗑 選択中を削除', text: '店舗削除' },
+      });
+    }
 
     if (switchButtons.length > 0) {
       await replyWithQuickReply(replyToken, `登録済みの店舗です👇\n${list}`, switchButtons);
