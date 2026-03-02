@@ -99,7 +99,7 @@ export async function handleTextMessage(user, text, replyToken) {
   // 画像「一言ヒント」待ち状態の処理
   // （システムコマンドはスキップ、それ以外はここで受け取る）
   const isSystemCommand = ['キャンセル', 'cancel', 'リセット', 'データリセット',
-    '店舗一覧', '店舗削除', 'ヘルプ', 'help', '学習状況', '問い合わせ', '登録'].includes(trimmed)
+    '店舗一覧', '店舗切り替え', '店舗切替', '店舗削除', 'ヘルプ', 'help', '学習状況', '問い合わせ', '登録'].includes(trimmed)
     || trimmed.startsWith('切替:') || trimmed.startsWith('/');
   if (user.pending_image_context && !isSystemCommand) {
     const handled = await handlePendingImageResponse(user, trimmed, replyToken);
@@ -122,7 +122,7 @@ export async function handleTextMessage(user, text, replyToken) {
   // 重要なコマンドはオンボーディング中でも優先処理
   const priorityCommands = [
     '店舗削除', '店舗削除実行', 'データリセット', 'リセット', 'リセット実行', '学習リセット',
-    'キャンセル', 'cancel', '店舗一覧', '学習状況', 'ヘルプ', 'help', '問い合わせ'
+    'キャンセル', 'cancel', '店舗一覧', '店舗切り替え', '店舗切替', '学習状況', 'ヘルプ', 'help', '問い合わせ'
   ];
   const isPriorityCommand = priorityCommands.includes(trimmed);
 
@@ -255,8 +255,8 @@ export async function handleTextMessage(user, text, replyToken) {
     return;
   }
 
-  // 店舗一覧
-  if (trimmed === '店舗一覧') {
+  // 店舗一覧 / 店舗切り替え / 店舗切替
+  if (['店舗一覧', '店舗切り替え', '店舗切替'].includes(trimmed)) {
     return await handleStoreList(user, replyToken);
   }
 
