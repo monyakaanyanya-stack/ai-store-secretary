@@ -38,6 +38,7 @@ import { getPersonalizationPromptAddition, getLearningStatus } from '../services
 import { getAdvancedPersonalizationPrompt, addSimpleBelief } from '../services/advancedPersonalization.js';
 import { getSeasonalMemoryPromptAddition, getSeasonalMemoryStatus } from '../services/seasonalMemoryService.js';
 import { getRevisionExample, getRevisionQuickReplies } from '../utils/categoryExamples.js';
+import { checkGenerationLimit, isFeatureEnabled } from '../services/subscriptionService.js';
 
 /**
  * テキストメッセージの振り分け処理
@@ -985,6 +986,14 @@ async function handleTextPostGenerationWithLength(user, text, replyToken, length
   }
 
   try {
+    // 生成回数チェック（SUBSCRIPTION_ENABLED=true 時のみ有効）
+    const genLimit = await checkGenerationLimit(user.id);
+    if (!genLimit.allowed) {
+      return await replyText(replyToken,
+        `今月の生成上限（${genLimit.limit}回）に達しました。\n\n📊 今月の生成: ${genLimit.used} / ${genLimit.limit}回\n📋 プラン: ${genLimit.planName}\n\nプランをアップグレードすると上限が増えます。`
+      );
+    }
+
     const store = await getStore(user.current_store_id);
 
     // 集合知を取得（カテゴリーが設定されている場合のみ）
@@ -993,10 +1002,16 @@ async function handleTextPostGenerationWithLength(user, text, replyToken, length
       blendedInsights = await getBlendedInsights(store.id, store.category);
     }
 
-    // パーソナライゼーション情報を取得（基本 + 高度 + 季節記憶）
+    // プラン別機能チェック
+    const [canAdvanced, canSeasonal] = await Promise.all([
+      isFeatureEnabled(user.id, 'advancedPersonalization'),
+      isFeatureEnabled(user.id, 'seasonalMemory'),
+    ]);
+
+    // パーソナライゼーション情報を取得（基本は全プラン、高度+季節記憶は有料のみ）
     const basicPersonalization = await getPersonalizationPromptAddition(store.id);
-    const advancedPersonalization = await getAdvancedPersonalizationPrompt(store.id);
-    const seasonalMemory = await getSeasonalMemoryPromptAddition(store.id);
+    const advancedPersonalization = canAdvanced ? await getAdvancedPersonalizationPrompt(store.id) : '';
+    const seasonalMemory = canSeasonal ? await getSeasonalMemoryPromptAddition(store.id) : '';
     const personalization = basicPersonalization + advancedPersonalization + seasonalMemory;
 
     const prompt = buildTextPostPrompt(store, text, lengthOverride, blendedInsights, personalization);

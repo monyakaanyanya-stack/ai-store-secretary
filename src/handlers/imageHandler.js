@@ -9,6 +9,7 @@ import { getSeasonalMemoryPromptAddition } from '../services/seasonalMemoryServi
 import { extractInsightsFromScreenshot } from '../services/insightsOCRService.js';
 import { applyEngagementMetrics } from './reportHandler.js';
 import { detectContentCategory } from '../utils/contentCategoryDetector.js';
+import { checkGenerationLimit, isFeatureEnabled } from '../services/subscriptionService.js';
 
 /**
  * 画像メッセージ処理: 画像取得 → 画像分析 → 投稿生成 → 返信 → 履歴保存
@@ -74,12 +75,28 @@ export async function handleImageMessage(user, messageId, replyToken) {
       console.warn('[Image] インサイト判定: 数値読み取り失敗 → 投稿生成フローへ');
     }
 
+    // ──────────────────────────────────────────────
+    // 生成回数チェック（SUBSCRIPTION_ENABLED=true 時のみ有効）
+    // ──────────────────────────────────────────────
+    const genLimit = await checkGenerationLimit(user.id);
+    if (!genLimit.allowed) {
+      return await replyText(replyToken,
+        `今月の生成上限（${genLimit.limit}回）に達しました。\n\n📊 今月の生成: ${genLimit.used} / ${genLimit.limit}回\n📋 プラン: ${genLimit.planName}\n\nプランをアップグレードすると上限が増えます。`
+      );
+    }
+
     // 補助データを個別にキャッチ（失敗してもデフォルト値で続行）
     const safeResolve = (promise, defaultVal, label) =>
       promise.catch(err => {
         console.warn(`[Image] ${label} 取得失敗（続行）:`, err.message);
         return defaultVal;
       });
+
+    // プラン別機能チェック（並列）
+    const [canAdvanced, canSeasonal] = await Promise.all([
+      isFeatureEnabled(user.id, 'advancedPersonalization'),
+      isFeatureEnabled(user.id, 'seasonalMemory'),
+    ]);
 
     // Phase 1: describeImage（必須）とパーソナライゼーションデータを並列取得
     // describeImage は throw するので失敗時は catch ブロックへ
@@ -92,8 +109,12 @@ export async function handleImageMessage(user, messageId, replyToken) {
     ] = await Promise.all([
       describeImage(imageBase64),
       safeResolve(getPersonalizationPromptAddition(store.id), '', 'personalization'),
-      safeResolve(getAdvancedPersonalizationPrompt(store.id), '', 'advancedPersonalization'),
-      safeResolve(getSeasonalMemoryPromptAddition(store.id), '', 'seasonalMemory'),
+      canAdvanced
+        ? safeResolve(getAdvancedPersonalizationPrompt(store.id), '', 'advancedPersonalization')
+        : '',
+      canSeasonal
+        ? safeResolve(getSeasonalMemoryPromptAddition(store.id), '', 'seasonalMemory')
+        : '',
     ]);
     console.log(`[Image] 画像分析結果: ${imageDescription?.slice(0, 100)}...`);
 

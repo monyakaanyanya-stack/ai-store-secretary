@@ -1666,4 +1666,49 @@ describe('Scenario 32: プラン制限・機能ゲーティング', async () => 
     assert.ok(content.includes('engagementAutoLearn'), '自動学習フラグを参照');
     assert.ok(content.includes('instagramSchedulePost'), 'Instagram予約投稿フラグを参照');
   });
+
+  // --- SUBSCRIPTION_ENABLED グローバルスイッチ ---
+  it('subscriptionService に SUBSCRIPTION_ENABLED スイッチがある', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/subscriptionService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes("process.env.SUBSCRIPTION_ENABLED === 'true'"),
+      'SUBSCRIPTION_ENABLED 環境変数を参照');
+    assert.ok(content.includes('!SUBSCRIPTION_ENABLED'),
+      'スイッチOFF時のバイパスロジックがある');
+  });
+
+  // --- ハンドラーへのチェック組み込み ---
+  it('imageHandler に checkGenerationLimit が組み込まれている', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('checkGenerationLimit'), '生成回数チェックがある');
+    assert.ok(content.includes('genLimit.allowed'), '許可判定がある');
+    assert.ok(content.includes('isFeatureEnabled'), '機能ゲーティングがある');
+  });
+
+  it('textHandler に checkGenerationLimit が組み込まれている', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/textHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('checkGenerationLimit'), '生成回数チェックがある');
+    assert.ok(content.includes('genLimit.allowed'), '許可判定がある');
+    assert.ok(content.includes('isFeatureEnabled'), '機能ゲーティングがある');
+  });
+
+  it('reportHandler が健康診断/処方箋に分離されている', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/reportHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('【健康診断】'), '健康診断セクションがある');
+    assert.ok(content.includes('【処方箋】'), '処方箋セクションがある');
+    assert.ok(content.includes('isFeatureEnabled'), 'プランチェックがある');
+    assert.ok(content.includes('engagementPrescription'), '処方箋フラグを参照');
+    assert.ok(content.includes('スタンダードプラン以上'), 'アップグレード案内がある');
+  });
 });

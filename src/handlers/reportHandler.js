@@ -5,6 +5,7 @@ import { saveEngagementMetrics } from '../services/collectiveIntelligence.js';
 import { applyEngagementToProfile } from '../services/personalizationEngine.js';
 import { analyzeEngagementWithClaude } from '../services/advancedPersonalization.js';
 import { normalizeInput, safeParseInt } from '../utils/inputNormalizer.js';
+import { isFeatureEnabled } from '../services/subscriptionService.js';
 
 /**
  * エンゲージメント報告のパース
@@ -178,7 +179,7 @@ export async function applyEngagementMetrics(user, store, metrics, latestPost, r
 
   await applyEngagementToProfile(store.id, latestPost.content, metricsData);
 
-  // ========== 自動学習 ==========
+  // ========== 自動学習（データ収集は全プラン、プロンプト反映は有料のみ） ==========
   let autoLearnResult = null;
   try {
     // この店舗の平均保存率を取得
@@ -193,6 +194,7 @@ export async function applyEngagementMetrics(user, store, metrics, latestPost, r
       ? storeMetrics.reduce((sum, m) => sum + m.save_intensity, 0) / storeMetrics.length
       : 0.05; // デフォルト5%
 
+    // データ分析は全プランで実行（集合知に貢献）
     autoLearnResult = await analyzeEngagementWithClaude(
       store.id,
       latestPost.content,
@@ -208,12 +210,9 @@ export async function applyEngagementMetrics(user, store, metrics, latestPost, r
   const reportCount = await getMonthlyReportCount(user.id, store.id);
   const postContent = (latestPost.content || '').split('#')[0].trim().slice(0, 50);
 
-  let saveComment = '';
-  if (saveIntensity >= 0.3) saveComment = '🔥 保存率がかなり高い！アルゴリズム評価◎';
-  else if (saveIntensity >= 0.15) saveComment = '✨ 保存率が良好です';
-  else if (saveIntensity >= 0.05) saveComment = '👍 標準的な保存率';
-  else if (metrics.likes > 0) saveComment = '💡 保存を増やすと伸びやすくなります';
-
+  // ──────────────────────────────────────────────
+  // 健康診断（全プラン）: 数字だけ見せる
+  // ──────────────────────────────────────────────
   let reactionLine = '';
   if (followerCount && followerCount > 0 && reactionIndex > 0) {
     reactionLine = `\n📊 反応指数: ${reactionIndex.toFixed(2)}（フォロワー${followerCount.toLocaleString()}人比）`;
@@ -224,23 +223,13 @@ export async function applyEngagementMetrics(user, store, metrics, latestPost, r
     engagementLine = `\n📈 エンゲージメント率: ${engagementRate}%（実リーチ${metrics.reach?.toLocaleString()}より算出）`;
   }
 
-  let autoLearnLine = '';
-  if (autoLearnResult?.type === 'high' && autoLearnResult.beliefs?.length > 0) {
-    autoLearnLine = `\n\n🧠 自動学習:`;
-    for (const b of autoLearnResult.beliefs) {
-      autoLearnLine += `\n・${b}`;
-    }
-    autoLearnLine += `\n→ 次の投稿に自動で反映します`;
-  }
+  let feedbackMessage = `✅ 報告完了！（最新の投稿に適用されました）
 
-  const feedbackMessage = `✅ 報告完了！（最新の投稿に適用されました）
-
-【報告内容】
+【健康診断】
 ❤️ いいね: ${metrics.likes}
 💾 保存: ${metrics.saves}
 💬 コメント: ${metrics.comments}
 💾 保存強度: ${saveIntensity.toFixed(2)}（保存÷いいね）${reactionLine}${engagementLine}
-${saveComment}
 
 📝 対象の投稿:
 ${postContent}...
@@ -248,7 +237,36 @@ ${postContent}...
 🌱 集合知データベースに追加されました！
 今月の報告回数: ${reportCount}回
 
-💡 リーチがわかる場合は「リーチ:800」を追加すると精度が上がります${autoLearnLine}`;
+💡 リーチがわかる場合は「リーチ:800」を追加すると精度が上がります`;
+
+  // ──────────────────────────────────────────────
+  // 処方箋（Standard以上）: 分析・提案・自動学習
+  // ──────────────────────────────────────────────
+  const canPrescribe = await isFeatureEnabled(user.id, 'engagementPrescription');
+
+  if (canPrescribe) {
+    // 保存率コメント
+    let saveComment = '';
+    if (saveIntensity >= 0.3) saveComment = '🔥 保存率がかなり高い！アルゴリズム評価◎';
+    else if (saveIntensity >= 0.15) saveComment = '✨ 保存率が良好です';
+    else if (saveIntensity >= 0.05) saveComment = '👍 標準的な保存率';
+    else if (metrics.likes > 0) saveComment = '💡 保存を増やすと伸びやすくなります';
+
+    if (saveComment) {
+      feedbackMessage += `\n\n【処方箋】\n${saveComment}`;
+    }
+
+    // 自動学習結果
+    if (autoLearnResult?.type === 'high' && autoLearnResult.beliefs?.length > 0) {
+      feedbackMessage += `\n\n🧠 自動学習:`;
+      for (const b of autoLearnResult.beliefs) {
+        feedbackMessage += `\n・${b}`;
+      }
+      feedbackMessage += `\n→ 次の投稿に自動で反映します`;
+    }
+  } else {
+    feedbackMessage += `\n\n💎 処方箋（分析・提案）はスタンダードプラン以上でご利用いただけます`;
+  }
 
   await replyText(replyToken, feedbackMessage);
 }
