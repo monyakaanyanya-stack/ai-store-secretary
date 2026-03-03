@@ -121,19 +121,26 @@ export async function getMonthlyGenerationCount(userId) {
 export async function checkGenerationLimit(userId) {
   // スイッチOFF → 常に許可
   if (!SUBSCRIPTION_ENABLED) {
+    console.log(`[Subscription] スイッチOFF → 全員許可`);
     return { allowed: true, used: 0, limit: Infinity, plan: 'premium' };
   }
 
+  console.log(`[Subscription] スイッチON → 制限チェック開始 userId=${userId?.slice(0, 8)}`);
+
   const subscription = await getUserSubscription(userId);
+  console.log(`[Subscription] プラン: ${subscription.plan}, status: ${subscription.status}`);
+
   const planConfig = getPlanConfig(subscription.plan);
   const limit = planConfig.monthlyGenerations;
 
   // 無制限プランはチェック不要
   if (!Number.isFinite(limit)) {
+    console.log(`[Subscription] 無制限プラン → 許可`);
     return { allowed: true, used: 0, limit: Infinity, plan: subscription.plan };
   }
 
   const used = await getMonthlyGenerationCount(userId);
+  console.log(`[Subscription] 使用: ${used} / 上限: ${limit} → ${used < limit ? '許可' : 'ブロック'}`);
 
   return {
     allowed: used < limit,
