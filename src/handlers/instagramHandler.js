@@ -178,7 +178,10 @@ async function handleInstagramPublish(user, replyToken) {
       return true;
     }
 
-    const result = await publishToInstagram(store.id, latestPost.image_url, latestPost.content);
+    // 撮影アドバイス（━━━ 区切り以降）を除外して本文のみ投稿
+    const caption = latestPost.content.split(/\n━{3,}/)[0].trim();
+
+    const result = await publishToInstagram(store.id, latestPost.image_url, caption);
 
     await replyText(replyToken, `✅ Instagramに投稿しました！\n\n📱 投稿ID: ${result.id}\n\nInstagramアプリで確認してみてください。`);
   } catch (err) {
