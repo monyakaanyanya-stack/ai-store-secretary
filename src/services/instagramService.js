@@ -484,6 +484,124 @@ export async function getInstagramStats(storeId) {
  * Instagram 連携状態を確認するメッセージ
  * @param {string} storeId - 店舗ID
  */
+// ============================================================
+// Content Publishing API（投稿機能）
+// ============================================================
+
+/**
+ * Graph API POST リクエスト共通関数
+ */
+async function graphApiPostBase(baseUrl, path, accessToken, bodyParams = {}) {
+  const url = `${baseUrl}${path}`;
+  const body = { access_token: accessToken, ...bodyParams };
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  const data = await res.json();
+  if (data.error) {
+    throw new Error(`Graph API POST エラー: ${data.error.message} (code: ${data.error.code})`);
+  }
+  return data;
+}
+
+/**
+ * メディアコンテナを作成（ステップ1）
+ * @param {object} account - getInstagramAccount() の返り値
+ * @param {string} imageUrl - 公開アクセス可能な画像URL
+ * @param {string} caption - 投稿キャプション
+ * @returns {Promise<{id: string}>} コンテナID
+ */
+export async function createMediaContainer(account, imageUrl, caption) {
+  const apiBase = account.access_token.startsWith('IG') ? INSTAGRAM_API_BASE : GRAPH_API_BASE;
+  return await graphApiPostBase(apiBase, `/${account.instagram_user_id}/media`, account.access_token, {
+    image_url: imageUrl,
+    caption,
+  });
+}
+
+/**
+ * コンテナのステータスを確認
+ */
+export async function checkContainerStatus(account, containerId) {
+  const apiBase = account.access_token.startsWith('IG') ? INSTAGRAM_API_BASE : GRAPH_API_BASE;
+  return await graphApiRequestBase(apiBase, `/${containerId}`, account.access_token, {
+    fields: 'status_code',
+  });
+}
+
+/**
+ * コンテナが FINISHED になるまでポーリング
+ * @param {object} account
+ * @param {string} containerId
+ * @param {number} maxAttempts - 最大試行回数（デフォルト10回 = 最大20秒）
+ */
+async function waitForContainerReady(account, containerId, maxAttempts = 10) {
+  for (let i = 0; i < maxAttempts; i++) {
+    const status = await checkContainerStatus(account, containerId);
+    if (status.status_code === 'FINISHED') return true;
+    if (status.status_code === 'ERROR') {
+      throw new Error('メディアコンテナ作成に失敗しました');
+    }
+    // 2秒待機
+    await new Promise(resolve => setTimeout(resolve, 2000));
+  }
+  throw new Error('メディアコンテナ作成がタイムアウトしました');
+}
+
+/**
+ * メディアコンテナを公開（ステップ2）
+ * @param {object} account
+ * @param {string} containerId
+ * @returns {Promise<{id: string}>} 公開されたメディアID
+ */
+export async function publishMediaContainer(account, containerId) {
+  const apiBase = account.access_token.startsWith('IG') ? INSTAGRAM_API_BASE : GRAPH_API_BASE;
+  return await graphApiPostBase(apiBase, `/${account.instagram_user_id}/media_publish`, account.access_token, {
+    creation_id: containerId,
+  });
+}
+
+/**
+ * Instagram に画像投稿するオーケストレーター
+ * @param {string} storeId - 店舗ID
+ * @param {string} imageUrl - Supabase Storage の公開URL
+ * @param {string} caption - 投稿キャプション
+ * @returns {Promise<{id: string}>} 投稿結果
+ */
+export async function publishToInstagram(storeId, imageUrl, caption) {
+  const account = await getInstagramAccount(storeId);
+  if (!account) throw new Error('Instagramが連携されていません');
+
+  console.log(`[Instagram] 投稿開始: store=${storeId}`);
+
+  // ステップ1: メディアコンテナ作成
+  const container = await createMediaContainer(account, imageUrl, caption);
+  console.log(`[Instagram] コンテナ作成: id=${container.id}`);
+
+  // ステータスポーリング
+  await waitForContainerReady(account, container.id);
+
+  // ステップ2: 公開
+  const published = await publishMediaContainer(account, container.id);
+  console.log(`[Instagram] 投稿完了: media_id=${published.id}`);
+
+  // instagram_posts テーブルに記録
+  await supabase.from('instagram_posts').insert({
+    store_id: storeId,
+    instagram_account_id: account.id,
+    media_id: published.id,
+    caption,
+    media_type: 'IMAGE',
+    published_via: 'app',
+  });
+
+  return published;
+}
+
 export async function getInstagramConnectionStatus(storeId) {
   const account = await getInstagramAccount(storeId);
 

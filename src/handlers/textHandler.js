@@ -378,6 +378,12 @@ ${contactEmail}
     return await handleCharacterSettingsSave(user, trimmed, replyToken);
   }
 
+  // Instagram投稿（クイックリプライから送信される）
+  if (trimmed === 'instagram投稿') {
+    const { handleInstagramCommand } = await import('./instagramHandler.js');
+    return await handleInstagramCommand(user, 'post', replyToken);
+  }
+
   // M1: 案選択: A, B, C, 案A, 案B, 案C, a, b, c, 1, 2, 3, 全角Ａ/Ｂ/Ｃ/１/２/３
   if (/^(案?[ABCabc１２３ＡＢＣａｂｃ]|[1-3])$/i.test(trimmed)) {
     if (user.current_store_id) {

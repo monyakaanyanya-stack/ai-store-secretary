@@ -1711,3 +1711,101 @@ describe('Scenario 32: プラン制限・機能ゲーティング', async () => 
     assert.ok(content.includes('スタンダードプラン以上'), 'アップグレード案内がある');
   });
 });
+
+// ==================== Scenario 38: Instagram Content Publishing ====================
+describe('Scenario 38: Instagram投稿機能（Content Publishing API）', async () => {
+
+  // --- instagramService.js に投稿関数がある ---
+  it('instagramService に publishToInstagram 関数がある', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/instagramService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('export async function publishToInstagram'), 'publishToInstagram関数がある');
+    assert.ok(content.includes('export async function createMediaContainer'), 'createMediaContainer関数がある');
+    assert.ok(content.includes('export async function publishMediaContainer'), 'publishMediaContainer関数がある');
+    assert.ok(content.includes('export async function checkContainerStatus'), 'checkContainerStatus関数がある');
+    assert.ok(content.includes('graphApiPostBase'), 'POST用ヘルパーがある');
+    assert.ok(content.includes('waitForContainerReady'), 'ポーリング関数がある');
+  });
+
+  // --- supabaseService.js に uploadImageToStorage がある ---
+  it('supabaseService に uploadImageToStorage 関数がある', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/supabaseService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('export async function uploadImageToStorage'), 'uploadImageToStorage関数がある');
+    assert.ok(content.includes("from('post-images')"), 'post-imagesバケットを使用している');
+  });
+
+  // --- savePostHistory が imageUrl パラメータを受け取る ---
+  it('savePostHistory が imageUrl パラメータを持つ', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/supabaseService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('imageUrl'), 'imageUrlパラメータがある');
+    assert.ok(content.includes('image_url'), 'image_urlカラムへの書き込みがある');
+  });
+
+  // --- imageHandler に Storage アップロードがある ---
+  it('imageHandler に Supabase Storage アップロードがある', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('uploadImageToStorage'), 'uploadImageToStorageを呼んでいる');
+    assert.ok(content.includes('imageUrl'), 'imageUrl変数がある');
+  });
+
+  // --- pendingImageHandler で imageUrl を引き継ぎ ---
+  it('pendingImageHandler で imageUrl を post_history に引き継いでいる', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/pendingImageHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('ctx.imageUrl'), 'ctx.imageUrlを参照している');
+  });
+
+  // --- instagramHandler に post コマンドがある ---
+  it('instagramHandler に post サブコマンドがある', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/instagramHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes("'post'"), 'postサブコマンドのルーティングがある');
+    assert.ok(content.includes('handleInstagramPublish'), 'handleInstagramPublish関数がある');
+    assert.ok(content.includes('publishToInstagram'), 'publishToInstagramを呼んでいる');
+  });
+
+  // --- textHandler に instagram投稿 ルーティングがある ---
+  it('textHandler に instagram投稿 ルーティングがある', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/textHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes("'instagram投稿'"), 'instagram投稿コマンドのルーティングがある');
+  });
+
+  // --- proposalHandler に Instagram投稿ボタンがある ---
+  it('proposalHandler に Instagram投稿ボタンがある', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/proposalHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('getInstagramAccount'), 'Instagram連携チェックがある');
+    assert.ok(content.includes('Instagram投稿'), 'Instagram投稿ボタンラベルがある');
+    assert.ok(content.includes('replyWithQuickReply'), 'クイックリプライで返信している');
+  });
+
+  // --- DBマイグレーションファイルがある ---
+  it('Instagram投稿用マイグレーションSQLがある', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../database/migration_instagram_publish.sql', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('image_url'), 'image_urlカラム追加がある');
+    assert.ok(content.includes('published_via'), 'published_viaカラム追加がある');
+  });
+});

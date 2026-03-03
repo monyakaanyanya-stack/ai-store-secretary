@@ -1,11 +1,12 @@
 import { replyText } from '../services/lineService.js';
-import { getStore } from '../services/supabaseService.js';
+import { getStore, getLatestPost } from '../services/supabaseService.js';
 import {
   connectInstagramAccount,
   getInstagramConnectionStatus,
   syncInstagramPosts,
   getInstagramStats,
   getInstagramAccount,
+  publishToInstagram,
 } from '../services/instagramService.js';
 import { supabase } from '../services/supabaseService.js';
 
@@ -45,6 +46,10 @@ export async function handleInstagramCommand(user, args, replyToken) {
     return await handleInstagramStats(user, replyToken);
   }
 
+  if (subCommand === 'post') {
+    return await handleInstagramPublish(user, replyToken);
+  }
+
   if (subCommand === 'disconnect') {
     return await handleInstagramDisconnect(user, replyToken);
   }
@@ -56,6 +61,7 @@ export async function handleInstagramCommand(user, args, replyToken) {
 /instagram connect [トークン] → 連携
 /instagram sync → データ同期
 /instagram stats → 統計表示
+/instagram post → 最新投稿をInstagramに投稿
 /instagram disconnect → 連携解除`);
   return true;
 }
@@ -147,6 +153,37 @@ async function handleInstagramStats(user, replyToken) {
   } catch (err) {
     console.error('[Instagram] 統計エラー:', err);
     await replyText(replyToken, '❌ 統計の取得に失敗しました。しばらくしてから再度お試しください。');
+  }
+  return true;
+}
+
+async function handleInstagramPublish(user, replyToken) {
+  try {
+    const store = await getStore(user.current_store_id);
+    if (!store) {
+      await replyText(replyToken, '店舗が見つかりません。');
+      return true;
+    }
+
+    const latestPost = await getLatestPost(store.id);
+
+    if (!latestPost || !latestPost.image_url) {
+      await replyText(replyToken, '投稿する画像がありません。先に画像を送って投稿を作成してください。');
+      return true;
+    }
+
+    // 3案未選択チェック
+    if (/\[\s*案A[：:]/.test(latestPost.content)) {
+      await replyText(replyToken, '先にA / B / C を選択してから投稿してください。');
+      return true;
+    }
+
+    const result = await publishToInstagram(store.id, latestPost.image_url, latestPost.content);
+
+    await replyText(replyToken, `✅ Instagramに投稿しました！\n\n📱 投稿ID: ${result.id}\n\nInstagramアプリで確認してみてください。`);
+  } catch (err) {
+    console.error('[Instagram] 投稿エラー:', err);
+    await replyText(replyToken, `❌ Instagram投稿に失敗しました: ${err.message}`);
   }
   return true;
 }

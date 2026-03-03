@@ -78,7 +78,7 @@ export async function handlePendingImageResponse(user, text, replyToken) {
     );
 
     const rawContent = await askClaude(prompt);
-    const savedPost = await savePostHistory(user.id, store.id, rawContent);
+    const savedPost = await savePostHistory(user.id, store.id, rawContent, null, ctx.imageUrl || null);
 
     if (store.category) {
       try {

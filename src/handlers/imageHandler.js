@@ -1,6 +1,6 @@
 import { replyText, replyWithQuickReply, getImageAsBase64 } from '../services/lineService.js';
 import { askClaude, describeImage } from '../services/claudeService.js';
-import { getStore, savePostHistory, savePendingImageContext, clearPendingImageContext } from '../services/supabaseService.js';
+import { getStore, savePostHistory, savePendingImageContext, clearPendingImageContext, uploadImageToStorage } from '../services/supabaseService.js';
 import { buildImagePostPrompt, appendTemplateFooter } from '../utils/promptBuilder.js';
 import { getBlendedInsights, saveEngagementMetrics } from '../services/collectiveIntelligence.js';
 import { getPersonalizationPromptAddition, getPersonalizationLevel } from '../services/personalizationEngine.js';
@@ -32,6 +32,16 @@ export async function handleImageMessage(user, messageId, replyToken) {
     // 画像をBase64で取得
     console.log(`[Image] 画像取得中: messageId=${messageId}`);
     const imageBase64 = await getImageAsBase64(messageId);
+
+    // Supabase Storage にアップロード（Instagram投稿用の公開URL取得）
+    let imageUrl = null;
+    try {
+      const fileName = `${user.id}/${Date.now()}.jpg`;
+      imageUrl = await uploadImageToStorage(imageBase64, fileName);
+      console.log(`[Image] Storage アップロード完了: ${imageUrl?.slice(0, 80)}...`);
+    } catch (uploadErr) {
+      console.warn('[Image] Storage アップロード失敗（続行）:', uploadErr.message);
+    }
 
     // ──────────────────────────────────────────────
     // インサイトスクショ判定
@@ -146,6 +156,7 @@ export async function handleImageMessage(user, messageId, replyToken) {
       storeId: store.id,
       blendedInsights: blendedInsights ?? null,
       personalization,
+      imageUrl,
       createdAt: new Date().toISOString(),
     });
 

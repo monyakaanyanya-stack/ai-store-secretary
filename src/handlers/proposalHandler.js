@@ -2,10 +2,11 @@
  * 案選択ハンドラー（Ver.17.0）
  * 3案（時間の肖像/誠実の肖像/光の肖像）から選択 → 確定 → スタイル学習
  */
-import { replyText } from '../services/lineService.js';
+import { replyText, replyWithQuickReply } from '../services/lineService.js';
 import { updatePostContent, supabase } from '../services/supabaseService.js';
 import { appendTemplateFooter } from '../utils/promptBuilder.js';
 import { addSimpleBelief } from '../services/advancedPersonalization.js';
+import { getInstagramAccount } from '../services/instagramService.js';
 
 // スタイル名マッピング（Ver.17.0）
 const STYLE_MAP = { A: '時間の肖像', B: '誠実の肖像', C: '光の肖像' };
@@ -48,13 +49,28 @@ export async function handleProposalSelection(user, store, latestPost, input, re
 
     console.log(`[Proposal] 案${selection}（${styleName}）を選択: store=${store.name}`);
 
-    // 5. 返信
-    return await replyText(replyToken, `案${selection}（${styleName}）ですね！コピペでどうぞ👇
+    // 5. クイックリプライ構成（直し・学習 + Instagram投稿ボタン）
+    const quickReplies = [
+      { type: 'action', action: { type: 'message', label: '✏️ 直し', text: '直し:' } },
+      { type: 'action', action: { type: 'message', label: '📝 学習', text: '学習:' } },
+    ];
+
+    // Instagram連携済み & 画像URLあり → 投稿ボタンを先頭に追加
+    const igAccount = await getInstagramAccount(store.id).catch(() => null);
+    if (igAccount && latestPost.image_url) {
+      quickReplies.unshift({
+        type: 'action',
+        action: { type: 'message', label: '📸 Instagram投稿', text: 'instagram投稿' },
+      });
+    }
+
+    // 6. 返信
+    return await replyWithQuickReply(replyToken, `案${selection}（${styleName}）ですね！コピペでどうぞ👇
 ━━━━━━━━━━━
 ${finalContent}
 ━━━━━━━━━━━
 
-気になるところがあれば「直し: 〜」で修正できます`);
+気になるところがあれば「直し: 〜」で修正できます`, quickReplies);
   } catch (err) {
     console.error(`[Proposal] 案選択エラー: store=${store.name}`, err);
     return await replyText(replyToken, 'うまくいきませんでした...もう一度画像を送ってみてください');

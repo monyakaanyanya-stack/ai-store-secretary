@@ -145,20 +145,47 @@ export async function deleteStore(storeId) {
 
 // ==================== 投稿履歴 ====================
 
-export async function savePostHistory(userId, storeId, content, imageData = null) {
+export async function savePostHistory(userId, storeId, content, imageData = null, imageUrl = null) {
+  const insertData = {
+    user_id: userId,
+    store_id: storeId,
+    content,
+  };
+  if (imageData) insertData.image_data = imageData;
+  if (imageUrl) insertData.image_url = imageUrl;
+
   const { data, error } = await supabase
     .from('post_history')
-    .insert({
-      user_id: userId,
-      store_id: storeId,
-      content,
-      image_data: imageData,
-    })
+    .insert(insertData)
     .select()
     .single();
 
   if (error) throw new Error(`投稿履歴保存失敗: ${error.message}`);
   return data;
+}
+
+/**
+ * 画像を Supabase Storage にアップロードして公開URLを返す
+ * @param {string} base64Data - Base64エンコードされた画像データ
+ * @param {string} fileName - ストレージ内のファイルパス（例: "userId/timestamp.jpg"）
+ * @returns {Promise<string>} 公開URL
+ */
+export async function uploadImageToStorage(base64Data, fileName) {
+  const buffer = Buffer.from(base64Data, 'base64');
+  const { data, error } = await supabase.storage
+    .from('post-images')
+    .upload(fileName, buffer, {
+      contentType: 'image/jpeg',
+      upsert: true,
+    });
+
+  if (error) throw new Error(`画像アップロード失敗: ${error.message}`);
+
+  const { data: urlData } = supabase.storage
+    .from('post-images')
+    .getPublicUrl(fileName);
+
+  return urlData.publicUrl;
 }
 
 /**
