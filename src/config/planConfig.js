@@ -19,7 +19,7 @@
 export const PLANS = {
   free: {
     name: 'フリープラン',
-    monthlyGenerations: 10,
+    monthlyGenerations: 1,  // ⚠️ テスト用: 本番では10に戻す
     maxStores: 1,
     features: {
       collectiveIntelligence: true,

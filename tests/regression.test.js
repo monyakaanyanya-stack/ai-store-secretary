@@ -1563,8 +1563,8 @@ describe('Scenario 32: プラン制限・機能ゲーティング', async () => 
     assert.equal(Object.keys(PLANS).length, 3, 'プランは3つだけ');
   });
 
-  it('月間生成回数: free=10, standard=25, premium=60', () => {
-    assert.equal(PLANS.free.monthlyGenerations, 10);
+  it('月間生成回数: free=1(テスト用), standard=25, premium=60', () => {
+    assert.equal(PLANS.free.monthlyGenerations, 1);  // ⚠️ テスト用: 本番では10に戻す
     assert.equal(PLANS.standard.monthlyGenerations, 25);
     assert.equal(PLANS.premium.monthlyGenerations, 60);
   });
@@ -1632,7 +1632,7 @@ describe('Scenario 32: プラン制限・機能ゲーティング', async () => 
   it('不明なプラン名は free にフォールバック', () => {
     const config = getPlanConfig('unknown');
     assert.equal(config.name, 'フリープラン');
-    assert.equal(config.monthlyGenerations, 10);
+    assert.equal(config.monthlyGenerations, 1);  // ⚠️ テスト用: 本番では10に戻す
   });
 
   it('null/undefined は free にフォールバック', () => {
