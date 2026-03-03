@@ -1063,15 +1063,15 @@ describe('Scenario 28: Ver.4.0 Dual Trigger Model', async () => {
       'Old Ver.17.0 rule should be removed');
   });
 
-  it('Dual Trigger のアイデンティティ: 編集者', async () => {
+  it('Dual Trigger のアイデンティティ: 影の秘書', async () => {
     const { buildImagePostPrompt } = await import('../src/utils/promptBuilder.js');
     const store = { name: 'テスト店', tone: 'カジュアル', config: {} };
     const prompt = buildImagePostPrompt(store, null, null, '', 'テスト画像');
 
     assert.ok(!prompt.includes('良き理解者'),
       'Old identity should be removed');
-    assert.ok(prompt.includes('編集者'),
-      'New identity should be editor');
+    assert.ok(prompt.includes('影の秘書'),
+      'New identity should be shadow secretary');
     assert.ok(prompt.includes('思い出してしまう'),
       'Should mention recall goal');
   });
@@ -1087,6 +1087,29 @@ describe('Scenario 28: Ver.4.0 Dual Trigger Model', async () => {
       'Revision prompt should include recall trigger');
     assert.ok(prompt.includes('幻想的'),
       'Revision prompt should include forbidden words');
+  });
+
+  it('影の秘書コンセプト: 署名性・湿度・情報の言葉が含まれる', async () => {
+    const { buildImagePostPrompt, buildTextPostPrompt } = await import('../src/utils/promptBuilder.js');
+    const store = { name: 'テスト店', tone: 'カジュアル', config: {} };
+    const imagePrompt = buildImagePostPrompt(store, null, null, '', 'テスト画像');
+    const textPrompt = buildTextPostPrompt(store, 'テスト', null, null, '');
+
+    // 署名性ルール
+    assert.ok(imagePrompt.includes('署名性'),
+      'Image prompt should include signature rule');
+    assert.ok(textPrompt.includes('署名性'),
+      'Text prompt should include signature rule');
+    // 湿度ルール
+    assert.ok(imagePrompt.includes('湿度'),
+      'Image prompt should include humidity rule');
+    assert.ok(textPrompt.includes('湿度'),
+      'Text prompt should include humidity rule');
+    // 情報の言葉禁止
+    assert.ok(imagePrompt.includes('情報の言葉'),
+      'Image prompt should include information words ban');
+    assert.ok(textPrompt.includes('情報の言葉'),
+      'Text prompt should include information words ban');
   });
 
   it('M5: 数値フォールバックに ?? を使用', async () => {

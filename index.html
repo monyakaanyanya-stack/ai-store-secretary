@@ -638,6 +638,141 @@
       font-weight: 300;
     }
 
+    /* ─── Real Data ─────────────────────────── */
+    .realdata-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 48px;
+      margin-top: 64px;
+      align-items: start;
+    }
+
+    .realdata-card {
+      border-radius: 12px;
+      overflow: hidden;
+      background: #1a1a1a;
+    }
+
+    .realdata-card-header {
+      padding: 20px 28px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .realdata-period {
+      font-size: 0.72rem;
+      color: rgba(255,255,255,0.4);
+      letter-spacing: 0.05em;
+    }
+
+    .realdata-badge {
+      font-size: 0.68rem;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: 100px;
+      letter-spacing: 0.03em;
+    }
+
+    .realdata-badge-before {
+      background: rgba(255,255,255,0.08);
+      color: rgba(255,255,255,0.5);
+    }
+
+    .realdata-badge-after {
+      background: rgba(6,199,85,0.15);
+      color: var(--accent);
+    }
+
+    .realdata-hero-num {
+      text-align: center;
+      padding: 20px 28px 28px;
+    }
+
+    .realdata-hero-num .num-label {
+      font-size: 0.72rem;
+      color: rgba(255,255,255,0.35);
+      margin-bottom: 4px;
+    }
+
+    .realdata-hero-num .num-value {
+      font-size: clamp(2.8rem, 5vw, 4rem);
+      font-weight: 700;
+      line-height: 1.1;
+    }
+
+    .realdata-hero-num .num-value-before { color: rgba(255,255,255,0.55); }
+    .realdata-hero-num .num-value-after  { color: var(--white); }
+
+    .realdata-hero-num .num-change {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--accent);
+      margin-top: 4px;
+    }
+
+    .realdata-stats {
+      padding: 0 28px 24px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .realdata-stat {
+      padding: 14px 16px;
+      background: rgba(255,255,255,0.04);
+      border-radius: 8px;
+    }
+
+    .realdata-stat .stat-label {
+      font-size: 0.68rem;
+      color: rgba(255,255,255,0.35);
+      margin-bottom: 4px;
+    }
+
+    .realdata-stat .stat-value {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: rgba(255,255,255,0.85);
+    }
+
+    .realdata-screenshot {
+      width: 100%;
+      display: block;
+      opacity: 0.85;
+    }
+
+    .realdata-narrative {
+      margin-top: 56px;
+      max-width: 720px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .realdata-narrative p {
+      font-size: 0.92rem;
+      line-height: 2.2;
+      color: rgba(255,255,255,0.55);
+      font-weight: 300;
+    }
+
+    .realdata-narrative strong {
+      color: rgba(255,255,255,0.9);
+      font-weight: 500;
+    }
+
+    .realdata-narrative .accent-text {
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    .realdata-note {
+      margin-top: 28px;
+      font-size: 0.72rem;
+      color: rgba(255,255,255,0.25);
+      text-align: center;
+    }
+
     /* ─── CTA section ───────────────────────── */
     .cta-section {
       padding: 160px 40px;
@@ -716,6 +851,8 @@
       .section { padding: 88px 24px; }
       .hero    { padding: 120px 24px 100px; }
 
+      .realdata-grid { grid-template-columns: 1fr; gap: 32px; }
+
       .problem-grid {
         grid-template-columns: 1fr;
       }
@@ -771,7 +908,7 @@
     <div class="container">
       <span class="hero-eyebrow">AI × LINE × Instagram</span>
       <h1>写真を送るだけで<br><em>投稿が完成</em>する</h1>
-      <p class="hero-sub">すべての個人店に、AIのSNS担当者を。<br>LINEで画像を送るだけで、あなたのお店らしい投稿文が秒で届く。</p>
+      <p class="hero-sub">すべての個人店に、AIのSNS担当者を。<br>LINEで写真を送るだけ。お店らしい投稿文が秒で届く。</p>
       <a href="https://lin.ee/OWTIvhZ" class="btn">LINEで無料で始める</a>
 
       <div class="hero-qr">
@@ -925,6 +1062,80 @@
           <p>整体、ヨガスタジオ、写真スタジオ、教室など</p>
         </div>
       </div>
+    </div>
+  </section>
+
+  <!-- Real Data: Before / After -->
+  <section class="section section-dark section-center">
+    <div class="container">
+      <p class="label">Real Data</p>
+      <h2 class="title">「投稿が続く」だけで、数字は変わる</h2>
+      <p class="desc">同じアカウント・同じフォロワー数。違いは「投稿頻度」だけ。</p>
+
+      <div class="realdata-grid">
+        <!-- Before -->
+        <div class="realdata-card">
+          <div class="realdata-card-header">
+            <span class="realdata-period">2025年 1月（31日間）</span>
+            <span class="realdata-badge realdata-badge-before">自力で投稿</span>
+          </div>
+          <div class="realdata-hero-num">
+            <p class="num-label">閲覧数</p>
+            <p class="num-value num-value-before">216</p>
+          </div>
+          <div class="realdata-stats">
+            <div class="realdata-stat">
+              <p class="stat-label">リーチ</p>
+              <p class="stat-value">20</p>
+            </div>
+            <div class="realdata-stat">
+              <p class="stat-label">フォロワー外</p>
+              <p class="stat-value">50.9%</p>
+            </div>
+          </div>
+          <img src="images/before-insights.png" alt="導入前のInstagramインサイト" class="realdata-screenshot" loading="lazy">
+        </div>
+
+        <!-- After -->
+        <div class="realdata-card">
+          <div class="realdata-card-header">
+            <span class="realdata-period">2025年 2月（28日間）</span>
+            <span class="realdata-badge realdata-badge-after">AI秘書で投稿</span>
+          </div>
+          <div class="realdata-hero-num">
+            <p class="num-label">閲覧数</p>
+            <p class="num-value num-value-after">710</p>
+            <p class="num-change">日割り 3.6倍</p>
+          </div>
+          <div class="realdata-stats">
+            <div class="realdata-stat">
+              <p class="stat-label">リーチ</p>
+              <p class="stat-value">314 <span style="font-size:0.7rem;color:var(--accent)">+1,470%</span></p>
+            </div>
+            <div class="realdata-stat">
+              <p class="stat-label">フォロワー外</p>
+              <p class="stat-value">64.6%</p>
+            </div>
+          </div>
+          <img src="images/after-insights.png" alt="導入後のInstagramインサイト" class="realdata-screenshot" loading="lazy">
+        </div>
+      </div>
+
+      <div class="realdata-narrative">
+        <p>
+          文章を考える手間がなくなると、<strong>素材さえあれば投稿できる</strong>ようになります。<br>
+          そのハードルの低さが投稿頻度を変え、<br>
+          たった1ヶ月で<span class="accent-text">閲覧数3.6倍・リーチ17倍</span>の差がつきました。<br>
+          <span style="font-size:0.8rem">※ 計測期間の差（31日 vs 28日）を補正した日割り換算</span>
+        </p>
+        <p style="margin-top:20px;">
+          「リール動画を頑張らないと見てもらえない」——そう言われる時代でも、<br>
+          <strong>投稿をやめてしまえば、ゼロはゼロのまま。</strong><br>
+          まず投稿を「続けられる状態」にすることが、最初の一歩です。
+        </p>
+      </div>
+
+      <p class="realdata-note">※ 同一アカウントの実データに基づく月別比較です。効果は運用状況により異なります。</p>
     </div>
   </section>
 
