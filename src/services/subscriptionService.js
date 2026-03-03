@@ -231,9 +231,13 @@ export async function buildPlanSummaryMessage(userId) {
   }
 
   const featureLines = [
-    `集合知データ:   ${planConfig.features.collectiveIntelligence ? '✅' : '❌'}`,
-    `季節記憶:       ${planConfig.features.seasonalMemory         ? '✅' : '❌'}`,
-    `高度学習:       ${planConfig.features.advancedPersonalization ? '✅' : '❌'}`,
+    `集合知データ:       ${planConfig.features.collectiveIntelligence ? '✅' : '❌'}`,
+    `季節記憶:           ${planConfig.features.seasonalMemory         ? '✅' : '❌'}`,
+    `人格学習:           ${planConfig.features.advancedPersonalization ? '✅' : '❌'}`,
+    `健康診断（数値）:   ${planConfig.features.engagementHealthCheck   ? '✅' : '❌'}`,
+    `処方箋（分析）:     ${planConfig.features.engagementPrescription  ? '✅' : '❌'}`,
+    `自動学習→反映:     ${planConfig.features.engagementAutoLearn      ? '✅' : '❌'}`,
+    `Instagram予約投稿: ${planConfig.features.instagramSchedulePost   ? '✅' : '❌'}`,
   ].join('\n');
 
   let periodLine = '';

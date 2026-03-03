@@ -1550,3 +1550,120 @@ describe('Scenario 31: 画像「一言ヒント」機能', async () => {
     assert.ok(content.includes('enrichedDescription'), '拡張した説明を使う');
   });
 });
+
+// ==================== Scenario 32: プラン制限・機能ゲーティング ====================
+describe('Scenario 32: プラン制限・機能ゲーティング', async () => {
+  const { PLANS, getPlanConfig, PAID_PLANS } = await import('../src/config/planConfig.js');
+
+  // --- プラン定義の整合性 ---
+  it('3つのプランが定義されている（free/standard/premium）', () => {
+    assert.ok(PLANS.free, 'free プランが存在する');
+    assert.ok(PLANS.standard, 'standard プランが存在する');
+    assert.ok(PLANS.premium, 'premium プランが存在する');
+    assert.equal(Object.keys(PLANS).length, 3, 'プランは3つだけ');
+  });
+
+  it('月間生成回数: free=10, standard=25, premium=60', () => {
+    assert.equal(PLANS.free.monthlyGenerations, 10);
+    assert.equal(PLANS.standard.monthlyGenerations, 25);
+    assert.equal(PLANS.premium.monthlyGenerations, 60);
+  });
+
+  it('店舗数上限: free=1, standard=3, premium=無制限', () => {
+    assert.equal(PLANS.free.maxStores, 1);
+    assert.equal(PLANS.standard.maxStores, 3);
+    assert.equal(PLANS.premium.maxStores, Infinity);
+  });
+
+  // --- 全プラン共通機能 ---
+  it('集合知エンジンは全プランで有効', () => {
+    assert.equal(PLANS.free.features.collectiveIntelligence, true);
+    assert.equal(PLANS.standard.features.collectiveIntelligence, true);
+    assert.equal(PLANS.premium.features.collectiveIntelligence, true);
+  });
+
+  it('3案提案は全プランで有効', () => {
+    assert.equal(PLANS.free.features.proposalABC, true);
+    assert.equal(PLANS.standard.features.proposalABC, true);
+    assert.equal(PLANS.premium.features.proposalABC, true);
+  });
+
+  it('健康診断（数値）は全プランで有効', () => {
+    assert.equal(PLANS.free.features.engagementHealthCheck, true);
+    assert.equal(PLANS.standard.features.engagementHealthCheck, true);
+    assert.equal(PLANS.premium.features.engagementHealthCheck, true);
+  });
+
+  it('データ収集（裏）は全プランで有効', () => {
+    assert.equal(PLANS.free.features.dataCollection, true);
+    assert.equal(PLANS.standard.features.dataCollection, true);
+    assert.equal(PLANS.premium.features.dataCollection, true);
+  });
+
+  // --- Free で制限される機能 ---
+  it('Free では処方箋・自動学習・季節記憶・人格学習が無効', () => {
+    assert.equal(PLANS.free.features.engagementPrescription, false, '処方箋はFreeで無効');
+    assert.equal(PLANS.free.features.engagementAutoLearn, false, '自動学習はFreeで無効');
+    assert.equal(PLANS.free.features.seasonalMemory, false, '季節記憶はFreeで無効');
+    assert.equal(PLANS.free.features.advancedPersonalization, false, '人格学習はFreeで無効');
+    assert.equal(PLANS.free.features.instagramSchedulePost, false, 'Instagram予約投稿はFreeで無効');
+  });
+
+  // --- Standard で有効になる機能 ---
+  it('Standard では処方箋・自動学習・季節記憶・人格学習が有効', () => {
+    assert.equal(PLANS.standard.features.engagementPrescription, true);
+    assert.equal(PLANS.standard.features.engagementAutoLearn, true);
+    assert.equal(PLANS.standard.features.seasonalMemory, true);
+    assert.equal(PLANS.standard.features.advancedPersonalization, true);
+  });
+
+  it('Standard ではInstagram予約投稿が無効', () => {
+    assert.equal(PLANS.standard.features.instagramSchedulePost, false);
+  });
+
+  // --- Premium 限定機能 ---
+  it('Premium のみInstagram予約投稿が有効', () => {
+    assert.equal(PLANS.premium.features.instagramSchedulePost, true);
+    assert.equal(PLANS.standard.features.instagramSchedulePost, false);
+    assert.equal(PLANS.free.features.instagramSchedulePost, false);
+  });
+
+  // --- getPlanConfig フォールバック ---
+  it('不明なプラン名は free にフォールバック', () => {
+    const config = getPlanConfig('unknown');
+    assert.equal(config.name, 'フリープラン');
+    assert.equal(config.monthlyGenerations, 10);
+  });
+
+  it('null/undefined は free にフォールバック', () => {
+    assert.equal(getPlanConfig(null).name, 'フリープラン');
+    assert.equal(getPlanConfig(undefined).name, 'フリープラン');
+  });
+
+  // --- PAID_PLANS ---
+  it('PAID_PLANS に free が含まれない', () => {
+    const keys = PAID_PLANS.map(p => p.key);
+    assert.ok(!keys.includes('free'), 'free は有料プランに含まれない');
+    assert.ok(keys.includes('standard'), 'standard が含まれる');
+    assert.ok(keys.includes('premium'), 'premium が含まれる');
+  });
+
+  // --- 価格 ---
+  it('価格: free=0, standard=2980, premium=5980', () => {
+    assert.equal(PLANS.free.price, 0);
+    assert.equal(PLANS.standard.price, 2980);
+    assert.equal(PLANS.premium.price, 5980);
+  });
+
+  // --- subscriptionService のプランサマリーに新機能フラグが含まれる ---
+  it('buildPlanSummaryMessage に新しい機能フラグ表示がある', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/subscriptionService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('engagementHealthCheck'), '健康診断フラグを参照');
+    assert.ok(content.includes('engagementPrescription'), '処方箋フラグを参照');
+    assert.ok(content.includes('engagementAutoLearn'), '自動学習フラグを参照');
+    assert.ok(content.includes('instagramSchedulePost'), 'Instagram予約投稿フラグを参照');
+  });
+});
