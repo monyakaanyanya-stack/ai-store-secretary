@@ -211,7 +211,7 @@ export async function applyEngagementMetrics(user, store, metrics, latestPost, r
   const postContent = (latestPost.content || '').split('#')[0].trim().slice(0, 50);
 
   // ──────────────────────────────────────────────
-  // 健康診断（全プラン）: 数字だけ見せる
+  // 数値表示（全プラン）
   // ──────────────────────────────────────────────
   let reactionLine = '';
   if (followerCount && followerCount > 0 && reactionIndex > 0) {
@@ -225,7 +225,6 @@ export async function applyEngagementMetrics(user, store, metrics, latestPost, r
 
   let feedbackMessage = `✅ 報告完了！（最新の投稿に適用されました）
 
-【健康診断】
 ❤️ いいね: ${metrics.likes}
 💾 保存: ${metrics.saves}
 💬 コメント: ${metrics.comments}
@@ -240,7 +239,7 @@ ${postContent}...
 💡 リーチがわかる場合は「リーチ:800」を追加すると精度が上がります`;
 
   // ──────────────────────────────────────────────
-  // 処方箋（Standard以上）: 分析・提案・自動学習
+  // 分析結果（Standard以上）: 分析・提案・自動学習
   // ──────────────────────────────────────────────
   const canPrescribe = await isFeatureEnabled(user.id, 'engagementPrescription');
 
@@ -253,7 +252,7 @@ ${postContent}...
     else if (metrics.likes > 0) saveComment = '💡 保存を増やすと伸びやすくなります';
 
     if (saveComment) {
-      feedbackMessage += `\n\n【処方箋】\n${saveComment}`;
+      feedbackMessage += `\n\n【分析結果】\n${saveComment}`;
     }
 
     // 自動学習結果
@@ -265,7 +264,7 @@ ${postContent}...
       feedbackMessage += `\n→ 次の投稿に自動で反映します`;
     }
   } else {
-    feedbackMessage += `\n\n💎 処方箋（分析・提案）はスタンダードプラン以上でご利用いただけます`;
+    feedbackMessage += `\n\n💎 分析結果はスタンダードプラン以上でご利用いただけます`;
   }
 
   await replyText(replyToken, feedbackMessage);

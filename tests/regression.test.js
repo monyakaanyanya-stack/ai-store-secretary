@@ -1588,7 +1588,7 @@ describe('Scenario 32: プラン制限・機能ゲーティング', async () => 
     assert.equal(PLANS.premium.features.proposalABC, true);
   });
 
-  it('健康診断（数値）は全プランで有効', () => {
+  it('報告（数値）は全プランで有効', () => {
     assert.equal(PLANS.free.features.engagementHealthCheck, true);
     assert.equal(PLANS.standard.features.engagementHealthCheck, true);
     assert.equal(PLANS.premium.features.engagementHealthCheck, true);
@@ -1601,8 +1601,8 @@ describe('Scenario 32: プラン制限・機能ゲーティング', async () => 
   });
 
   // --- Free で制限される機能 ---
-  it('Free では処方箋・自動学習・季節記憶・人格学習が無効', () => {
-    assert.equal(PLANS.free.features.engagementPrescription, false, '処方箋はFreeで無効');
+  it('Free では分析・自動学習・季節記憶・人格学習が無効', () => {
+    assert.equal(PLANS.free.features.engagementPrescription, false, '分析はFreeで無効');
     assert.equal(PLANS.free.features.engagementAutoLearn, false, '自動学習はFreeで無効');
     assert.equal(PLANS.free.features.seasonalMemory, false, '季節記憶はFreeで無効');
     assert.equal(PLANS.free.features.advancedPersonalization, false, '人格学習はFreeで無効');
@@ -1610,7 +1610,7 @@ describe('Scenario 32: プラン制限・機能ゲーティング', async () => 
   });
 
   // --- Standard で有効になる機能 ---
-  it('Standard では処方箋・自動学習・季節記憶・人格学習が有効', () => {
+  it('Standard では分析・自動学習・季節記憶・人格学習が有効', () => {
     assert.equal(PLANS.standard.features.engagementPrescription, true);
     assert.equal(PLANS.standard.features.engagementAutoLearn, true);
     assert.equal(PLANS.standard.features.seasonalMemory, true);
@@ -1700,15 +1700,14 @@ describe('Scenario 32: プラン制限・機能ゲーティング', async () => 
     assert.ok(content.includes('isFeatureEnabled'), '機能ゲーティングがある');
   });
 
-  it('reportHandler が健康診断/処方箋に分離されている', async () => {
+  it('reportHandler が数値表示/分析結果に分離されている', async () => {
     const fs = await import('node:fs');
     const content = fs.readFileSync(
       new URL('../src/handlers/reportHandler.js', import.meta.url), 'utf-8'
     );
-    assert.ok(content.includes('【健康診断】'), '健康診断セクションがある');
-    assert.ok(content.includes('【処方箋】'), '処方箋セクションがある');
+    assert.ok(content.includes('【分析結果】'), '分析結果セクションがある');
     assert.ok(content.includes('isFeatureEnabled'), 'プランチェックがある');
-    assert.ok(content.includes('engagementPrescription'), '処方箋フラグを参照');
+    assert.ok(content.includes('engagementPrescription'), '分析フラグを参照');
     assert.ok(content.includes('スタンダードプラン以上'), 'アップグレード案内がある');
   });
 });
