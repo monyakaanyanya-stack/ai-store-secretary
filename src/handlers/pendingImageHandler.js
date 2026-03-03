@@ -4,6 +4,7 @@ import { getStore, savePostHistory, clearPendingImageContext } from '../services
 import { buildImagePostPrompt } from '../utils/promptBuilder.js';
 import { saveEngagementMetrics } from '../services/collectiveIntelligence.js';
 import { getRevisionExample } from '../utils/categoryExamples.js';
+import { checkGenerationLimit } from '../services/subscriptionService.js';
 
 // pending_image_context の有効期限（30分）
 const PENDING_EXPIRE_MS = 30 * 60 * 1000;
@@ -37,6 +38,17 @@ export async function handlePendingImageResponse(user, text, replyToken) {
 
   // コンテキストをすぐにクリア（2重送信防止）
   await clearPendingImageContext(user.id);
+
+  // ──────────────────────────────────────────────
+  // 生成回数チェック（実際の生成直前にも確認）
+  // ──────────────────────────────────────────────
+  const genLimit = await checkGenerationLimit(user.id);
+  if (!genLimit.allowed) {
+    await replyText(replyToken,
+      `今月の生成上限（${genLimit.limit}回）に達しました。\n\n📊 今月の生成: ${genLimit.used} / ${genLimit.limit}回\n📋 プラン: ${genLimit.planName}\n\nプランをアップグレードすると上限が増えます。`
+    );
+    return true;
+  }
 
   const isSkip = ['スキップ', 'skip', 'Skip', 'SKIP', 'なし', 'なし。'].includes(text.trim());
   const hint = isSkip ? null : text.trim();
