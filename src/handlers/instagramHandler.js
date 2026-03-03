@@ -104,6 +104,8 @@ async function handleInstagramConnect(user, token, pageId, replyToken) {
 @${accountInfo.username || account.instagram_user_id}
 フォロワー: ${accountInfo.followers_count?.toLocaleString() || '取得中'}人
 
+⚠️ セキュリティのため、先ほど送ったトークンを含むメッセージをチャット履歴から削除してください。
+
 データを同期するには:
 /instagram sync
 
@@ -186,7 +188,7 @@ async function handleInstagramPublish(user, replyToken) {
     await replyText(replyToken, `✅ Instagramに投稿しました！\n\n📱 投稿ID: ${result.id}\n\nInstagramアプリで確認してみてください。`);
   } catch (err) {
     console.error('[Instagram] 投稿エラー:', err);
-    await replyText(replyToken, `❌ Instagram投稿に失敗しました: ${err.message}`);
+    await replyText(replyToken, '❌ Instagram投稿に失敗しました。しばらくしてから再度お試しください。');
   }
   return true;
 }

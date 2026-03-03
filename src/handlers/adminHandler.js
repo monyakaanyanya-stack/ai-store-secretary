@@ -428,7 +428,8 @@ async function _adminSubSet(admin, targetLineUserId, plan, replyToken) {
     }, { onConflict: 'user_id' });
 
   if (error) {
-    await replyText(replyToken, `❌ プラン変更失敗\n\nエラー: ${error.message}`);
+    console.error('[Admin] プラン変更失敗:', error.message);
+    await replyText(replyToken, '❌ プラン変更に失敗しました。');
     return true;
   }
 
