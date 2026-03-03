@@ -3,17 +3,25 @@
  *
  * 有効化手順: SUBSCRIPTION_HOWTO.md を参照
  *
- * 現在の状態: スタンバイ（課金チェックはどこにも組み込まれていない）
+ * グローバルスイッチ: SUBSCRIPTION_ENABLED 環境変数
+ *   false（デフォルト）→ 全員 premium 扱い（使い放題）
+ *   true → プラン制限が有効になる
+ *
  * 有効化時にやること:
- *   1. database/migration_subscriptions.sql を Supabase で実行
+ *   1. database/migration_subscriptions.sql を Supabase で実行 ✅
  *   2. .env に STRIPE_* 変数を追加
  *   3. server.js に Stripe Webhook ルートを追加
- *   4. imageHandler.js / textHandler.js に checkGenerationLimit() 呼び出しを追加
- *   5. promptBuilder.js の getBlendedInsights 呼び出し前に isFeatureEnabled() を追加
+ *   4. Railway 環境変数に SUBSCRIPTION_ENABLED=true を設定
  */
 
 import { supabase } from './supabaseService.js';
 import { getPlanConfig } from '../config/planConfig.js';
+
+// ============================================================
+// グローバルスイッチ
+// SUBSCRIPTION_ENABLED=true で制限ON、それ以外は全員premium扱い
+// ============================================================
+const SUBSCRIPTION_ENABLED = process.env.SUBSCRIPTION_ENABLED === 'true';
 
 // ============================================================
 // プラン取得
@@ -111,6 +119,11 @@ export async function getMonthlyGenerationCount(userId) {
  * @returns {Promise<{allowed: boolean, used: number, limit: number, plan: string}>}
  */
 export async function checkGenerationLimit(userId) {
+  // スイッチOFF → 常に許可
+  if (!SUBSCRIPTION_ENABLED) {
+    return { allowed: true, used: 0, limit: Infinity, plan: 'premium' };
+  }
+
   const subscription = await getUserSubscription(userId);
   const planConfig = getPlanConfig(subscription.plan);
   const limit = planConfig.monthlyGenerations;
@@ -142,6 +155,11 @@ export async function checkGenerationLimit(userId) {
  * @returns {Promise<boolean>}
  */
 export async function isFeatureEnabled(userId, feature) {
+  // スイッチOFF → 全機能有効
+  if (!SUBSCRIPTION_ENABLED) {
+    return true;
+  }
+
   const subscription = await getUserSubscription(userId);
   const planConfig = getPlanConfig(subscription.plan);
   return planConfig.features[feature] === true;
@@ -217,6 +235,12 @@ export async function downgradeToFree(stripeSubscriptionId) {
  * プラン・使用状況のサマリー文字列を生成（LINE 返信用）
  */
 export async function buildPlanSummaryMessage(userId) {
+  // スイッチOFF → premium として表示
+  if (!SUBSCRIPTION_ENABLED) {
+    const premiumConfig = getPlanConfig('premium');
+    return `📋 現在のプラン: 全機能開放中（無料期間）\n📊 今月の生成: 無制限`;
+  }
+
   const subscription = await getUserSubscription(userId);
   const planConfig = getPlanConfig(subscription.plan);
   const limit = planConfig.monthlyGenerations;
