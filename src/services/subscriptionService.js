@@ -98,11 +98,11 @@ export async function getMonthlyGenerationCount(userId) {
   const monthStart = new Date(nowJst.getFullYear(), nowJst.getMonth(), 1);
   const monthStartUtc = new Date(monthStart.getTime() - jstOffset);
 
-  // post_history の件数を store → user で結合してカウント
+  // post_history は直接 user_id を持つのでシンプルにカウント
   const { count, error } = await supabase
     .from('post_history')
-    .select('stores!inner(user_id)', { count: 'exact', head: true })
-    .eq('stores.user_id', userId)
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
     .gte('created_at', monthStartUtc.toISOString());
 
   if (error) {
