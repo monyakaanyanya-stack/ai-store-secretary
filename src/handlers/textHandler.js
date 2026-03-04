@@ -22,6 +22,7 @@ import { handleInstagramCommand } from './instagramHandler.js';
 import { handlePendingImageResponse } from './pendingImageHandler.js';
 import { handleFollowerCountResponse, getPendingFollowerRequest } from '../services/monthlyFollowerService.js';
 import { handleDataResetPrompt, handleDataResetExecution, handleStoreDeletePrompt, handleStoreDeleteExecution } from './dataResetHandler.js';
+import { handlePlanStatus, handleUpgradePrompt } from './subscriptionHandler.js';
 import { applyFeedbackToProfile } from '../services/personalizationEngine.js';
 import {
   generateConversationalResponse,
@@ -100,7 +101,8 @@ export async function handleTextMessage(user, text, replyToken) {
   // 画像「一言ヒント」待ち状態の処理
   // （システムコマンドはスキップ、それ以外はここで受け取る）
   const isSystemCommand = ['キャンセル', 'cancel', 'リセット', 'データリセット',
-    '店舗一覧', '店舗切り替え', '店舗切替', '店舗削除', 'ヘルプ', 'help', '学習状況', '問い合わせ', '登録'].includes(trimmed)
+    '店舗一覧', '店舗切り替え', '店舗切替', '店舗削除', 'ヘルプ', 'help', '学習状況', '問い合わせ', '登録',
+    'プラン', 'アップグレード'].includes(trimmed)
     || trimmed.startsWith('切替:') || trimmed.startsWith('/');
   if (user.pending_image_context && !isSystemCommand) {
     const handled = await handlePendingImageResponse(user, trimmed, replyToken);
@@ -243,6 +245,16 @@ export async function handleTextMessage(user, text, replyToken) {
   if (trimmed.startsWith('切替:')) {
     const storeName = trimmed.replace(/^切替[:：]\s*/, '');
     return await handleStoreSwitch(user, storeName, replyToken);
+  }
+
+  // プラン確認
+  if (trimmed === 'プラン' || trimmed === '/plan') {
+    return await handlePlanStatus(user, replyToken);
+  }
+
+  // アップグレード
+  if (trimmed === 'アップグレード' || trimmed === '/upgrade') {
+    return await handleUpgradePrompt(user, replyToken);
   }
 
   // ヘルプ: 階層型メニュー

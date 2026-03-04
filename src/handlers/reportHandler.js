@@ -6,6 +6,7 @@ import { applyEngagementToProfile } from '../services/personalizationEngine.js';
 import { analyzeEngagementWithClaude } from '../services/advancedPersonalization.js';
 import { normalizeInput, safeParseInt } from '../utils/inputNormalizer.js';
 import { isFeatureEnabled } from '../services/subscriptionService.js';
+import { generatePrescription } from '../services/prescriptionService.js';
 
 /**
  * エンゲージメント報告のパース
@@ -244,15 +245,18 @@ ${postContent}...
   const canPrescribe = await isFeatureEnabled(user.id, 'engagementPrescription');
 
   if (canPrescribe) {
-    // 保存率コメント
-    let saveComment = '';
-    if (saveIntensity >= 0.3) saveComment = '🔥 保存率がかなり高い！アルゴリズム評価◎';
-    else if (saveIntensity >= 0.15) saveComment = '✨ 保存率が良好です';
-    else if (saveIntensity >= 0.05) saveComment = '👍 標準的な保存率';
-    else if (metrics.likes > 0) saveComment = '💡 保存を増やすと伸びやすくなります';
-
-    if (saveComment) {
-      feedbackMessage += `\n\n【分析結果】\n${saveComment}`;
+    // 処方箋: 因果分析 + 業界比較 + 信条ブレンド
+    try {
+      const prescription = await generatePrescription(store, saveIntensity, reactionIndex);
+      feedbackMessage += prescription;
+    } catch (err) {
+      console.error('[Report] 処方箋生成エラー（報告は成功）:', err.message);
+      // フォールバック: 簡易コメントのみ
+      let saveComment = '';
+      if (saveIntensity >= 0.3) saveComment = '🔥 保存率がかなり高い！';
+      else if (saveIntensity >= 0.15) saveComment = '✨ 保存率が良好です';
+      else if (saveIntensity >= 0.05) saveComment = '👍 標準的な保存率';
+      if (saveComment) feedbackMessage += `\n\n【分析結果】\n${saveComment}`;
     }
 
     // 自動学習結果

@@ -13,6 +13,7 @@ import {
   updateAdvancedProfile,
   getAdvancedPersonalizationPrompt,
 } from '../services/advancedPersonalization.js';
+import { checkGenerationLimit } from '../services/subscriptionService.js';
 
 /**
  * フィードバック処理: 最新投稿を修正 + 学習データとして蓄積
@@ -65,6 +66,12 @@ export async function handleFeedback(user, feedback, replyToken) {
     );
 
     // ── 修正生成フェーズ ──────────────────────────────────
+    // 生成上限チェック（修正も1生成としてカウント）
+    const genLimit = await checkGenerationLimit(user.id);
+    if (!genLimit.allowed) {
+      return await replyText(replyToken, `⚠️ 今月の生成上限（${genLimit.limit}回）に達しました。\n\n「アップグレード」で上限を増やせます。`);
+    }
+
     // 「直し:」コマンドなので長短問わず常に修正案を返す
     const advancedPersonalization = await getAdvancedPersonalizationPrompt(store.id);
     const prompt = buildRevisionPrompt(store, latestPost.content, feedback, advancedPersonalization);

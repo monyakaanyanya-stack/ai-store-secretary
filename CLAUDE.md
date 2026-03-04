@@ -13,15 +13,22 @@
 | **ローカルパス** | `D:\クロードコード　でも\ai-store-secretary\` |
 | **リポジトリ** | `https://github.com/monyakaanyanya-stack/ai-store-secretary` |
 | **本番環境** | Railway（`main` ブランチへの push で自動デプロイ） |
-| **コンセプト** | 店舗オーナーが LINE で写真を送ると、AI秘書が「記憶を作り、さりげない行動理由を添える」Instagram 投稿文を生成するサービス |
+| **コンセプト** | LINE に写真を送るだけで、Instagram投稿文を AI が自動生成する「影の秘書」サービス |
+| **テスト** | 174/174 passing |
 
 ### サービスの特徴
 
 - **Ver.4.0 Dual Trigger Model**: 1投稿に2つのトリガーを埋め込む
   - **想起トリガー(7割)**: 五感・時間帯・小さな情景 → 店を思い出させる
   - **来店トリガー(3割)**: 今・数量・具体・小さな理由 → 押さずに動かす
-- 店主ごとの口調・語尾・口癖を学習して投稿に反映
+- **影の秘書コンセプト**: 4原則（情報の言葉禁止/署名性/湿度/要約しない）
+- 店主ごとの口調・語尾・口癖を学習して投稿に反映（人格AI化）
 - 同業種の集合知データでハッシュタグ・文字数を最適化
+- Instagram直接投稿対応（Graph API Content Publishing）
+
+### ターゲット
+
+個人経営の店舗オーナー（ネイルサロン、カフェ、パン屋、アパレル等）。SNS投稿に時間をかけられない／文章を考えるのが苦手な人。
 
 ---
 
@@ -35,7 +42,7 @@
 | Web サーバー | Express |
 | AI | Anthropic Claude API (`@anthropic-ai/sdk ^0.20.0`) |
 | メッセージング | LINE Messaging API (`@line/bot-sdk ^9.3.0`) |
-| DB | Supabase (PostgreSQL) (`@supabase/supabase-js ^2.39.3`) |
+| DB・Storage | Supabase (PostgreSQL + Storage) (`@supabase/supabase-js ^2.39.3`) |
 | スケジューラ | node-cron |
 | デプロイ | Railway（GitHub 連携・自動デプロイ） |
 
@@ -45,66 +52,84 @@
 ai-store-secretary/
 ├── server.js                    # エントリーポイント（LINE Webhook受信・署名検証）
 ├── src/
-│   ├── handlers/                # メッセージ処理層（LINE イベントごとの担当）
+│   ├── handlers/                # メッセージ処理層
 │   │   ├── textHandler.js       # テキストメッセージのルーティング（★中心）
-│   │   ├── imageHandler.js      # 画像→投稿生成（Promise.all 並列化済み）
+│   │   ├── imageHandler.js      # 画像→Storageアップロード→ヒント質問→待機
+│   │   ├── pendingImageHandler.js # ヒント受取り→3案生成→返信
+│   │   ├── proposalHandler.js   # A/B/C案選択→確定→Instagram投稿ボタン表示
 │   │   ├── feedbackHandler.js   # 修正指示・学習フィードバック
 │   │   ├── onboardingHandler.js # 初期設定・店舗登録フロー
 │   │   ├── adminHandler.js      # /admin コマンド群
-│   │   ├── reportHandler.js     # エンゲージメントレポート
+│   │   ├── reportHandler.js     # エンゲージメントレポート・分析結果
+│   │   ├── instagramHandler.js  # Instagram連携・直接投稿
 │   │   ├── conversationHandler.js # 自然言語応答
 │   │   ├── welcomeHandler.js    # 友だち追加ウェルカム
 │   │   ├── dataStatsHandler.js  # データ統計表示
-│   │   ├── dataResetHandler.js  # データリセット・店舗削除
-│   │   └── instagramHandler.js  # Instagram連携
+│   │   └── dataResetHandler.js  # データリセット・店舗削除
 │   ├── services/                # ビジネスロジック層
 │   │   ├── claudeService.js     # Claude API（askClaude / describeImage）
-│   │   ├── supabaseService.js   # DB アクセス（SERVICE_ROLE_KEY 必須）
+│   │   ├── supabaseService.js   # DB・Storageアクセス（SERVICE_ROLE_KEY 必須）
 │   │   ├── lineService.js       # LINE 返信送信
+│   │   ├── instagramService.js  # Instagram Graph API（連携・同期・投稿）
+│   │   ├── subscriptionService.js # サブスク判定（checkGenerationLimit / isFeatureEnabled）
+│   │   ├── prescriptionService.js   # 処方箋（因果分析・業界比較・信条ブレンド）
 │   │   ├── collectiveIntelligence.js  # 集合知データ取得・分析
 │   │   ├── personalizationEngine.js   # 学習プロファイル管理
-│   │   ├── advancedPersonalization.js # 高度パーソナライゼーション
-│   │   ├── conversationService.js     # 会話履歴
-│   │   ├── intentDetection.js         # 意図検出
+│   │   ├── advancedPersonalization.js # 思想ログ学習・人格AI化
 │   │   ├── seasonalMemoryService.js   # 季節記憶
-│   │   ├── instagramService.js        # Instagram Graph API
-│   │   ├── scheduler.js               # cron 定期処理
-│   │   ├── dailyReminderService.js
-│   │   ├── dailySummaryService.js
-│   │   ├── monthlyFollowerService.js
-│   │   └── errorNotification.js
+│   │   ├── insightsOCRService.js      # インサイトスクショ自動読取
+│   │   └── scheduler.js               # cron 定期処理
 │   ├── utils/
-│   │   ├── promptBuilder.js     # ★プロンプト生成（Ver.4.0 Dual Trigger Model）
+│   │   ├── promptBuilder.js     # ★プロンプト生成（影の秘書・Dual Trigger）
+│   │   ├── contentCategoryDetector.js # 被写体カテゴリー検出
 │   │   └── learningData.js      # 学習データ集約
 │   └── config/
+│       ├── planConfig.js        # サブスクプラン定義（Free/Standard/Premium）
 │       ├── categoryGroups.js    # カテゴリー分類定義
 │       └── validationRules.js   # エンゲージメント指標検証ルール
-├── scripts/                     # Supabase に手動実行する SQL（順番に実行）
-│   ├── enable-rls.sql           # ① RLS 有効化（必須）
-│   ├── add-seasonal-memory.sql  # ② post_history に month/season カラム追加
-│   ├── add-instagram-tables.sql # ③ Instagram テーブル作成
-│   └── seed-collective-intelligence.sql  # 集合知初期データ投入
-└── .env.example                 # 環境変数テンプレート
+├── database/                    # マイグレーションSQL
+│   ├── migration_save_intensity.sql
+│   ├── migration_post_structure.sql
+│   ├── migration_status_column.sql
+│   ├── migration_pending_image.sql
+│   ├── migration_subscriptions.sql
+│   └── migration_instagram_publish.sql  # Instagram投稿用（image_url等）
+├── scripts/                     # 初期セットアップSQL
+├── docs/                        # LP・プライバシーポリシー
+└── .env.example
 ```
 
-### データフロー
+### データフロー（画像→Instagram投稿）
 
 ```
-LINE メッセージ
+LINE 画像メッセージ
   ↓
-server.js（署名検証）
+imageHandler.js（画像取得・base64変換）
+  ├── uploadImageToStorage → Supabase Storage（公開URL取得）
+  ├── describeImage（Claude API 画像分析）
+  └── savePendingImageContext（待機状態へ）
   ↓
-textHandler.js / imageHandler.js（ルーティング）
+ユーザーが一言ヒントを入力
   ↓
-claudeService.js + promptBuilder.js（投稿生成）
-  ├── personalizationEngine.js（個人学習）
-  ├── advancedPersonalization.js（高度学習）
-  ├── collectiveIntelligence.js（集合知）
-  └── seasonalMemoryService.js（季節記憶）
+pendingImageHandler.js
+  ├── buildImagePostPrompt（プロンプト生成）
+  ├── askClaude（3案生成）
+  └── savePostHistory（image_url付きで保存）
   ↓
-supabaseService.js（保存）
+ユーザーが A/B/C 選択
   ↓
-lineService.js（LINE 返信）
+proposalHandler.js
+  ├── extractSelectedProposal（案抽出）
+  ├── updatePostContent（確定テキスト保存）
+  └── replyWithQuickReply（📸 Instagram投稿ボタン表示）
+  ↓
+ユーザーが「📸 Instagram投稿」タップ
+  ↓
+instagramHandler.js → instagramService.js
+  ├── 撮影アドバイス除外（━━━区切り以降をカット）
+  ├── createMediaContainer（コンテナ作成）
+  ├── waitForContainerReady（ステータスポーリング）
+  └── publishMediaContainer（公開）
 ```
 
 ### 主要テーブル（Supabase）
@@ -113,13 +138,12 @@ lineService.js（LINE 返信）
 |---|---|
 | `users` | LINE ユーザー基本情報 |
 | `stores` | 店舗情報（name / category / tone / config） |
-| `post_history` | 生成投稿・エンゲージメント指標・季節タグ |
-| `learning_profiles` | 学習プロファイル（writing_style / latest_learnings 等） |
-| `learning_data` | フィードバック履歴 |
+| `post_history` | 生成投稿・エンゲージメント指標・image_url |
+| `learning_profiles` | 学習プロファイル（profile_data: belief_logs / persona等） |
 | `engagement_metrics` | 集合知用エンゲージメントデータ |
-| `conversation_history` | 会話履歴 |
-| `follower_history` | フォロワー数推移 |
-| `instagram_*` | Instagram 連携情報 |
+| `subscriptions` | サブスクリプション情報 |
+| `instagram_accounts` | Instagram連携アカウント |
+| `instagram_posts` | Instagram投稿履歴（published_via: sync/app） |
 
 ---
 
@@ -131,24 +155,29 @@ LINE_CHANNEL_SECRET=
 ANTHROPIC_API_KEY=
 SUPABASE_URL=
 SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=    ← RLS の delete が通るため必須（anon key だと失敗）
+SUPABASE_SERVICE_ROLE_KEY=    ← RLS の delete が通るため必須
 PORT=3000
 ADMIN_LINE_USER_ID=
+ADMIN_LINE_IDS=               ← 管理者判定用
 ENABLE_ERROR_NOTIFICATIONS=false
-ADMIN_LINE_IDS=
 INSTAGRAM_APP_ID=
 INSTAGRAM_APP_SECRET=
+CONTACT_EMAIL=rion.monya0224@gmail.com
+SUBSCRIPTION_ENABLED=         ← true で制限ON、未設定で全員premium扱い
+# Stripe関連（課金開始時に設定）
+# STRIPE_SECRET_KEY / STRIPE_WEBHOOK_SECRET
+# STRIPE_STANDARD_PRICE_ID / STRIPE_PREMIUM_PRICE_ID
+# STRIPE_STANDARD_PAYMENT_LINK / STRIPE_PREMIUM_PAYMENT_LINK
 ```
 
 ---
 
 ## 4. 設計方針
 
-### プロンプト設計（Ver.4.0 Dual Trigger Model）
+### プロンプト設計（Ver.4.0 Dual Trigger Model + 影の秘書）
 
-**コンセプト**: 1投稿に2つのトリガーを埋め込む
-- **想起トリガー(7割)**: 五感・時間帯・小さな情景 → 店を思い出させる
-- **来店トリガー(3割)**: 今・数量・具体・小さな理由 → 押さずに動かす
+**Role**: 「影の秘書」
+**4原則**: 情報の言葉禁止 / 署名性 / 湿度 / 要約しない
 
 **describeImage（五感ベース5項目分析）：**
 1. 何が写っているか — 被写体を具体的に
@@ -157,45 +186,30 @@ INSTAGRAM_APP_SECRET=
 4. 時間帯・季節感
 5. 記憶を呼ぶ要素
 
-**buildImagePostPrompt の出力構成（各案3パート）：**
-
-| パート | 内容 |
-|---|---|
-| 本文 | 店主の口調で自然に（文字数設定に従う） |
-| 想起の一言 | 五感を1つ含める・15〜25文字 |
-| 来店の一文 | 具体的だが押し売りでない（「ぜひ」「おすすめ」禁止） |
-| ハッシュタグ | テンプレ優先→集合知→辞書 |
-
 **3案のラベル：**
-- 案A: 記憶に残る日常
-- 案B: さりげない誘い
-- 案C: 店主のひとりごと
+- 案A: 時間の肖像（記憶に残る日常）
+- 案B: 誠実の肖像（さりげない誘い＝店主が勝手に楽しんでる姿を覗き見させる）
+- 案C: 光の肖像（店主のひとりごと）
 
-**Photo Advice**: 良い点1つ + 次の提案1つ（合計2行以内）
+**出力構成（各案3パート）**: 本文 + 想起の一言(15-25字) + 来店の一文 + ハッシュタグ
 
-**言葉の禁止ルール：**
-- 禁止ワード：幻想的・素敵・魅力的・素晴らしい・完璧・最高・美しい
-- 旧芸術語：光の意志・質感の物語・沈黙のデザイン・肖像・独白・心拍数・体温
-- 広告語：ぜひ・おすすめ・大好評・お得
+**Photo Advice**: 良い点1つ + 次の提案1つ（合計2行以内・物語的裏付け）
+
+**禁止ワード**: 幻想的/素敵/魅力的/素晴らしい/完璧/最高/美しい/ぜひ/おすすめ/大好評/お得
+**旧芸術語禁止**: 光の意志/質感の物語/沈黙のデザイン/肖像/独白/心拍数/体温
+
+**「生の言葉」ルール**: 「綺麗すぎ注意ワード」制御 + 「この店・この瞬間でしか成立しない不純物」を必ず入れる
 
 ### 修正指示（buildRevisionPrompt）
 
-- `style_rules`（口調ルール）を**含めない**。修正指示を100%最優先
+- `style_rules` を**含めない**。修正指示を100%最優先
 - `forbidden_words` のみ残す
-- `getAdvancedPersonalizationPrompt` で学習データを反映
+- `getAdvancedPersonalizationPrompt` で学習データ反映
 
-### 並列処理（imageHandler.js）
+### Instagram投稿時のキャプション処理
 
-```javascript
-// 画像分析（Claude API 1回目）と Supabase 4本を同時に走らせる
-const [imageDescription, learningData, blendedInsights, ...] = await Promise.all([...]);
-// 合計時間 = max(画像分析, Supabase取得) + 投稿生成  ← タイムアウト対策
-```
-
-### Supabase アクセス
-
-- `SUPABASE_SERVICE_ROLE_KEY` 必須。`anon key` では RLS に引っかかり delete が失敗（エラーを握りつぶすため成功したように見える）
-- `supabaseService.js` は `SERVICE_ROLE_KEY || ANON_KEY` でフォールバック
+- `━━━` 区切り以降（撮影アドバイス）を除外して本文+ハッシュタグのみ投稿
+- `latestPost.content.split(/\n━{3,}/)[0].trim()`
 
 ---
 
@@ -205,231 +219,221 @@ const [imageDescription, learningData, blendedInsights, ...] = await Promise.all
 
 | コマンド | 動作 |
 |---|---|
-| `1: 店名,こだわり,口調` | 店舗登録 |
-| 画像送信 | 写真から投稿案を生成 |
+| `登録` | オンボーディング開始 |
+| 画像送信 | ヒント質問→一言入力→3案生成 |
+| `A` / `B` / `C` | 案選択→確定（📸ボタン表示） |
+| `instagram投稿` | 最新投稿をInstagramに直接投稿 |
 | `直し: 〜` | 最新投稿を修正指示に従い再生成 |
-| `👍` / `👎` | 投稿の評価・学習 |
+| `学習: 〜` | 思想ログに手動追加 |
+| `報告: 数値` | エンゲージメント報告 |
+| `フォロワー: 数` | フォロワー数更新 |
+| `店舗一覧` / `店舗切り替え` / `店舗切替` | 店舗リスト+クイックリプライ（切替・削除） |
+| `切替:店舗名` | 即切替 |
+| `ヘルプ` | 6ボタン付きメニュー |
+| `問い合わせ` | CONTACT_EMAIL表示 |
 | `学習状況` | 学習内容を表示 |
-| `学習リセット` / `リセット` | 学習データ・投稿履歴をリセット |
-| `店舗削除` | 選択中の店舗を削除 |
-| `キャラ設定` | 口癖・NGワード・個性を登録 |
-| `季節提案` | 季節に合った投稿テーマを提案 |
-| `/instagram` | Instagram 連携メニュー |
+| `プラン` / `/plan` | 現在プラン・使用状況を表示 |
+| `アップグレード` / `/upgrade` | 有料プラン一覧・決済リンク表示 |
+| `データリセット` | 学習データ・投稿履歴をリセット |
+| `キャンセル` | pending状態をキャンセル |
+| `/instagram connect [トークン]` | Instagram連携 |
+| `/instagram status` | 連携状態確認 |
+| `/instagram sync` | データ同期 |
+| `/instagram stats` | 統計表示 |
+| `/instagram post` | 最新投稿をInstagramに投稿 |
+| `/instagram disconnect` | 連携解除 |
 
-### 管理者コマンド（ADMIN_LINE_IDS に登録必須）
+### isSystemCommand（pending状態をバイパスするコマンド）
+
+キャンセル/cancel/リセット/データリセット/店舗一覧/店舗切り替え/店舗切替/店舗削除/ヘルプ/help/学習状況/問い合わせ/登録/プラン/アップグレード/`切替:`始まり/`/`始まり
+
+### 管理者コマンド（ADMIN_LINE_IDS で判定）
 
 | コマンド | 動作 |
 |---|---|
 | `/admin` | メニュー表示 |
-| `/admin report` | 実データ手動登録モード（次メッセージでフォーマット入力） |
+| `/admin report` | 実データ手動登録モード |
 | `/admin test-data カテゴリー 件数` | テストデータ投入 |
 | `/admin clear-test-data` | テストデータ削除 |
-
-### 手動データ登録フォーマット（`/admin report` 後）
-
-```
-カテゴリー: カフェ
-文章: 投稿本文
-ハッシュタグ: #タグ1 #タグ2
-いいね: 45
-保存: 8
-コメント: 3
-リーチ: 450（省略可）
-```
+| `/admin category-requests` | カテゴリーリクエスト確認 |
+| `/admin sub` | サブスク管理 |
 
 ---
 
 ## 6. ワークフロー原則
 
 ### 計画優先
-- 3ステップ以上の作業やアーキテクチャ上の決定を伴うタスクでは、必ずプランモードに入ること。
-- 作業が停滞したり予期せぬ方向へ進んだ場合は、即座に中断して計画を練り直す。無理に進めない。
-- 曖昧さを排除するため、事前に詳細な仕様を記述すること。
+- 3ステップ以上の作業やアーキテクチャ上の決定を伴うタスクでは、必ずプランモードに入る
+- 停滞したら即中断して計画を練り直す
 
 ### サブエージェント活用
-- メインのコンテキストウィンドウをクリーンに保つため、調査・探索・並列分析はサブエージェントに委任。
-- 1サブエージェントにつき1タスクを割り当て、集中実行させる。
-
-### 自己改善ループ
-- ユーザーから修正指示を受けた後は、パターンを MEMORY.md の `## Lessons Learned` に記録すること。
-- 同じミスを繰り返さないよう、自分自身に対するルールを策定する。
+- メインコンテキストをクリーンに保つため、調査・探索はサブエージェントに委任
 
 ### 完了前の検証
-- 動作の証明ができるまで、タスクを完了と見なさない。
-- 必要に応じて変更前後の挙動の差異を確認する。
-- 「スタッフエンジニアならこれを承認するか？」と自問すること。
-- テストを実行し、ログを確認し、正当性を実証する。
-
-### エレガントさの追求（バランス重視）
-- 重要な変更を加える際は「よりエレガントな方法はないか？」を一度考える。
-- 対処療法的だと感じた場合は、洗練された解決策を再実装する。
-- 単純で明白な修正については、過剰なエンジニアリングを避けるためにこのステップを省略する。
-
-### 自律的なバグ修正
-- バグ報告を受けた際は、手取り足取りの指示を待たずに自力で修正する。
-- ログやエラー、失敗したテストを特定し、それらを解決する。
-- ユーザーにコンテキストの再説明を求めない。
+- 動作証明できるまで完了としない。テスト実行・ログ確認
 
 ### コア原則
-- **シンプルさの追求**: あらゆる変更を可能な限りシンプルに保つ。影響範囲を最小限に。
-- **妥協の排除**: 根本原因を突き止める。一時しのぎの修正は行わない。
-- **影響の最小化**: 必要な箇所のみを変更する。不必要な変更で新たなバグを作り込まない。
+- **シンプルさ追求**: 影響範囲を最小限に
+- **根本原因特定**: 一時しのぎの修正は行わない
+- **影響最小化**: 必要な箇所のみ変更
 
 ---
 
-## 7. 進捗管理
+## 7. 料金プラン
 
-### 実装済み（Phase 1 & 2）
+| | Free | Standard | Premium |
+|---|---|---|---|
+| **月額** | ¥0 | ¥3,000 | ¥7,000 |
+| 生成回数/月 | 10 | 25 | 60 |
+| 店舗数 | 1 | 3 | 無制限 |
+| 3案生成・集合知 | ○ | ○ | ○ |
+| 分析結果（因果分析） | - | ○ | ○ |
+| 自動学習・季節記憶・人格AI化 | - | ○ | ○ |
+| Instagram直接投稿 | - | - | ○ |
 
-- [x] LINE Bot 基本フロー（テキスト・画像・フィードバック）
-- [x] 店舗登録・複数店舗切り替え
-- [x] Claude API による投稿生成（テキスト・画像）
-- [x] 学習プロファイル（口調・語尾・口癖）
-- [x] 集合知データ（カテゴリー別エンゲージメント分析）
-- [x] RLS 有効化（`enable-rls.sql` + `SERVICE_ROLE_KEY`）
-- [x] キャラクター設定（`store.config.character_settings`）
-- [x] 季節記憶（`seasonalMemoryService.js`）
-- [x] Instagram Graph API 連携（`instagramHandler.js`）
-- [x] 管理者コマンド（`/admin report` 手動データ登録）
-- [x] `Promise.all` 並列化でタイムアウト解消
-- [x] `buildRevisionPrompt` 修正（口調ルール削除・修正指示最優先）
-- [x] `advancedPersonalization.js` の `writing_style` / `latest_learnings` 保存バグ修正
-- [x] 「学習リセット」コマンド追加（`textHandler.js`）
-- [x] `dataResetHandler.js` のエラーハンドリング強化
-- [x] **Ver.3.0 The Silent Storyteller** → **Ver.4.0 Dual Trigger Model** に刷新
-  - `describeImage`: 写真家視点6項目 → 五感ベース5項目（max_tokens 800→600）
-  - `buildImagePostPrompt`: 肖像3案 → Dual Trigger 3案（記憶に残る日常/さりげない誘い/店主のひとりごと）
-  - `buildTextPostPrompt`: 同様に Dual Trigger 出力構成に統一
-  - `buildRevisionPrompt`: Dual Trigger Model ルールに更新
-  - equipmentLevel（機材レベル判定）廃止、Photo Advice 簡略化
+### コスト構造
 
-### 未実装・検討中（Phase 3 以降）
+| 項目 | コスト |
+|---|---|
+| 固定費（Railway + Supabase） | ¥750〜7,000/月 |
+| 1生成あたりAI原価 | 約¥10〜15 |
+| Standard粗利率 | 約88〜92% |
+| Premium粗利率 | 約87〜91% |
+| **損益分岐点** | **Standard 2人で黒字** |
 
-- [x] ハッシュタグ人気度ロジック修正（平均保存強度でソート済み）
-- [x] カテゴリーマッピング拡充（6グループ27カテゴリー実装済みと確認）
-- [ ] Instagram Graph API 審査申請（Meta Developer 登録でレート制限中→48h待ち）
-- [ ] 集合知データのいいね数範囲調整（5〜100に）（低優先）
-- [x] 学習回数の表示タイミング修正（フィードバック時・学習状況コマンド時のみ表示）
+### サブスク実装状況
+
+- `subscriptions` テーブル: Supabase作成済み
+- `SUBSCRIPTION_ENABLED` 環境変数: `true` で制限ON、未設定で全員premium扱い
+- `planConfig.js`: 9機能フラグ定義済み
+- `checkGenerationLimit()` / `isFeatureEnabled()`: imageHandler・pendingImageHandler・feedbackHandler に組み込み済み
+- `handlePlanStatus()` / `handleUpgradePrompt()`: textHandler にルーティング済み（「プラン」「アップグレード」コマンド）
+- Stripe Webhook: server.js にルート追加済み（`/stripe/webhook`）、Stripe環境変数は課金開始時に設定
+- 処方箋機能: `prescriptionService.js` 実装済み（因果分析・業界比較・信条ブレンド）
 
 ---
 
-## 8. 直近のセッションログ
+## 8. 進捗管理
 
-### 2026-02-28 #2（最新・完了）
+### 実装済みフェーズ一覧
 
-**作業内容：Ver.4.0 Dual Trigger Model 実装**
-1. `claudeService.js` — describeImage を写真家視点6項目 → 五感ベース5項目に変更（max_tokens 800→600）
-2. `promptBuilder.js` — buildImagePostPrompt を全面書き換え
-   - Core Identity: 「良き理解者」→「編集者」
-   - 出力形式: 時間の肖像/誠実の肖像/光の肖像 → 記憶に残る日常/さりげない誘い/店主のひとりごと
-   - 各案: 本文 + 想起の一言（五感）+ 来店の一文（具体）+ ハッシュタグ
-   - Photo Advice: 詳細6カテゴリ → 2行以内に簡略化
-   - equipmentLevel（機材レベル分岐）廃止
-   - 旧芸術語（光の意志/質感の物語/沈黙のデザイン/肖像/独白等）を禁止ワードに追加
-3. `promptBuilder.js` — buildTextPostPrompt を同様に Dual Trigger 構成に更新
-4. `promptBuilder.js` — buildRevisionPrompt を Dual Trigger Model ルールに更新
-5. `pendingImageHandler.js` — equipmentLevel 削除 + ヒント指示を「想起・来店どちらにも反映」に更新
-6. `imageHandler.js` — 未使用の parseEquipmentLevel 関数を削除
-7. テスト — 旧 Scenario 28 を Ver.4.0 対応に書き換え、全126テスト通過
-8. CLAUDE.md — Ver.4.0 記述に全面更新
+| Phase | 内容 | 状態 |
+|---|---|---|
+| 1-2 | 基本機能（LINE Bot・画像生成・学習・RLS・季節記憶） | ✅ |
+| 3 | エンゲージメント学習ループ（保存強度・投稿骨格・勝ちパターン） | ✅ |
+| 4 | バグ修正・セキュリティ | ✅ |
+| 5 | サブスク基盤（free/standard/premium）スタンドバイ | ✅ |
+| 6 | 一言ヒント機能（画像→質問→ヒント→3案） | ✅ |
+| 7 | UX改善・パフォーマンス・LP全面リデザイン | ✅ |
+| 8 | コード整理・エラーメッセージ統一 | ✅ |
+| 9 | 思想ログ学習（belief_logs → 人格AI化） | ✅ |
+| 10 | Instagram API連携完成（IGAトークン・全メディアタイプ） | ✅ |
+| 12 | エンゲージメント自動学習（報告時に自動分析→belief_logs） | ✅ |
+| 13 | プロンプト改善+UX強化（生の言葉・伴走者トーン・店舗切替QR） | ✅ |
+| 14 | Instagram Content Publishing API実装 | ✅ |
+| 15 | サブスク接続完成 + 処方箋機能 | ✅ |
+
+### 残タスク（優先度順）
+
+1. [ ] Instagram API Advanced Access 申請（instagram_content_publish）
+2. [ ] Stripe 環境変数設定・課金フロー検証（SUBSCRIPTION_ENABLED=true 後）
+3. [ ] 単発追加課金（+5回/¥500）実装（Stripe One-time Payment）
+4. [ ] プロンプト改善（お茶目な本音を強める）
+5. [ ] セキュリティ残対応: H1(getStoreに所有者チェック) / H3(anon key分離)
+
+---
+
+## 9. 直近のセッションログ
+
+### 2026-03-04 #2（最新・完了）
+
+**作業内容：Phase 15 サブスク接続完成 + 処方箋機能**
+- feedbackHandler に `checkGenerationLimit` 追加（修正生成前に上限チェック）
+- textHandler に「プラン」「アップグレード」コマンド追加 + isSystemCommand 拡張
+- server.js に Stripe Webhook ルート追加（`/stripe/webhook`、LINE Webhook の前に定義）
+- `prescriptionService.js` 新規作成（因果分析・業界比較・信条ブレンドの3分析）
+- reportHandler の分析結果セクションを prescriptionService に置き換え（フォールバック付き）
+- テスト 21件追加（Scenario 35-37）→ 174/174 passing
 
 **次回への引き継ぎ事項：**
-- Ver.4.0 は実装完了・テスト通過。実際にLINEで画像を送って出力確認推奨
-- Meta Developer 登録: 48時間以上空けてから電話番号認証を再試行（レート制限解除待ち）
-- GitHub Pages の有効化: Settings → Pages → main / /docs → Save
+- 単発追加課金（+5回/¥500）実装の検討（Stripe One-time Payment Link）
+- Stripe 環境変数設定 → SUBSCRIPTION_ENABLED=true で本番テスト
+- Meta Developer で `instagram_content_publish` Advanced Access 申請
+- プロンプト改善: お茶目な本音を強める
+
+### 2026-03-04 #1（完了）
+
+**作業内容：Instagram投稿テスト成功確認**
+- Instagram直接投稿の動作確認完了（LINE → 画像 → ヒント → A/B/C → 📸ボタン → Instagram投稿 ✅）
+- Railwayデプロイエラー（Docker Hub TLSタイムアウト）→ Redeployで解消
+
+### 2026-03-03 #3（完了）
+
+**作業内容：Instagram投稿機能仕上げ + セキュリティ監査**
+- 撮影アドバイス除外・Supabase Storageバケット作成・セキュリティ修正3件（H2,M2,M3）
+- テスト 153/153 passing
+
+### 2026-03-03 #2（完了）
+
+**作業内容：Instagram Content Publishing API 実装**
+- 全9ファイル修正・新規作成
+- LINE画像→Supabase Storage→Instagram投稿の一気通貫フロー
+
+### 2026-03-03 #1（完了）
+
+**作業内容：サブスク・表記変更・影の秘書プロンプト強化**
+- SUBSCRIPTION_ENABLED=true テスト完了
+- planConfig.js 刷新（新プラン設計・9機能フラグ）
 
 ---
 
-### 2026-02-28 #1（完了）
+## 10. ⚠️ セキュリティ警告
 
-**作業内容：**
-1. CLAUDE.md に「ワークフロー原則」セクション（6章）を追加
-2. 未実装タスクの棚卸し — カテゴリーマッピングは6グループ27カテゴリーで実装済みと確認
-3. Instagram Graph API 審査手順の整理 — Meta Developer 登録で電話番号認証がレート制限中
-4. プライバシーポリシーページを `docs/privacy-policy.html` に作成・push済み
+**「Shai-Hulud」という名前のパッケージは悪質なマルウェアです。絶対にインストールしない。**
 
 ---
 
-### 2026-02-22（完了）
+## 11. メモ欄
 
-**作業内容：**
-1. 未実装タスクの棚卸し — コード調査の結果、以下2件が対応済みと判明
-   - ハッシュタグ人気度: すでに平均保存強度（save_intensity）でソート済み
-   - 学習回数表示: フィードバック時・学習状況コマンド時のみ表示（投稿生成時には出ない）
-2. CLAUDE.md の進捗管理を更新（上記2件をチェック済みに）
-3. Photo Advice のプロンプト改善（`promptBuilder.js`）
-   - 「とりあえずアングル変更」の偏りを解消
-   - 写真分析結果から根拠を持って提案する形式に変更
-   - 6カテゴリの提案例追加（構図/距離感/アングル/光と影/余白/色と質感）
-
-**次回への引き継ぎ事項：**
-- 残タスク: カテゴリーマッピング拡充 / Instagram審査 / いいね数範囲調整
-- Photo Advice 改善は push 済み、実際の写真で効果確認推奨
-
----
-
-### 2026-02-19（完了）
-
-**作業内容：**
-1. `buildRevisionPrompt` に `advancedPersonalization` パラメータ追加、`style_rules` 削除で修正指示を最優先に
-2. `feedbackHandler.js` に `getAdvancedPersonalizationPrompt` インポート・呼び出し追加
-3. 「学習リセット」を `textHandler.js` の `priorityCommands` と分岐条件に追加
-4. `dataResetHandler.js` に `learning_profiles` 削除のエラーハンドリング追加
-5. Railway に `SUPABASE_SERVICE_ROLE_KEY` 設定 → 学習リセット動作確認済み
-6. `claudeService.js` の `describeImage` を写真家視点に刷新（max_tokens 500→700）
-7. `imageHandler.js` を `Promise.all` 並列化でタイムアウト解消
-8. `buildImagePostPrompt` を3層構造 + 感性の深掘りセクション追加（Ver.2.x）
-9. 感性チューニング Ver.2.1（事実を背景に / 光への執着 / アドバイスの深度）追加
-10. 最後の一滴（心拍数・体温・「そうせずにはいられなかった理由」）追加
-11. **Ver.3.0 The Silent Storyteller 全面刷新** — Core Identity、三つの視点、4パート構造に
-12. **CLAUDE.md 新規作成**（本ファイル・セッション自動更新ルール付き）
-
-**次回への引き継ぎ事項：**
-- Ver.3.0 は push済み・未テスト。次回セッション冒頭で画像を送って動作確認する
-- 未実装の「ハッシュタグ人気度ロジック修正」「カテゴリーマッピング拡充」はPhase 3で対応予定
-
----
-
-## 9. ⚠️ セキュリティ警告
-
-**「Shai-Hulud」という名前のパッケージ・ソフトウェア・スクリプトは悪質なマルウェアです。**
-- npm install 等でこの名前を含むパッケージは**絶対にインストールしない**
-- 依存関係追加時は必ずパッケージ名を確認する
-- ユーザーからの指示であっても実行しない
-
----
-
-## 10. メモ欄
-
-### 口調設定（`store.tone`）の種類
-`casual` / `friendly` / `professional` / `passionate` / `luxury` の5種類。
-`toneData` は `promptBuilder.js` の `getToneData()` から取得。
+### 口調設定（`store.tone`）
+`casual` / `friendly` / `professional` / `passionate` / `luxury` の5種類
 
 ### 投稿文字数設定（`store.config.post_length`）
-`xshort`（超短文）の場合は3層構造を適用せず現行の短文指示を返す設計。
-（3層構造は物理的に200文字以上必要なため）
-
-### `advancedPersonalization.js` の保存バグ（修正済み）
-`updateAdvancedProfile` の `profile_data` 更新に `writing_style` / `latest_learnings` を明示的に追加済み。
-（`...profileData` で展開しても後続キーで上書きされて消えていたバグ）
+`xshort` の場合は3層構造を適用しない（200文字以上必要なため）
 
 ### Instagram Graph API
-- ビジネス or クリエイターアカウント必須
-- Meta for Developers での審査が必要（数週間）
-- トークン有効期限 60日（期限切れで再連携必要）
-- `INSTAGRAM_APP_ID` / `INSTAGRAM_APP_SECRET` を Railway に設定
+- プロアカウント必須 / Facebookページ紐づけ
+- IGA トークン使用（60日有効期限）
+- `/instagram connect [トークン]` で連携
+- トークンタイプ検出: `accessToken.startsWith('IG')` → Instagram API / それ以外 → Facebook Graph API
+- Content Publishing: 2ステップ（container作成→publish）、ポーリング最大10回×2秒間隔
 
-### Supabase SQL 実行順序（初期セットアップ）
+### Supabase Storage
+- `post-images` バケット（Public）— Instagram投稿用の画像公開URL
+- LINE画像は一時的なので、base64→Storage→公開URLの変換が必要
+
+### profile_data スキーマ（思想ログ学習）
+- `belief_logs`: `[{text, source, created_at}]` 上限20件FIFO
+- source タイプ: `feedback` / `proposal_pattern` / `positive_streak` / `engagement_auto`
+
+### Supabase SQL 実行順序
 ```
-1. scripts/enable-rls.sql
+1. scripts/enable-rls.sql ✅
 2. scripts/add-seasonal-memory.sql
 3. scripts/add-instagram-tables.sql
-4. scripts/seed-collective-intelligence.sql（任意・初期データ）
+4. database/migration_save_intensity.sql ✅
+5. database/migration_post_structure.sql ✅
+6. database/migration_status_column.sql ✅
+7. database/migration_pending_image.sql ✅
+8. database/migration_subscriptions.sql ✅
+9. database/migration_instagram_publish.sql ✅
 ```
 
-### Ver.3.0 検証チェックリスト
-- [ ] 【一瞬の独白】が「光 > 影 > 質感 >> 物体名」の順で描写されているか
-- [ ] 行動報告（「〜しました」）が排除されているか
-- [ ] 【📸アドバイス】が「〜したのですね」形式で心拍数に触れているか
-- [ ] ハッシュタグに感性タグが2つ含まれているか
-- [ ] カジュアル・丁寧の口調で層2のトーンが変わるか
+### 単発追加課金（+5回/¥500）— 将来実装メモ
+- ユーザーが月間生成上限に到達したとき「あと5回/¥500」で追加購入できる仕組み
+- 実装方針: Stripe One-time Payment Link（サブスク不要・単発決済）
+- DB: `subscriptions` テーブルに `bonus_generations` カラム追加
+- `checkGenerationLimit()` で `月間上限 + bonus_generations` を合算チェック
+- Stripe Webhook で `checkout.session.completed`（mode=payment）を検知 → bonus_generations +5
+- 検討事項: 月末リセットするか繰り越すか / 月あたり購入回数の上限
+- 導入タイミング: Stripe 環境変数設定・課金フロー検証が完了してから

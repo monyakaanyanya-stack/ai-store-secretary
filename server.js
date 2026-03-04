@@ -8,6 +8,7 @@ import { startScheduler } from './src/services/scheduler.js';
 import { sendWelcomeMessage } from './src/handlers/welcomeHandler.js';
 import { checkRateLimit, maskUserId } from './src/utils/security.js';
 import { replyText } from './src/services/lineService.js';
+import { handleStripeWebhook } from './src/handlers/stripeWebhookHandler.js';
 
 // ==================== C8: 起動時の環境変数検証 ====================
 const REQUIRED_ENV_VARS = [
@@ -50,6 +51,12 @@ app.use((req, res, next) => {
   res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   next();
 });
+
+// Stripe Webhook（raw body 必要・LINE Webhook の前に定義）
+app.post('/stripe/webhook',
+  express.raw({ type: 'application/json', limit: '1mb' }),
+  handleStripeWebhook
+);
 
 // C10: LINE Webhook は raw body が必要（署名検証用）+ リクエストサイズ制限
 app.post('/webhook', express.raw({ type: 'application/json', limit: '1mb' }), async (req, res) => {

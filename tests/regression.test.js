@@ -1809,3 +1809,209 @@ describe('Scenario 38: Instagram投稿機能（Content Publishing API）', async
     assert.ok(content.includes('published_via'), 'published_viaカラム追加がある');
   });
 });
+
+// ==================== Scenario 35: サブスクリプション — planConfig ====================
+describe('Scenario 35: サブスクリプション planConfig', async () => {
+  const { PLANS, getPlanConfig, PAID_PLANS } = await import('../src/config/planConfig.js');
+
+  it('3つのプランが定義されている', () => {
+    assert.ok(PLANS.free, 'free プランが存在する');
+    assert.ok(PLANS.standard, 'standard プランが存在する');
+    assert.ok(PLANS.premium, 'premium プランが存在する');
+  });
+
+  it('各プランに正しい月間生成数が設定されている', () => {
+    assert.equal(PLANS.free.monthlyGenerations, 10, 'free: 10回');
+    assert.equal(PLANS.standard.monthlyGenerations, 25, 'standard: 25回');
+    assert.equal(PLANS.premium.monthlyGenerations, 60, 'premium: 60回');
+  });
+
+  it('各プランに正しい最大店舗数が設定されている', () => {
+    assert.equal(PLANS.free.maxStores, 1, 'free: 1店舗');
+    assert.equal(PLANS.standard.maxStores, 3, 'standard: 3店舗');
+    assert.equal(PLANS.premium.maxStores, Infinity, 'premium: 無制限');
+  });
+
+  it('free プランでは処方箋・自動学習・人格学習が無効', () => {
+    assert.equal(PLANS.free.features.engagementPrescription, false, '処方箋は無効');
+    assert.equal(PLANS.free.features.engagementAutoLearn, false, '自動学習は無効');
+    assert.equal(PLANS.free.features.advancedPersonalization, false, '人格学習は無効');
+  });
+
+  it('standard プランでは処方箋・自動学習・人格学習が有効', () => {
+    assert.equal(PLANS.standard.features.engagementPrescription, true, '処方箋が有効');
+    assert.equal(PLANS.standard.features.engagementAutoLearn, true, '自動学習が有効');
+    assert.equal(PLANS.standard.features.advancedPersonalization, true, '人格学習が有効');
+  });
+
+  it('premium プランでは全機能が有効', () => {
+    const features = PLANS.premium.features;
+    for (const [key, value] of Object.entries(features)) {
+      assert.equal(value, true, `premium: ${key} が有効`);
+    }
+  });
+
+  it('全プランに9つの機能フラグがある', () => {
+    const expectedFlags = [
+      'collectiveIntelligence', 'seasonalMemory', 'advancedPersonalization',
+      'proposalABC', 'engagementHealthCheck', 'engagementPrescription',
+      'engagementAutoLearn', 'instagramSchedulePost', 'dataCollection',
+    ];
+    for (const plan of Object.values(PLANS)) {
+      for (const flag of expectedFlags) {
+        assert.ok(flag in plan.features, `${plan.name} に ${flag} がある`);
+      }
+    }
+  });
+
+  it('getPlanConfig が不明プランで free にフォールバック', () => {
+    const result = getPlanConfig('unknown');
+    assert.equal(result.name, 'フリープラン', '不明プランは free');
+  });
+
+  it('PAID_PLANS に free が含まれない', () => {
+    const freeInPaid = PAID_PLANS.find(p => p.key === 'free');
+    assert.equal(freeInPaid, undefined, 'free は有料プラン一覧に含まれない');
+    assert.equal(PAID_PLANS.length, 2, '有料プランは2つ');
+  });
+});
+
+// ==================== Scenario 36: サブスク接続検証 ====================
+describe('Scenario 36: サブスク接続検証', async () => {
+  const fs = await import('node:fs');
+
+  it('feedbackHandler に checkGenerationLimit がある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/feedbackHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes("import { checkGenerationLimit }"),
+      'checkGenerationLimit をインポートしている');
+    assert.ok(content.includes('checkGenerationLimit(user.id)'),
+      '修正生成前に上限チェックしている');
+    assert.ok(content.includes('genLimit.allowed'),
+      'allowed フラグで判定している');
+  });
+
+  it('textHandler にプラン/アップグレードコマンドがある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/textHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes("handlePlanStatus"),
+      'handlePlanStatus をインポートしている');
+    assert.ok(content.includes("handleUpgradePrompt"),
+      'handleUpgradePrompt をインポートしている');
+    assert.ok(content.includes("'プラン'") && content.includes('/plan'),
+      'プラン コマンドのルーティングがある');
+    assert.ok(content.includes("'アップグレード'") && content.includes('/upgrade'),
+      'アップグレード コマンドのルーティングがある');
+  });
+
+  it('textHandler の isSystemCommand にプラン/アップグレードが含まれる', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/textHandler.js', import.meta.url), 'utf-8'
+    );
+    // isSystemCommand の配列内にプラン・アップグレードがあること
+    const sysCommandSection = content.match(/const isSystemCommand = \[[\s\S]*?\]\.includes/);
+    assert.ok(sysCommandSection, 'isSystemCommand 定義が存在する');
+    assert.ok(sysCommandSection[0].includes("'プラン'"), 'プラン が isSystemCommand に含まれる');
+    assert.ok(sysCommandSection[0].includes("'アップグレード'"), 'アップグレード が isSystemCommand に含まれる');
+  });
+
+  it('server.js に Stripe Webhook ルートがある', () => {
+    const content = fs.readFileSync(
+      new URL('../server.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes("handleStripeWebhook"),
+      'handleStripeWebhook をインポートしている');
+    assert.ok(content.includes("'/stripe/webhook'"),
+      'Stripe Webhook ルートが定義されている');
+  });
+
+  it('server.js で Stripe Webhook が LINE Webhook の前に定義されている', () => {
+    const content = fs.readFileSync(
+      new URL('../server.js', import.meta.url), 'utf-8'
+    );
+    const stripePos = content.indexOf("'/stripe/webhook'");
+    const linePos = content.indexOf("'/webhook'", stripePos + 1);
+    assert.ok(stripePos < linePos,
+      'Stripe Webhook は LINE Webhook より前に定義されるべき');
+  });
+});
+
+// ==================== Scenario 37: 処方箋サービス ====================
+describe('Scenario 37: 処方箋サービス prescriptionService', async () => {
+  const fs = await import('node:fs');
+
+  it('prescriptionService.js が存在する', () => {
+    assert.ok(
+      fs.existsSync('src/services/prescriptionService.js'),
+      'prescriptionService.js が作成されているべき'
+    );
+  });
+
+  it('3つの分析関数がエクスポートされている', async () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/prescriptionService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('export async function getCausalAnalysis'),
+      'getCausalAnalysis がエクスポートされている');
+    assert.ok(content.includes('export async function getIndustryBenchmark'),
+      'getIndustryBenchmark がエクスポートされている');
+    assert.ok(content.includes('export async function getBeliefBlendedTip'),
+      'getBeliefBlendedTip がエクスポートされている');
+    assert.ok(content.includes('export async function generatePrescription'),
+      'generatePrescription がエクスポートされている');
+  });
+
+  it('reportHandler が prescriptionService を使用している', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/reportHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes("import { generatePrescription }"),
+      'generatePrescription をインポートしている');
+    assert.ok(content.includes('generatePrescription(store'),
+      'generatePrescription を呼び出している');
+  });
+
+  it('getCausalAnalysis が前回比較ロジックを持つ', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/prescriptionService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('data.length < 2'),
+      '比較対象がない場合にnullを返す');
+    assert.ok(content.includes('prevSI * 1.5'),
+      '1.5倍以上で上昇判定');
+    assert.ok(content.includes('prevSI * 0.5'),
+      '0.5倍以下で下降判定');
+  });
+
+  it('getIndustryBenchmark がパーセンタイル計算を持つ', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/prescriptionService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('percentile'),
+      'パーセンタイル計算がある');
+    assert.ok(content.includes('normalizeCategory'),
+      'カテゴリー正規化を使用している');
+    assert.ok(content.includes('data.length < 3'),
+      'データ不足時にnullを返す');
+  });
+
+  it('getBeliefBlendedTip が belief_logs を参照する', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/prescriptionService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('belief_logs'),
+      'belief_logs を参照している');
+    assert.ok(content.includes('learning_profiles'),
+      'learning_profiles テーブルを使用している');
+  });
+
+  it('generatePrescription がフォールバック付きで reportHandler から呼ばれる', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/reportHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('catch (err)') && content.includes('処方箋生成エラー'),
+      'エラー時のフォールバックがある');
+  });
+});

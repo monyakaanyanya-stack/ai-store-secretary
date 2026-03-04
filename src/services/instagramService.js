@@ -539,17 +539,18 @@ export async function checkContainerStatus(account, containerId) {
  * @param {string} containerId
  * @param {number} maxAttempts - 最大試行回数（デフォルト10回 = 最大20秒）
  */
-async function waitForContainerReady(account, containerId, maxAttempts = 10) {
+async function waitForContainerReady(account, containerId, maxAttempts = 15) {
   for (let i = 0; i < maxAttempts; i++) {
     const status = await checkContainerStatus(account, containerId);
+    console.log(`[Instagram] コンテナ状態確認 (${i + 1}/${maxAttempts}): ${status.status_code}`);
     if (status.status_code === 'FINISHED') return true;
     if (status.status_code === 'ERROR') {
-      throw new Error('メディアコンテナ作成に失敗しました');
+      throw new Error(`メディアコンテナ作成に失敗しました (status: ${JSON.stringify(status)})`);
     }
-    // 2秒待機
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // 3秒待機（Instagram側の処理時間を確保）
+    await new Promise(resolve => setTimeout(resolve, 3000));
   }
-  throw new Error('メディアコンテナ作成がタイムアウトしました');
+  throw new Error('メディアコンテナ作成がタイムアウトしました（45秒経過）');
 }
 
 /**
@@ -585,8 +586,24 @@ export async function publishToInstagram(storeId, imageUrl, caption) {
   // ステータスポーリング
   await waitForContainerReady(account, container.id);
 
-  // ステップ2: 公開
-  const published = await publishMediaContainer(account, container.id);
+  // FINISHED後もInstagram側の内部処理があるため少し待つ
+  await new Promise(resolve => setTimeout(resolve, 3000));
+
+  // ステップ2: 公開（リトライあり — 9007エラー対策）
+  let published;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      published = await publishMediaContainer(account, container.id);
+      break;
+    } catch (err) {
+      if (attempt < 3 && err.message.includes('9007')) {
+        console.warn(`[Instagram] 公開リトライ (${attempt}/3): ${err.message}`);
+        await new Promise(resolve => setTimeout(resolve, 5000));
+      } else {
+        throw err;
+      }
+    }
+  }
   console.log(`[Instagram] 投稿完了: media_id=${published.id}`);
 
   // instagram_posts テーブルに記録
