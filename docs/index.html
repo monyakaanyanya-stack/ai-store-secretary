@@ -589,6 +589,8 @@
 
       .problem-grid { grid-template-columns: 1fr; }
       .proof-grid { grid-template-columns: 1fr; gap: 24px; }
+      .output-grid { grid-template-columns: 1fr !important; }
+      .feature-item { flex-direction: column; gap: 12px !important; }
 
       .footer-inner {
         flex-direction: column;
@@ -726,6 +728,97 @@
           </div>
         </div>
 
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ Features: 5つの仕組み ═══════════════ -->
+  <section class="section section-alt">
+    <div class="container">
+      <p class="label">Features</p>
+      <h2 class="title">5つの仕組み</h2>
+
+      <div style="margin-top:48px;max-width:780px;">
+        <div style="border-top:1px solid var(--border);padding:40px 0;display:flex;gap:32px;align-items:baseline;">
+          <span style="font-size:clamp(1.6rem,3vw,2.2rem);font-weight:700;color:var(--accent-soft);min-width:56px;">01</span>
+          <div>
+            <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:8px;">画像を送るだけで投稿完成</h3>
+            <p style="font-size:0.88rem;color:var(--text-muted);line-height:1.9;">LINEで写真を送ると、AIが画像を5つの視点で分析。3つの異なるコンセプトで投稿案を生成します。投稿の方向性（お知らせ/日常感/お役立ち）をボタンで選べば、さらに的確な提案に。</p>
+          </div>
+        </div>
+        <div style="border-top:1px solid var(--border);padding:40px 0;display:flex;gap:32px;align-items:baseline;">
+          <span style="font-size:clamp(1.6rem,3vw,2.2rem);font-weight:700;color:var(--accent-soft);min-width:56px;">02</span>
+          <div>
+            <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:8px;">使うほど「お店の声」に育つ</h3>
+            <p style="font-size:0.88rem;color:var(--text-muted);line-height:1.9;">フィードバックや修正指示をAIが学習し、「思想ログ」として蓄積。10回、20回と使ううちに「あ、うちっぽい」という文章に変わっていきます。口癖・NGワード・性格も設定可能。</p>
+          </div>
+        </div>
+        <div style="border-top:1px solid var(--border);padding:40px 0;display:flex;gap:32px;align-items:baseline;">
+          <span style="font-size:clamp(1.6rem,3vw,2.2rem);font-weight:700;color:var(--accent-soft);min-width:56px;">03</span>
+          <div>
+            <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:8px;">同業種の成功パターンを活用</h3>
+            <p style="font-size:0.88rem;color:var(--text-muted);line-height:1.9;">27業種以上に対応した集合知エンジン。同じ業種で保存されやすかった投稿の文字数・絵文字数・書き出し・CTA位置を自動で分析し、あなたの投稿に反映します。</p>
+          </div>
+        </div>
+        <div style="border-top:1px solid var(--border);padding:40px 0;display:flex;gap:32px;align-items:baseline;">
+          <span style="font-size:clamp(1.6rem,3vw,2.2rem);font-weight:700;color:var(--accent-soft);min-width:56px;">04</span>
+          <div>
+            <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:8px;">エンゲージメント自動学習</h3>
+            <p style="font-size:0.88rem;color:var(--text-muted);line-height:1.9;">投稿後の反応（いいね・保存・コメント）を報告すると、保存強度やエンゲージメント率（ER）を自動計算。高パフォーマンス投稿の成功要因をAIが分析し、次の提案に自動反映します。</p>
+          </div>
+        </div>
+        <div style="border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:40px 0;display:flex;gap:32px;align-items:baseline;">
+          <span style="font-size:clamp(1.6rem,3vw,2.2rem);font-weight:700;color:var(--accent-soft);min-width:56px;">05</span>
+          <div>
+            <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:8px;">Instagram連携でデータ同期</h3>
+            <p style="font-size:0.88rem;color:var(--text-muted);line-height:1.9;">Instagramアカウントを接続すれば、過去の投稿データ（いいね・リーチ・保存数）を自動取得。手入力なしでエンゲージメントデータを蓄積し、高精度な提案につなげます。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ Output: 実際に届く投稿案 ═══════════ -->
+  <section class="section section-center">
+    <div class="container">
+      <p class="label">Output</p>
+      <h2 class="title">実際に届く投稿案</h2>
+      <p class="desc">写真1枚から、3つの異なる切り口で投稿案を提案します。</p>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:56px;margin-top:56px;align-items:start;text-align:left;">
+        <div>
+          <h3 style="font-size:1.2rem;font-weight:700;margin-bottom:16px;">3案から選ぶだけ</h3>
+          <p style="font-size:0.88rem;color:var(--text-muted);line-height:1.9;margin-bottom:32px;">AIが画像を分析し、3つの異なるコンセプトで投稿案を生成。「記憶に残る日常」「さりげない誘い」「店主のひとりごと」の中から、その日の気分で選べます。</p>
+
+          <div style="border-top:1px solid var(--border);">
+            <div style="padding:20px 0;border-bottom:1px solid var(--border);display:flex;gap:24px;">
+              <span style="font-weight:700;font-size:0.88rem;min-width:110px;">本文</span>
+              <p style="font-size:0.85rem;color:var(--text-muted);line-height:1.8;">お店の口調に合わせた投稿文。<strong>超短文（80字）〜長文（500字）</strong>まで設定可能。</p>
+            </div>
+            <div style="padding:20px 0;border-bottom:1px solid var(--border);display:flex;gap:24px;">
+              <span style="font-weight:700;font-size:0.88rem;min-width:110px;">想起の一言</span>
+              <p style="font-size:0.85rem;color:var(--text-muted);line-height:1.8;">五感（香り・音・温度・光・手触り）を含む15〜25文字。<strong>お店を思い出させる</strong>トリガー。</p>
+            </div>
+            <div style="padding:20px 0;border-bottom:1px solid var(--border);display:flex;gap:24px;">
+              <span style="font-weight:700;font-size:0.88rem;min-width:110px;">来店の一文</span>
+              <p style="font-size:0.85rem;color:var(--text-muted);line-height:1.8;">「今」「数量」「時間」など具体情報を1つ含め、<strong>押し売りにならない</strong>来店誘導。</p>
+            </div>
+            <div style="padding:20px 0;border-bottom:1px solid var(--border);display:flex;gap:24px;">
+              <span style="font-weight:700;font-size:0.88rem;min-width:110px;">ハッシュタグ</span>
+              <p style="font-size:0.85rem;color:var(--text-muted);line-height:1.8;">同業種で<strong>高エンゲージメントのタグ</strong>を自動選定。汎用タグは使わない。</p>
+            </div>
+            <div style="padding:20px 0;display:flex;gap:24px;">
+              <span style="font-weight:700;font-size:0.88rem;min-width:110px;">撮影アドバイス</span>
+              <p style="font-size:0.85rem;color:var(--text-muted);line-height:1.8;">今回の写真を褒めつつ、<strong>次の投稿ネタ</strong>を1つ提案。</p>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="phone-frame" style="max-width:280px;margin:0 auto;">
+            <img src="images/S__336166928_0.jpg" alt="3案が届く実際の画面">
+          </div>
+        </div>
       </div>
     </div>
   </section>
