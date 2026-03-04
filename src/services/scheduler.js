@@ -4,6 +4,7 @@ import { collectDailySummary } from './dailySummaryService.js';
 import { notifyDailySummary, notifyCategoryPromotion } from './errorNotification.js';
 import { sendMonthlyFollowerRequests } from './monthlyFollowerService.js';
 import { detectPopularOtherCategories } from './collectiveIntelligence.js';
+import { sendWeeklyPlansToAllPremium } from './weeklyPlanService.js';
 
 // H18修正: cron ジョブの重複実行防止ロック
 const jobLocks = new Map();
@@ -79,9 +80,18 @@ export function startScheduler() {
     timezone: 'UTC'
   });
 
+  // 毎週月曜 朝8時（日本時間）にPremiumユーザーに週間計画を送信
+  // JST 8:00 月曜 = UTC 23:00 日曜
+  cron.schedule('0 23 * * 0', () => {
+    runWithLock('週間コンテンツ計画', sendWeeklyPlansToAllPremium);
+  }, {
+    timezone: 'UTC'
+  });
+
   console.log('[Scheduler] スケジューラー起動完了');
   console.log('  - デイリーリマインダー: 毎日 UTC 1:00 (JST 10:00)');
   console.log('  - デイリーサマリー: 毎日 UTC 14:59 (JST 23:59)');
   console.log('  - 月次フォロワー数収集: 毎月1日 UTC 1:00 (JST 10:00)');
   console.log('  - カテゴリー昇格チェック: 毎週月曜 UTC 0:00 (JST 9:00)');
+  console.log('  - 週間コンテンツ計画: 毎週日曜 UTC 23:00 (JST 月曜 8:00)');
 }

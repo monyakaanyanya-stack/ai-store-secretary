@@ -267,7 +267,7 @@ function buildCharacterSection(store) {
 /**
  * 画像から投稿を生成するプロンプト
  */
-export function buildImagePostPrompt(store, lengthOverride = null, blendedInsights = null, personalization = '', imageDescription = null) {
+export function buildImagePostPrompt(store, lengthOverride = null, blendedInsights = null, personalization = '', imageDescription = null, options = {}) {
   const postLength = lengthOverride || store.config?.post_length || 'xshort';
   const lengthInfo = getPostLengthInfo(postLength);
   const toneData = getToneData(store.tone);
@@ -519,6 +519,12 @@ ${hashtagInstruction ? '上記のハッシュタグルールに従うこと。' 
 次に「なぜそれを撮ることに価値があるのか」——その物語の裏付けを添えて、次の提案をする（1〜2文）。
 技術指導ではなく「あなたの店の価値を再発見する体験」になるトーンで。合計3行以内。
 例: 「バターが溶ける瞬間を撮れるのは、店主さんだけの贅沢ですよね。その瞬間を切り取れたら、見てる人にもその贅沢をお裾分けできますよ。次はもう少し寄りで、湯気ごと撮ってみませんか？」
+${options.isPremium ? `
+🎯 明日撮るべきもの
+上記の撮影提案に加えて、「明日これを撮ってください」と具体的に1つだけ指定する。
+被写体・アングル・タイミングを明確に書く（例: 「明日の仕込み中、生地をこねている手元を真上から」）。
+その撮影が「なぜ反応が取れそうか」を、この業種の傾向やデータを踏まえて1文で説明する。
+例: 「明日、閉店直前のカウンターを少し引きで。常連さんが帰った後の空席が写ると"日常の余韻"として保存されやすい傾向があります」` : ''}
 ━━━━━━━━━━━━━━━━━━━━━━━━
 
 投稿文のみを出力してください。説明や補足は一切不要です。`;

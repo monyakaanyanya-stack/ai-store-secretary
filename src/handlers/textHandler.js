@@ -23,6 +23,7 @@ import { handlePendingImageResponse } from './pendingImageHandler.js';
 import { handleFollowerCountResponse, getPendingFollowerRequest } from '../services/monthlyFollowerService.js';
 import { handleDataResetPrompt, handleDataResetExecution, handleStoreDeletePrompt, handleStoreDeleteExecution } from './dataResetHandler.js';
 import { handlePlanStatus, handleUpgradePrompt } from './subscriptionHandler.js';
+import { handleWeeklyPlan } from './weeklyPlanHandler.js';
 import { applyFeedbackToProfile } from '../services/personalizationEngine.js';
 import {
   generateConversationalResponse,
@@ -102,7 +103,7 @@ export async function handleTextMessage(user, text, replyToken) {
   // （システムコマンドはスキップ、それ以外はここで受け取る）
   const isSystemCommand = ['キャンセル', 'cancel', 'リセット', 'データリセット',
     '店舗一覧', '店舗切り替え', '店舗切替', '店舗削除', 'ヘルプ', 'help', '学習状況', '問い合わせ', '登録',
-    'プラン', 'アップグレード'].includes(trimmed)
+    'プラン', 'アップグレード', '今週の計画'].includes(trimmed)
     || trimmed.startsWith('切替:') || trimmed.startsWith('/');
   if (user.pending_image_context && !isSystemCommand) {
     const handled = await handlePendingImageResponse(user, trimmed, replyToken);
@@ -255,6 +256,11 @@ export async function handleTextMessage(user, text, replyToken) {
   // アップグレード
   if (trimmed === 'アップグレード' || trimmed === '/upgrade') {
     return await handleUpgradePrompt(user, replyToken);
+  }
+
+  // 週間コンテンツ計画
+  if (trimmed === '今週の計画' || trimmed === '/weekly') {
+    return await handleWeeklyPlan(user, replyToken);
   }
 
   // ヘルプ: 階層型メニュー

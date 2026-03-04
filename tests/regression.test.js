@@ -1606,7 +1606,7 @@ describe('Scenario 32: プラン制限・機能ゲーティング', async () => 
     assert.equal(PLANS.free.features.engagementAutoLearn, false, '自動学習はFreeで無効');
     assert.equal(PLANS.free.features.seasonalMemory, false, '季節記憶はFreeで無効');
     assert.equal(PLANS.free.features.advancedPersonalization, false, '人格学習はFreeで無効');
-    assert.equal(PLANS.free.features.instagramSchedulePost, false, 'Instagram予約投稿はFreeで無効');
+    assert.equal(PLANS.free.features.instagramPost, false, 'Instagram投稿はFreeで無効');
   });
 
   // --- Standard で有効になる機能 ---
@@ -1617,15 +1617,20 @@ describe('Scenario 32: プラン制限・機能ゲーティング', async () => 
     assert.equal(PLANS.standard.features.advancedPersonalization, true);
   });
 
-  it('Standard ではInstagram予約投稿が無効', () => {
-    assert.equal(PLANS.standard.features.instagramSchedulePost, false);
+  it('Standard以上でInstagram投稿が有効', () => {
+    assert.equal(PLANS.standard.features.instagramPost, true);
+    assert.equal(PLANS.premium.features.instagramPost, true);
+    assert.equal(PLANS.free.features.instagramPost, false);
   });
 
   // --- Premium 限定機能 ---
-  it('Premium のみInstagram予約投稿が有効', () => {
-    assert.equal(PLANS.premium.features.instagramSchedulePost, true);
-    assert.equal(PLANS.standard.features.instagramSchedulePost, false);
-    assert.equal(PLANS.free.features.instagramSchedulePost, false);
+  it('Premium のみ週間計画・強化版アドバイスが有効', () => {
+    assert.equal(PLANS.premium.features.weeklyContentPlan, true);
+    assert.equal(PLANS.premium.features.enhancedPhotoAdvice, true);
+    assert.equal(PLANS.standard.features.weeklyContentPlan, false);
+    assert.equal(PLANS.standard.features.enhancedPhotoAdvice, false);
+    assert.equal(PLANS.free.features.weeklyContentPlan, false);
+    assert.equal(PLANS.free.features.enhancedPhotoAdvice, false);
   });
 
   // --- getPlanConfig フォールバック ---
@@ -1664,7 +1669,9 @@ describe('Scenario 32: プラン制限・機能ゲーティング', async () => 
     assert.ok(content.includes('engagementHealthCheck'), '健康診断フラグを参照');
     assert.ok(content.includes('engagementPrescription'), '処方箋フラグを参照');
     assert.ok(content.includes('engagementAutoLearn'), '自動学習フラグを参照');
-    assert.ok(content.includes('instagramSchedulePost'), 'Instagram予約投稿フラグを参照');
+    assert.ok(content.includes('instagramPost'), 'Instagram投稿フラグを参照');
+    assert.ok(content.includes('weeklyContentPlan'), '週間計画フラグを参照');
+    assert.ok(content.includes('enhancedPhotoAdvice'), '強化版アドバイスフラグを参照');
   });
 
   // --- SUBSCRIPTION_ENABLED グローバルスイッチ ---
@@ -1851,11 +1858,12 @@ describe('Scenario 35: サブスクリプション planConfig', async () => {
     }
   });
 
-  it('全プランに9つの機能フラグがある', () => {
+  it('全プランに11の機能フラグがある', () => {
     const expectedFlags = [
       'collectiveIntelligence', 'seasonalMemory', 'advancedPersonalization',
       'proposalABC', 'engagementHealthCheck', 'engagementPrescription',
-      'engagementAutoLearn', 'instagramSchedulePost', 'dataCollection',
+      'engagementAutoLearn', 'instagramPost', 'weeklyContentPlan',
+      'enhancedPhotoAdvice', 'dataCollection',
     ];
     for (const plan of Object.values(PLANS)) {
       for (const flag of expectedFlags) {
@@ -2013,5 +2021,154 @@ describe('Scenario 37: 処方箋サービス prescriptionService', async () => {
     );
     assert.ok(content.includes('catch (err)') && content.includes('処方箋生成エラー'),
       'エラー時のフォールバックがある');
+  });
+});
+
+// ==================== Scenario 38: Phase 16 — planConfig リネーム検証 ====================
+describe('Scenario 38: instagramSchedulePost → instagramPost リネーム検証', async () => {
+  const fs = await import('node:fs');
+
+  it('planConfig に instagramSchedulePost が存在しない', () => {
+    const content = fs.readFileSync(
+      new URL('../src/config/planConfig.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(!content.includes('instagramSchedulePost'),
+      '旧フラグ名が残っていない');
+    assert.ok(content.includes('instagramPost'),
+      '新フラグ名が存在する');
+  });
+
+  it('subscriptionService に旧フラグ名が残っていない', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/subscriptionService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(!content.includes('instagramSchedulePost'),
+      '旧フラグ名が残っていない');
+    assert.ok(content.includes('instagramPost'),
+      '新フラグ名を参照している');
+  });
+});
+
+// ==================== Scenario 39: Phase 16 — 週間コンテンツ計画 ====================
+describe('Scenario 39: 週間コンテンツ計画', async () => {
+  const fs = await import('node:fs');
+
+  it('weeklyPlanService.js が存在する', () => {
+    assert.ok(
+      fs.existsSync('src/services/weeklyPlanService.js'),
+      'weeklyPlanService.js が作成されているべき'
+    );
+  });
+
+  it('必要な関数がエクスポートされている', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/weeklyPlanService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('export async function generateWeeklyPlan'),
+      'generateWeeklyPlan がエクスポートされている');
+    assert.ok(content.includes('export async function getLatestWeeklyPlan'),
+      'getLatestWeeklyPlan がエクスポートされている');
+    assert.ok(content.includes('export function formatWeeklyPlanMessage'),
+      'formatWeeklyPlanMessage がエクスポートされている');
+    assert.ok(content.includes('export async function sendWeeklyPlansToAllPremium'),
+      'sendWeeklyPlansToAllPremium がエクスポートされている');
+  });
+
+  it('Claude API と集合知データを使用している', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/weeklyPlanService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('askClaude'), 'Claude API を呼び出している');
+    assert.ok(content.includes('getBlendedInsights'), '集合知データを使用している');
+    assert.ok(content.includes('getAdvancedPersonalizationPrompt'), 'パーソナライゼーションを使用');
+  });
+
+  it('異業種インサイト取得機能がある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/weeklyPlanService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('getCrossIndustryInsight'), '異業種インサイト関数がある');
+    assert.ok(content.includes('crossIndustryInsight'), 'クロスインダストリーデータ構造がある');
+  });
+
+  it('weeklyPlanHandler.js が存在する', () => {
+    assert.ok(
+      fs.existsSync('src/handlers/weeklyPlanHandler.js'),
+      'weeklyPlanHandler.js が作成されているべき'
+    );
+  });
+
+  it('weeklyPlanHandler が isFeatureEnabled でゲーティングしている', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/weeklyPlanHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('isFeatureEnabled'), '機能ゲーティングがある');
+    assert.ok(content.includes('weeklyContentPlan'), 'weeklyContentPlan フラグを参照');
+    assert.ok(content.includes('プレミアムプラン'), '非Premium時のアップグレード案内がある');
+  });
+
+  it('textHandler に今週の計画コマンドがある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/textHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes("'今週の計画'"), '今週の計画コマンドのルーティングがある');
+    assert.ok(content.includes('/weekly'), '/weekly コマンドのルーティングがある');
+    assert.ok(content.includes('handleWeeklyPlan'), 'handleWeeklyPlan を呼んでいる');
+  });
+
+  it('scheduler.js に週間計画のcronジョブがある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/scheduler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('sendWeeklyPlansToAllPremium'),
+      '週間計画送信関数を呼んでいる');
+    assert.ok(content.includes('週間コンテンツ計画'),
+      'ジョブ名が設定されている');
+  });
+
+  it('DBマイグレーションファイルがある', () => {
+    assert.ok(
+      fs.existsSync('database/migration_weekly_plans.sql'),
+      'migration_weekly_plans.sql が作成されているべき'
+    );
+    const content = fs.readFileSync(
+      new URL('../database/migration_weekly_plans.sql', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('weekly_content_plans'), 'テーブル名が正しい');
+    assert.ok(content.includes('plan_content'), 'JSONB カラムがある');
+    assert.ok(content.includes('week_start'), '週開始日カラムがある');
+  });
+});
+
+// ==================== Scenario 40: Phase 16 — 強化版撮影アドバイス ====================
+describe('Scenario 40: 強化版撮影アドバイス', async () => {
+  const fs = await import('node:fs');
+
+  it('buildImagePostPrompt が options パラメータを受け付ける', () => {
+    const content = fs.readFileSync(
+      new URL('../src/utils/promptBuilder.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('options') && content.includes('isPremium'),
+      'options.isPremium パラメータがある');
+  });
+
+  it('Premium 向けの強化撮影アドバイスが含まれる', () => {
+    const content = fs.readFileSync(
+      new URL('../src/utils/promptBuilder.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('明日撮るべきもの'),
+      'Premium向け「明日撮るべきもの」セクションがある');
+    assert.ok(content.includes('なぜ反応が取れそうか'),
+      '理由説明の指示がある');
+  });
+
+  it('pendingImageHandler で enhancedPhotoAdvice チェックがある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/pendingImageHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('enhancedPhotoAdvice'),
+      'enhancedPhotoAdvice フラグを参照している');
+    assert.ok(content.includes('isPremium'),
+      'isPremium をプロンプトビルダーに渡している');
   });
 });

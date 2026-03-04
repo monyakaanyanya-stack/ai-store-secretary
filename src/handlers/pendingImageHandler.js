@@ -4,7 +4,7 @@ import { getStore, savePostHistory, clearPendingImageContext } from '../services
 import { buildImagePostPrompt } from '../utils/promptBuilder.js';
 import { saveEngagementMetrics } from '../services/collectiveIntelligence.js';
 import { getRevisionExample } from '../utils/categoryExamples.js';
-import { checkGenerationLimit } from '../services/subscriptionService.js';
+import { checkGenerationLimit, isFeatureEnabled } from '../services/subscriptionService.js';
 
 // pending_image_context の有効期限（30分）
 const PENDING_EXPIRE_MS = 30 * 60 * 1000;
@@ -69,12 +69,14 @@ export async function handlePendingImageResponse(user, text, replyToken) {
       ? `${ctx.imageDescription}\n\n【店主からの補足情報（想起・来店どちらのトリガーにも自然に反映してよい）】${hint}`
       : ctx.imageDescription;
 
+    const isPremium = await isFeatureEnabled(user.id, 'enhancedPhotoAdvice');
     const prompt = buildImagePostPrompt(
       store,
       null,
       ctx.blendedInsights ?? null,
       ctx.personalization ?? '',
       enrichedDescription,
+      { isPremium },
     );
 
     const rawContent = await askClaude(prompt);

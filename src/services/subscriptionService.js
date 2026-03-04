@@ -260,8 +260,10 @@ export async function buildPlanSummaryMessage(userId) {
     `人格学習:           ${planConfig.features.advancedPersonalization ? '✅' : '❌'}`,
     `報告（数値）:       ${planConfig.features.engagementHealthCheck   ? '✅' : '❌'}`,
     `分析結果:           ${planConfig.features.engagementPrescription  ? '✅' : '❌'}`,
-    `自動学習→反映:     ${planConfig.features.engagementAutoLearn      ? '✅' : '❌'}`,
-    `Instagram予約投稿: ${planConfig.features.instagramSchedulePost   ? '✅' : '❌'}`,
+    `自動学習→反映:       ${planConfig.features.engagementAutoLearn      ? '✅' : '❌'}`,
+    `Instagram投稿:       ${planConfig.features.instagramPost            ? '✅' : '❌'}`,
+    `週間コンテンツ計画:   ${planConfig.features.weeklyContentPlan        ? '✅' : '❌'}`,
+    `強化版撮影アドバイス: ${planConfig.features.enhancedPhotoAdvice      ? '✅' : '❌'}`,
   ].join('\n');
 
   let periodLine = '';

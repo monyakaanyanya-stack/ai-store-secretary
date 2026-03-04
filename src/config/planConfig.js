@@ -12,7 +12,9 @@
  *   engagementHealthCheck     - 健康診断（数字だけ見れる）→ 全プラン
  *   engagementPrescription    - 処方箋（因果分析・業界比較・勝ちパターン）
  *   engagementAutoLearn       - エンゲージメント→プロンプト自動反映
- *   instagramSchedulePost     - Instagram予約投稿（API経由）
+ *   instagramPost             - Instagram投稿（API経由）→ Standard以上
+ *   weeklyContentPlan         - 週間コンテンツ計画（月曜自動送信）→ Premium
+ *   enhancedPhotoAdvice       - 強化版撮影アドバイス（明日撮るべきもの+理由）→ Premium
  *   dataCollection            - エンゲージメントデータ裏収集（集合知貢献）→ 全プラン
  */
 
@@ -29,7 +31,9 @@ export const PLANS = {
       engagementHealthCheck: true,
       engagementPrescription: false,
       engagementAutoLearn: false,
-      instagramSchedulePost: false,
+      instagramPost: false,
+      weeklyContentPlan: false,
+      enhancedPhotoAdvice: false,
       dataCollection: true,
     },
     price: 0,
@@ -48,7 +52,9 @@ export const PLANS = {
       engagementHealthCheck: true,
       engagementPrescription: true,
       engagementAutoLearn: true,
-      instagramSchedulePost: false,
+      instagramPost: true,
+      weeklyContentPlan: false,
+      enhancedPhotoAdvice: false,
       dataCollection: true,
     },
     price: 2980,
@@ -67,7 +73,9 @@ export const PLANS = {
       engagementHealthCheck: true,
       engagementPrescription: true,
       engagementAutoLearn: true,
-      instagramSchedulePost: true,
+      instagramPost: true,
+      weeklyContentPlan: true,
+      enhancedPhotoAdvice: true,
       dataCollection: true,
     },
     price: 5980,
