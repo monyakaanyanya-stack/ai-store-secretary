@@ -577,8 +577,17 @@
       .problem-grid { grid-template-columns: 1fr; }
       .proof-grid { grid-template-columns: 1fr; gap: 24px; }
       .target-grid { grid-template-columns: repeat(2, 1fr) !important; }
-      .output-grid { grid-template-columns: 1fr !important; }
+      .output-grid { grid-template-columns: 1fr !important; gap: 32px !important; }
+      .output-row {
+        flex-direction: column !important;
+        gap: 6px !important;
+      }
+      .output-row span { min-width: unset !important; }
       .feature-item { flex-direction: column; gap: 12px !important; }
+
+      /* Comparison table: horizontal scroll */
+      .compare-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -24px; padding: 0 24px; }
+      .compare-table { min-width: 540px; }
 
       .footer-inner {
         flex-direction: column;
@@ -774,29 +783,29 @@
       <h2 class="title">実際に届く投稿案</h2>
       <p class="desc">写真1枚から、3つの異なる切り口で投稿案を提案します。</p>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:56px;margin-top:56px;align-items:start;text-align:left;">
+      <div class="output-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:56px;margin-top:56px;align-items:start;text-align:left;">
         <div>
           <h3 style="font-size:1.2rem;font-weight:700;margin-bottom:16px;">3案から選ぶだけ</h3>
           <p style="font-size:0.88rem;color:var(--text-muted);line-height:1.9;margin-bottom:32px;">AIが画像を分析し、3つの異なるコンセプトで投稿案を生成。「記憶に残る日常」「さりげない誘い」「店主のひとりごと」の中から、その日の気分で選べます。</p>
 
           <div style="border-top:1px solid var(--border);">
-            <div style="padding:20px 0;border-bottom:1px solid var(--border);display:flex;gap:24px;">
+            <div class="output-row" style="padding:20px 0;border-bottom:1px solid var(--border);display:flex;gap:24px;">
               <span style="font-weight:700;font-size:0.88rem;min-width:110px;">本文</span>
               <p style="font-size:0.85rem;color:var(--text-muted);line-height:1.8;">お店の口調に合わせた投稿文。<strong>超短文（80字）〜長文（500字）</strong>まで設定可能。</p>
             </div>
-            <div style="padding:20px 0;border-bottom:1px solid var(--border);display:flex;gap:24px;">
+            <div class="output-row" style="padding:20px 0;border-bottom:1px solid var(--border);display:flex;gap:24px;">
               <span style="font-weight:700;font-size:0.88rem;min-width:110px;">想起の一言</span>
               <p style="font-size:0.85rem;color:var(--text-muted);line-height:1.8;">五感（香り・音・温度・光・手触り）を含む15〜25文字。<strong>お店を思い出させる</strong>トリガー。</p>
             </div>
-            <div style="padding:20px 0;border-bottom:1px solid var(--border);display:flex;gap:24px;">
+            <div class="output-row" style="padding:20px 0;border-bottom:1px solid var(--border);display:flex;gap:24px;">
               <span style="font-weight:700;font-size:0.88rem;min-width:110px;">来店の一文</span>
               <p style="font-size:0.85rem;color:var(--text-muted);line-height:1.8;">「今」「数量」「時間」など具体情報を1つ含め、<strong>押し売りにならない</strong>来店誘導。</p>
             </div>
-            <div style="padding:20px 0;border-bottom:1px solid var(--border);display:flex;gap:24px;">
+            <div class="output-row" style="padding:20px 0;border-bottom:1px solid var(--border);display:flex;gap:24px;">
               <span style="font-weight:700;font-size:0.88rem;min-width:110px;">ハッシュタグ</span>
               <p style="font-size:0.85rem;color:var(--text-muted);line-height:1.8;">同業種で<strong>高エンゲージメントのタグ</strong>を自動選定。汎用タグは使わない。</p>
             </div>
-            <div style="padding:20px 0;display:flex;gap:24px;">
+            <div class="output-row" style="padding:20px 0;display:flex;gap:24px;">
               <span style="font-weight:700;font-size:0.88rem;min-width:110px;">撮影アドバイス</span>
               <p style="font-size:0.85rem;color:var(--text-muted);line-height:1.8;">今回の写真を褒めつつ、<strong>次の投稿ネタ</strong>を1つ提案。</p>
             </div>
@@ -975,6 +984,7 @@
       <h2 class="title">何が違うのか</h2>
       <p class="desc">文章生成ではなく「続く仕組み」です。</p>
 
+      <div class="compare-wrap">
       <table class="compare-table">
         <thead>
           <tr>
@@ -1023,6 +1033,7 @@
           </tr>
         </tbody>
       </table>
+      </div>
     </div>
   </section>
 
