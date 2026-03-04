@@ -270,69 +270,9 @@
       z-index: 10;
     }
 
-    .phone-header {
-      background: var(--white);
-      padding: 28px 16px 10px;
-      font-size: 0.78rem;
-      font-weight: 600;
-      text-align: center;
-      border-bottom: 1px solid #eee;
-      color: var(--text);
-    }
-
-    .phone-screen {
-      padding: 12px;
-      min-height: 340px;
-      max-height: 420px;
-      overflow: hidden;
-    }
-
-    .chat-bubble {
-      padding: 10px 14px;
-      border-radius: 14px;
-      margin-bottom: 8px;
-      max-width: 90%;
-      font-size: 0.75rem;
-      line-height: 1.65;
-      word-break: break-word;
-    }
-
-    .bubble-user {
-      background: var(--accent);
-      color: white;
-      margin-left: auto;
-      border-bottom-right-radius: 4px;
-    }
-
-    .bubble-bot {
-      background: var(--white);
-      color: var(--text);
-      border-bottom-left-radius: 4px;
-      border: 1px solid rgba(0,0,0,.06);
-    }
-
-    .bubble-label {
-      font-size: 0.62rem;
-      color: var(--gray-mid);
-      margin-bottom: 3px;
-    }
-
-    .qr-btns {
-      display: flex;
-      gap: 4px;
-      justify-content: flex-end;
-      margin-top: 4px;
-      flex-wrap: wrap;
-    }
-
-    .qr-btn {
-      font-size: 0.65rem;
-      padding: 4px 10px;
-      border: 1px solid var(--accent);
-      border-radius: 16px;
-      color: var(--accent);
-      background: var(--white);
-      font-weight: 500;
+    .phone-frame img {
+      width: 100%;
+      display: block;
     }
 
     .demo-caption {
@@ -360,6 +300,17 @@
       font-size: 0.82rem;
       color: var(--text-muted);
       line-height: 1.7;
+    }
+
+    .demo-highlight {
+      display: inline-block;
+      margin-top: 8px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--accent);
+      background: var(--accent-soft);
+      padding: 4px 12px;
+      border-radius: 8px;
     }
 
     /* ─── Social Proof ─────────────────────── */
@@ -723,7 +674,7 @@
         <div class="step-card">
           <div class="step-num">4</div>
           <h3>Instagramに投稿</h3>
-          <p>テキストをコピペして投稿完了。</p>
+          <p>コピペでも、ボタンひとつで直接投稿でも。</p>
         </div>
       </div>
     </div>
@@ -741,28 +692,7 @@
         <!-- Phone 1: 写真を送る -->
         <div class="demo-item">
           <div class="phone-frame">
-            <div class="phone-header">AI店舗秘書</div>
-            <div class="phone-screen">
-              <div class="chat-bubble bubble-user" style="padding:4px;max-width:70%;">
-                <img src="images/demo-photo.jpg" alt="送信した写真" style="width:100%;border-radius:12px;display:block;">
-              </div>
-              <div class="chat-bubble bubble-bot">
-                <div class="bubble-label">AI店舗秘書</div>
-                いい写真ですね！今日あったこと、思ったこと、一言もらえるとグッと「あなたらしい」投稿になります💡<br><br>
-                <span style="font-size:0.68rem;color:var(--gray-mid)">
-                  例：今朝これ焼けたとき嬉しかった<br>
-                  例：常連さんが褒めてくれた<br>
-                  例：新作、自信ある
-                </span>
-              </div>
-              <div class="qr-btns">
-                <span class="qr-btn">お知らせ</span>
-                <span class="qr-btn">日常感</span>
-                <span class="qr-btn">お役立ち</span>
-                <span class="qr-btn">スキップ</span>
-              </div>
-              <div class="chat-bubble bubble-user" style="margin-top:8px">日常感</div>
-            </div>
+            <img src="images/S__336166929_0.jpg" alt="写真を送信するとAIがヒント質問">
           </div>
           <div class="demo-caption">
             <span class="demo-step-num">Step 1</span>
@@ -774,26 +704,7 @@
         <!-- Phone 2: 3案が届く -->
         <div class="demo-item">
           <div class="phone-frame">
-            <div class="phone-header">AI店舗秘書</div>
-            <div class="phone-screen">
-              <div class="chat-bubble bubble-bot">
-                <div class="bubble-label">AI店舗秘書</div>
-                <strong style="font-size:0.72rem">[ 案A：記憶に残る日常 ]</strong><br>
-                氷を入れた瞬間のカチンという音が妙に心地よくて、今日も一杯やってしまった。<br><br>
-                <span style="color:var(--gray-mid)">琥珀色の液体が氷に触れる冷たい感覚</span><br>
-                <span style="color:var(--gray-mid)">今夜も静かに開いてます</span><br><br>
-                <strong style="font-size:0.72rem">[ 案B：さりげない誘い ]</strong><br>
-                大きめの氷を2個入れて、ゆっくり溶けるのを眺めながら飲む。<br><br>
-                <strong style="font-size:0.72rem">[ 案C：店主のひとりごと ]</strong><br>
-                閉店前に一杯だけ。氷がゆっくり溶けて薄くなっていくのを見てると…
-              </div>
-              <div class="qr-btns">
-                <span class="qr-btn">A案</span>
-                <span class="qr-btn">B案</span>
-                <span class="qr-btn">C案</span>
-                <span class="qr-btn">✏️直し</span>
-              </div>
-            </div>
+            <img src="images/S__336166928_0.jpg" alt="AIが3つの投稿案を生成">
           </div>
           <div class="demo-caption">
             <span class="demo-step-num">Step 2</span>
@@ -802,32 +713,16 @@
           </div>
         </div>
 
-        <!-- Phone 3: 選んで完成 -->
+        <!-- Phone 3: 選んでそのままInstagram投稿 -->
         <div class="demo-item">
           <div class="phone-frame">
-            <div class="phone-header">AI店舗秘書</div>
-            <div class="phone-screen">
-              <div class="chat-bubble bubble-user">A</div>
-              <div class="chat-bubble bubble-bot">
-                <div class="bubble-label">AI店舗秘書</div>
-                案Aですね！コピペでどうぞ👇<br>
-                ──────<br>
-                氷を入れた瞬間のカチンという音が妙に心地よくて、今日も一杯やってしまった。<br><br>
-                琥珀色の液体が氷に触れる冷たい感覚<br>
-                今夜も静かに開いてます<br><br>
-                #ウイスキー #ロックグラス #カフェ #夜カフェ #東京カフェ<br>
-                ──────<br><br>
-                📸 次の撮影に<br>
-                <span style="font-size:0.68rem;color:var(--gray-mid)">次はグラスを持つ手元も一緒に写してみませんか？</span><br><br>
-                🎯 明日撮るべきもの<br>
-                <span style="font-size:0.68rem;color:var(--gray-mid)">コーヒーを淹れている手元を横から撮ってください。</span>
-              </div>
-            </div>
+            <img src="images/S__336166926_0.jpg" alt="案を選んでそのままInstagram投稿">
           </div>
           <div class="demo-caption">
             <span class="demo-step-num">Step 3</span>
-            <h3>選んで完成</h3>
-            <p>コピペで投稿 + 次の撮影アイデアも</p>
+            <h3>選んでそのまま投稿</h3>
+            <p>コピペはもちろん、ボタンひとつで<br>Instagramに直接投稿も可能</p>
+            <span class="demo-highlight">📸 Instagram投稿ボタン対応</span>
           </div>
         </div>
 
