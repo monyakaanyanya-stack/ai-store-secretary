@@ -576,6 +576,7 @@
 
       .problem-grid { grid-template-columns: 1fr; }
       .proof-grid { grid-template-columns: 1fr; gap: 24px; }
+      .target-grid { grid-template-columns: repeat(2, 1fr) !important; }
       .output-grid { grid-template-columns: 1fr !important; }
       .feature-item { flex-direction: column; gap: 12px !important; }
 
@@ -956,29 +957,26 @@
       <h2 class="title">こんなお店のオーナーへ</h2>
       <p class="desc">「SNSをやらなきゃと思っているけど、手が回っていない」<br>そんなあなたのためのサービスです。</p>
 
-      <div class="benefits-grid" style="margin-top:56px;">
-        <div style="padding:36px 24px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:18px;text-align:center;">
-          <div style="font-size:2.4rem;margin-bottom:12px;">☕</div>
-          <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:8px;color:var(--white);">飲食店</h3>
-          <p style="font-size:0.82rem;color:rgba(255,255,255,0.5);line-height:1.8;">カフェ、ベーカリー、ラーメン、<br>居酒屋、レストランなど</p>
+      <div class="target-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:56px;">
+        <div style="padding:32px 16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:18px;text-align:center;">
+          <div style="font-size:2rem;margin-bottom:10px;">☕</div>
+          <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:6px;color:var(--white);">飲食店</h3>
+          <p style="font-size:0.78rem;color:rgba(255,255,255,0.5);line-height:1.7;">カフェ・ベーカリー<br>居酒屋・レストラン</p>
         </div>
-        <div style="padding:36px 24px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:18px;text-align:center;">
-          <div style="font-size:2.4rem;margin-bottom:12px;">💇</div>
-          <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:8px;color:var(--white);">美容系</h3>
-          <p style="font-size:0.82rem;color:rgba(255,255,255,0.5);line-height:1.8;">美容室、ネイルサロン、<br>エステ、まつエクなど</p>
+        <div style="padding:32px 16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:18px;text-align:center;">
+          <div style="font-size:2rem;margin-bottom:10px;">💇</div>
+          <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:6px;color:var(--white);">美容系</h3>
+          <p style="font-size:0.78rem;color:rgba(255,255,255,0.5);line-height:1.7;">美容室・ネイルサロン<br>エステ・まつエク</p>
         </div>
-        <div style="padding:36px 24px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:18px;text-align:center;">
-          <div style="font-size:2.4rem;margin-bottom:12px;">🛍️</div>
-          <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:8px;color:var(--white);">小売</h3>
-          <p style="font-size:0.82rem;color:rgba(255,255,255,0.5);line-height:1.8;">雑貨店、花屋、アパレル、<br>セレクトショップなど</p>
+        <div style="padding:32px 16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:18px;text-align:center;">
+          <div style="font-size:2rem;margin-bottom:10px;">🛍️</div>
+          <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:6px;color:var(--white);">小売</h3>
+          <p style="font-size:0.78rem;color:rgba(255,255,255,0.5);line-height:1.7;">雑貨店・花屋<br>アパレル・セレクト</p>
         </div>
-      </div>
-
-      <div style="margin-top:24px;">
-        <div style="display:inline-block;padding:36px 48px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:18px;text-align:center;">
-          <div style="font-size:2.4rem;margin-bottom:12px;">🧘</div>
-          <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:8px;color:var(--white);">サービス</h3>
-          <p style="font-size:0.82rem;color:rgba(255,255,255,0.5);line-height:1.8;">整体、ヨガスタジオ、<br>写真スタジオ、教室など</p>
+        <div style="padding:32px 16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:18px;text-align:center;">
+          <div style="font-size:2rem;margin-bottom:10px;">🧘</div>
+          <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:6px;color:var(--white);">サービス</h3>
+          <p style="font-size:0.78rem;color:rgba(255,255,255,0.5);line-height:1.7;">整体・ヨガ<br>写真スタジオ・教室</p>
         </div>
       </div>
     </div>
@@ -1005,7 +1003,7 @@
             <td>月額</td>
             <td class="td-strong">無料〜約3,000円</td>
             <td>5〜30万円</td>
-            <td class="td-strong">ベータ期間は無料</td>
+            <td>ベータ期間は無料</td>
           </tr>
           <tr>
             <td>お店の個性</td>
