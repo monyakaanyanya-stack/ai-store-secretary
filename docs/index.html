@@ -3,38 +3,27 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI店舗秘書 — Instagram投稿を秒で作成</title>
+  <title>AI店舗秘書 — 写真を送るだけでInstagram投稿が完成</title>
   <meta name="description" content="写真を送るだけでInstagram投稿が完成。LINEで始められる、店舗オーナーのためのAI投稿生成サービス。">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    *, *::before, *::after {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
-      /* Base */
       --bg: #F8FAFF;
       --surface: rgba(255,255,255,.78);
       --surface-strong: #FFFFFF;
-      /* Lines / shadows */
       --border: rgba(2,6,23,.08);
       --shadow: 0 8px 24px rgba(2,6,23,.06);
-      /* Text */
       --text: #0F172A;
       --text-muted: rgba(15,23,42,.70);
-      /* Accent */
       --accent: #2563EB;
       --accent-soft: rgba(37,99,235,.10);
       --accent-dark: #1d4ed8;
-      /* Dark sections */
       --dark-bg: #0F172A;
       --dark-bg-2: #1e293b;
-      /* Legacy aliases */
-      --black: var(--text);
       --white: #ffffff;
       --gray-mid: rgba(15,23,42,.50);
     }
@@ -52,55 +41,40 @@
       -webkit-font-smoothing: antialiased;
     }
 
-    .container {
-      max-width: 1080px;
-      margin: 0 auto;
-      padding: 0 40px;
-    }
+    .container { max-width: 1080px; margin: 0 auto; padding: 0 40px; }
 
-    /* ─── Hero ──────────────────────────────── */
-    .hero {
-      background: transparent;
-      color: var(--text);
-      padding: 160px 40px 130px;
-      text-align: center;
-    }
+    /* ─── Common ────────────────────────────── */
+    .section        { padding: 100px 40px; }
+    .section-alt    { background: var(--surface); backdrop-filter: blur(10px); }
+    .section-dark   { background: linear-gradient(135deg, var(--dark-bg), var(--dark-bg-2)); color: var(--white); }
+    .section-center { text-align: center; }
 
-    .hero-eyebrow {
-      display: inline-block;
-      font-size: 0.7rem;
-      font-weight: 500;
-      letter-spacing: 0.25em;
+    .label {
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.3em;
       text-transform: uppercase;
       color: var(--accent);
-      background: var(--accent-soft);
-      padding: 6px 18px;
-      border-radius: 100px;
-      border: 1px solid rgba(37,99,235,.18);
-      margin-bottom: 36px;
+      margin-bottom: 16px;
     }
+    .section-dark .label { color: rgba(96,165,250,.8); }
 
-    .hero h1 {
-      font-size: clamp(2.6rem, 6.5vw, 5rem);
+    .title {
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
       font-weight: 700;
-      line-height: 1.18;
-      letter-spacing: -0.03em;
-      margin-bottom: 28px;
+      line-height: 1.25;
+      letter-spacing: -0.025em;
+      margin-bottom: 16px;
     }
+    .section-dark .title { color: var(--white); }
 
-    .hero h1 em {
-      font-style: normal;
-      color: var(--accent);
-    }
-
-    .hero-sub {
-      font-size: 1.05rem;
+    .desc {
+      font-size: 1rem;
       color: var(--text-muted);
-      max-width: 480px;
-      margin: 0 auto 56px;
-      font-weight: 300;
-      line-height: 2;
+      line-height: 1.9;
+      font-weight: 400;
     }
+    .section-dark .desc { color: rgba(255,255,255,0.50); }
 
     .btn {
       display: inline-flex;
@@ -117,70 +91,58 @@
       transition: all 0.2s;
       box-shadow: 0 10px 20px rgba(37,99,235,.18);
     }
-
     .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-large { padding: 20px 56px; font-size: 1.05rem; }
 
-    .btn-outline {
+    /* ─── Hero ──────────────────────────────── */
+    .hero {
       background: transparent;
-      border: 1px solid var(--accent);
-      color: var(--accent);
-      box-shadow: none;
+      color: var(--text);
+      padding: 140px 40px 120px;
+      text-align: center;
     }
 
-    .btn-note {
+    .hero-badge {
+      display: inline-block;
       font-size: 0.72rem;
-      font-weight: 400;
-      opacity: 0.8;
-      border-left: 1px solid rgba(255,255,255,0.4);
-      padding-left: 12px;
-    }
-
-    /* ─── Section base ──────────────────────── */
-    .section        { padding: 120px 40px; }
-    .section-alt    { background: var(--surface); backdrop-filter: blur(10px); }
-    .section-dark   { background: linear-gradient(135deg, var(--dark-bg), var(--dark-bg-2)); color: var(--white); }
-    .section-center { text-align: center; }
-
-    .label {
-      font-size: 0.68rem;
-      font-weight: 600;
-      letter-spacing: 0.3em;
-      text-transform: uppercase;
+      font-weight: 500;
+      letter-spacing: 0.2em;
       color: var(--accent);
-      margin-bottom: 20px;
+      background: var(--accent-soft);
+      padding: 6px 18px;
+      border-radius: 100px;
+      border: 1px solid rgba(37,99,235,.18);
+      margin-bottom: 32px;
     }
 
-    .section-dark .label { color: rgba(96,165,250,.8); }
-
-    .title {
-      font-size: clamp(1.9rem, 4vw, 3rem);
+    .hero h1 {
+      font-size: clamp(2.4rem, 6vw, 4.2rem);
       font-weight: 700;
-      line-height: 1.22;
-      letter-spacing: -0.025em;
-      margin-bottom: 20px;
+      line-height: 1.2;
+      letter-spacing: -0.03em;
+      margin-bottom: 24px;
     }
+    .hero h1 em { font-style: normal; color: var(--accent); }
 
-    .section-dark .title { color: var(--white); }
-
-    .desc {
-      font-size: 1rem;
+    .hero-sub {
+      font-size: 1.05rem;
       color: var(--text-muted);
-      line-height: 2;
+      max-width: 460px;
+      margin: 0 auto 48px;
       font-weight: 400;
+      line-height: 1.9;
     }
 
-    .section-dark .desc { color: rgba(255,255,255,0.50); }
-
-    /* ─── Problem ───────────────────────────── */
+    /* ─── Problem cards ────────────────────── */
     .problem-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 24px;
-      margin-top: 72px;
+      margin-top: 56px;
     }
 
-    .problem-cell {
-      padding: 40px 36px;
+    .problem-card {
+      padding: 36px 32px;
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 18px;
@@ -188,91 +150,150 @@
       backdrop-filter: blur(10px);
     }
 
-    .problem-num {
-      font-size: 0.68rem;
-      font-weight: 600;
-      letter-spacing: 0.15em;
-      color: var(--accent);
+    .problem-icon { font-size: 2rem; margin-bottom: 16px; }
+
+    .problem-card h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      line-height: 1.5;
+      margin-bottom: 12px;
+    }
+
+    .problem-card p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.9;
+      font-weight: 400;
+    }
+
+    /* ─── Solution bridge ──────────────────── */
+    .solution-bridge {
+      padding: 80px 40px;
+      text-align: center;
+      background: linear-gradient(180deg, transparent, var(--accent-soft), transparent);
+    }
+
+    .solution-bridge h2 {
+      font-size: clamp(1.6rem, 3.5vw, 2.4rem);
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .solution-bridge h2 em { font-style: normal; color: var(--accent); }
+
+    .solution-bridge p {
+      font-size: 1rem;
+      color: var(--text-muted);
+    }
+
+    /* ─── Steps ─────────────────────────────── */
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+      margin-top: 56px;
+    }
+
+    .step-card {
+      text-align: center;
+      padding: 36px 20px;
+      background: var(--surface-strong);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      position: relative;
+    }
+
+    .step-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: var(--accent);
+      color: var(--white);
+      font-size: 0.88rem;
+      font-weight: 700;
       margin-bottom: 20px;
     }
 
-    .problem-cell h3 {
-      font-size: 1.05rem;
+    .step-card h3 {
+      font-size: 0.95rem;
       font-weight: 700;
-      line-height: 1.55;
-      margin-bottom: 14px;
-    }
-
-    .problem-cell p {
-      font-size: 0.875rem;
-      color: var(--text-muted);
-      line-height: 1.95;
-      font-weight: 400;
-    }
-
-    /* ─── Output Preview (LINE mockup) ─────── */
-    .preview-layout {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 72px;
-      align-items: center;
-      margin-top: 72px;
-    }
-
-    .preview-text h3 {
-      font-size: 1.3rem;
-      font-weight: 700;
-      margin-bottom: 16px;
-    }
-
-    .preview-text p {
-      font-size: 0.925rem;
-      color: var(--text-muted);
-      line-height: 2;
-      font-weight: 400;
-      margin-bottom: 24px;
-    }
-
-    .preview-badge {
-      display: inline-block;
-      font-size: 0.72rem;
-      font-weight: 500;
-      letter-spacing: 0.08em;
-      padding: 6px 14px;
-      border-radius: 100px;
-      margin-right: 8px;
       margin-bottom: 8px;
     }
 
-    .badge-green  { background: var(--accent-soft); color: var(--accent); border: 1px solid rgba(37,99,235,.18); }
-    .badge-gray   { background: rgba(2,6,23,.04); color: var(--text-muted); }
-
-    .line-mockup {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 24px;
-      padding: 32px 20px;
-      max-width: 380px;
-      margin: 0 auto;
+    .step-card p {
       font-size: 0.82rem;
-      line-height: 1.7;
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(10px);
+      color: var(--text-muted);
+      line-height: 1.8;
+      font-weight: 400;
     }
 
-    .line-header {
+    .step-arrow {
+      display: none;
+    }
+
+    /* ─── Demo: Phone mockups ──────────────── */
+    .demo-phones {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 40px;
+      margin-top: 64px;
+      align-items: start;
+    }
+
+    .demo-item { text-align: center; }
+
+    .phone-frame {
+      position: relative;
+      border: 6px solid #1e293b;
+      border-radius: 32px;
+      overflow: hidden;
+      background: #e9e9e9;
+      box-shadow: 0 24px 64px rgba(0,0,0,.12);
+      max-width: 300px;
+      margin: 0 auto;
+    }
+
+    .phone-frame::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 72px;
+      height: 20px;
+      background: #1e293b;
+      border-radius: 0 0 12px 12px;
+      z-index: 10;
+    }
+
+    .phone-header {
+      background: var(--white);
+      padding: 28px 16px 10px;
+      font-size: 0.78rem;
+      font-weight: 600;
       text-align: center;
-      font-size: 0.72rem;
-      color: var(--gray-mid);
-      margin-bottom: 20px;
-      font-weight: 500;
+      border-bottom: 1px solid #eee;
+      color: var(--text);
+    }
+
+    .phone-screen {
+      padding: 12px;
+      min-height: 340px;
+      max-height: 420px;
+      overflow: hidden;
     }
 
     .chat-bubble {
-      padding: 12px 16px;
-      border-radius: 16px;
-      margin-bottom: 10px;
-      max-width: 88%;
+      padding: 10px 14px;
+      border-radius: 14px;
+      margin-bottom: 8px;
+      max-width: 90%;
+      font-size: 0.75rem;
+      line-height: 1.65;
       word-break: break-word;
     }
 
@@ -284,560 +305,316 @@
     }
 
     .bubble-bot {
-      background: var(--surface-strong);
+      background: var(--white);
       color: var(--text);
       border-bottom-left-radius: 4px;
-      border: 1px solid var(--border);
+      border: 1px solid rgba(0,0,0,.06);
     }
 
-    .bubble-bot .bubble-label {
-      font-size: 0.68rem;
+    .bubble-label {
+      font-size: 0.62rem;
       color: var(--gray-mid);
-      margin-bottom: 4px;
+      margin-bottom: 3px;
     }
 
-    .quick-replies {
+    .qr-btns {
       display: flex;
-      gap: 6px;
+      gap: 4px;
       justify-content: flex-end;
-      margin-top: 6px;
+      margin-top: 4px;
       flex-wrap: wrap;
     }
 
     .qr-btn {
-      font-size: 0.72rem;
-      padding: 6px 14px;
+      font-size: 0.65rem;
+      padding: 4px 10px;
       border: 1px solid var(--accent);
-      border-radius: 20px;
+      border-radius: 16px;
       color: var(--accent);
       background: var(--white);
       font-weight: 500;
     }
 
-    /* ─── Features ──────────────────────────── */
-    .feature-list {
-      margin-top: 80px;
+    .demo-caption {
+      margin-top: 20px;
     }
 
-    .feature-row {
-      display: grid;
-      grid-template-columns: 56px 1fr;
-      gap: 40px;
-      align-items: start;
-      padding: 52px 0;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .feature-row:first-child { border-top: 1px solid var(--border); }
-
-    .f-num {
-      font-size: 2.2rem;
-      font-weight: 700;
-      color: var(--accent);
-      opacity: 0.2;
-      line-height: 1;
-      padding-top: 2px;
-    }
-
-    .f-body h3 {
-      font-size: 1.2rem;
-      font-weight: 700;
-      margin-bottom: 14px;
-      letter-spacing: -0.01em;
-    }
-
-    .f-body p {
-      font-size: 0.925rem;
-      color: var(--text-muted);
-      line-height: 2;
-      font-weight: 400;
-      max-width: 620px;
-    }
-
-    /* ─── Steps ─────────────────────────────── */
-    .steps-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 24px;
-      margin-top: 72px;
-    }
-
-    .step {
-      background: var(--surface-strong);
-      border: 1px solid var(--border);
-      border-radius: 18px;
-      padding: 36px 28px;
-      box-shadow: var(--shadow);
-    }
-
-    .step-num {
-      font-size: 3.5rem;
-      font-weight: 700;
-      color: var(--accent);
-      opacity: 0.15;
-      line-height: 1;
-      margin-bottom: 28px;
-    }
-
-    .step h3 {
-      font-size: 0.975rem;
-      font-weight: 700;
-      margin-bottom: 10px;
-    }
-
-    .step p {
-      font-size: 0.85rem;
-      color: var(--text-muted);
-      line-height: 2;
-      font-weight: 400;
-    }
-
-    /* ─── Comparison table ──────────────────── */
-    .compare-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 60px;
-      font-size: 0.88rem;
-      background: var(--surface-strong);
-      border-radius: 18px;
-      overflow: hidden;
-      box-shadow: var(--shadow);
-    }
-
-    .compare-table th,
-    .compare-table td {
-      padding: 20px 24px;
-      text-align: left;
-      border-bottom: 1px solid var(--border);
-      vertical-align: top;
-    }
-
-    .compare-table thead th {
-      font-weight: 700;
-      font-size: 0.82rem;
-      letter-spacing: 0.04em;
-      border-bottom: 2px solid var(--border);
-      padding-bottom: 16px;
-      background: var(--accent-soft);
-    }
-
-    .compare-table thead th:last-child {
-      color: var(--accent);
-    }
-
-    .compare-table td:first-child {
-      font-weight: 500;
-      color: var(--gray-mid);
-      font-size: 0.82rem;
-      width: 120px;
-    }
-
-    .compare-table td:last-child {
-      font-weight: 600;
-      color: var(--accent);
-    }
-
-    .compare-table tbody tr:last-child td {
-      border-bottom: none;
-    }
-
-    /* ─── AI Learning section ──────────────── */
-    .learn-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 24px;
-      margin-top: 72px;
-    }
-
-    .learn-card {
-      padding: 40px 32px;
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 18px;
-      background: rgba(255,255,255,0.04);
-      backdrop-filter: blur(10px);
-    }
-
-    .learn-icon {
-      font-size: 1.8rem;
-      margin-bottom: 20px;
-    }
-
-    .learn-card h3 {
-      font-size: 1rem;
-      font-weight: 700;
-      margin-bottom: 12px;
-      color: var(--white);
-    }
-
-    .learn-card p {
-      font-size: 0.85rem;
-      color: rgba(255,255,255,0.50);
-      line-height: 1.9;
-      font-weight: 400;
-    }
-
-    /* ─── Output structure section ──────────── */
-    .output-structure {
-      margin-top: 64px;
-    }
-
-    .output-block {
-      display: grid;
-      grid-template-columns: 160px 1fr;
-      gap: 32px;
-      padding: 28px 0;
-      border-bottom: 1px solid var(--border);
-      align-items: start;
-    }
-
-    .output-block:first-child { border-top: 1px solid var(--border); }
-
-    .output-label {
-      font-size: 0.82rem;
-      font-weight: 700;
-      color: var(--text);
-      padding-top: 2px;
-    }
-
-    .output-desc {
-      font-size: 0.88rem;
-      color: var(--text-muted);
-      line-height: 1.9;
-      font-weight: 400;
-    }
-
-    .output-desc strong {
-      font-weight: 600;
-      color: var(--text);
-    }
-
-    /* ─── Stats ─────────────────────────────── */
-    .stats-row {
-      display: flex;
-      justify-content: center;
-      gap: 96px;
-      flex-wrap: wrap;
-      margin-top: 80px;
-    }
-
-    .stat { text-align: center; }
-
-    .stat-n {
-      font-size: 4rem;
-      font-weight: 700;
-      line-height: 1;
-      margin-bottom: 14px;
-      color: var(--white);
-    }
-
-    .stat-l {
-      font-size: 0.72rem;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: rgba(255,255,255,0.40);
-    }
-
-    /* ─── Pricing ───────────────────────────── */
-    .pricing-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 24px;
-      margin-top: 72px;
-    }
-
-    .price-card {
-      border: 1px solid var(--border);
-      padding: 44px 32px;
-      border-radius: 18px;
-      position: relative;
-      background: var(--surface-strong);
-      box-shadow: var(--shadow);
-    }
-
-    .price-card.featured {
-      border-color: var(--accent);
-      box-shadow: 0 4px 32px rgba(37,99,235,.12);
-    }
-
-    .price-card.featured::before {
-      content: 'おすすめ';
-      position: absolute;
-      top: -12px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: var(--accent);
-      color: white;
+    .demo-step-num {
+      display: inline-block;
       font-size: 0.68rem;
       font-weight: 700;
-      padding: 4px 16px;
-      border-radius: 100px;
-      letter-spacing: 0.1em;
-    }
-
-    .price-plan {
-      font-size: 0.78rem;
-      font-weight: 700;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
-      color: var(--gray-mid);
-      margin-bottom: 16px;
-    }
-
-    .price-amount {
-      font-size: 2.4rem;
-      font-weight: 700;
-      line-height: 1;
-      margin-bottom: 4px;
-    }
-
-    .price-period {
-      font-size: 0.78rem;
-      color: var(--gray-mid);
-      margin-bottom: 28px;
-    }
-
-    .price-features {
-      list-style: none;
-      margin-bottom: 32px;
-    }
-
-    .price-features li {
-      font-size: 0.85rem;
-      color: var(--text-muted);
-      padding: 8px 0;
-      border-bottom: 1px solid var(--border);
-      font-weight: 400;
-    }
-
-    .price-features li:last-child { border-bottom: none; }
-
-    .price-features li::before {
-      content: '✓';
-      margin-right: 10px;
       color: var(--accent);
-      font-weight: 700;
-    }
-
-    .price-features li.disabled {
-      color: rgba(15,23,42,.25);
-    }
-
-    .price-features li.disabled::before {
-      content: '—';
-      color: rgba(15,23,42,.25);
-    }
-
-    .price-cta {
-      display: block;
-      text-align: center;
-      padding: 14px;
-      border-radius: 14px;
-      text-decoration: none;
-      font-size: 0.88rem;
-      font-weight: 600;
-      transition: all 0.2s;
-    }
-
-    .price-cta:hover { opacity: 0.85; }
-
-    .price-cta-primary {
-      background: var(--accent);
-      color: white;
-      box-shadow: 0 6px 16px rgba(37,99,235,.18);
-    }
-
-    .price-cta-outline {
-      background: transparent;
-      border: 1px solid var(--border);
-      color: var(--text-muted);
-    }
-
-    /* ─── Target Persona ───────────────────── */
-    .persona-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 24px;
-      margin-top: 60px;
-    }
-
-    .persona-card {
-      padding: 28px 24px;
-      border: 1px solid var(--border);
-      border-radius: 18px;
-      text-align: center;
-      background: var(--surface-strong);
-      box-shadow: var(--shadow);
-    }
-
-    .persona-icon {
-      font-size: 2rem;
-      margin-bottom: 16px;
-    }
-
-    .persona-card h4 {
-      font-size: 0.92rem;
-      font-weight: 700;
+      background: var(--accent-soft);
+      padding: 3px 10px;
+      border-radius: 100px;
       margin-bottom: 8px;
     }
 
-    .persona-card p {
-      font-size: 0.78rem;
-      color: var(--text-muted);
-      line-height: 1.8;
-      font-weight: 400;
+    .demo-caption h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 4px;
     }
 
-    /* ─── Real Data ─────────────────────────── */
-    .realdata-grid {
+    .demo-caption p {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      line-height: 1.7;
+    }
+
+    /* ─── Social Proof ─────────────────────── */
+    .proof-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 48px;
-      margin-top: 64px;
+      margin-top: 56px;
       align-items: start;
     }
 
-    .realdata-card {
+    .proof-card {
       border-radius: 18px;
       overflow: hidden;
       background: rgba(255,255,255,0.06);
       border: 1px solid rgba(255,255,255,0.08);
     }
 
-    .realdata-card-header {
+    .proof-header {
       padding: 20px 28px 16px;
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
 
-    .realdata-period {
+    .proof-period {
       font-size: 0.72rem;
       color: rgba(255,255,255,0.4);
-      letter-spacing: 0.05em;
     }
 
-    .realdata-badge {
+    .proof-badge {
       font-size: 0.68rem;
       font-weight: 600;
       padding: 4px 12px;
       border-radius: 100px;
-      letter-spacing: 0.03em;
     }
 
-    .realdata-badge-before {
+    .proof-badge-before {
       background: rgba(255,255,255,0.08);
       color: rgba(255,255,255,0.5);
     }
 
-    .realdata-badge-after {
+    .proof-badge-after {
       background: rgba(37,99,235,.15);
       color: rgba(96,165,250,1);
     }
 
-    .realdata-hero-num {
+    .proof-num {
       text-align: center;
-      padding: 20px 28px 28px;
+      padding: 16px 28px 24px;
     }
 
-    .realdata-hero-num .num-label {
+    .proof-num .num-label {
       font-size: 0.72rem;
       color: rgba(255,255,255,0.35);
       margin-bottom: 4px;
     }
 
-    .realdata-hero-num .num-value {
-      font-size: clamp(2.8rem, 5vw, 4rem);
+    .proof-num .num-value {
+      font-size: clamp(2.6rem, 5vw, 3.6rem);
       font-weight: 700;
       line-height: 1.1;
     }
 
-    .realdata-hero-num .num-value-before { color: rgba(255,255,255,0.55); }
-    .realdata-hero-num .num-value-after  { color: var(--white); }
+    .proof-num .num-value-before { color: rgba(255,255,255,0.55); }
+    .proof-num .num-value-after  { color: var(--white); }
 
-    .realdata-hero-num .num-change {
+    .proof-num .num-change {
       font-size: 0.82rem;
       font-weight: 600;
       color: rgba(96,165,250,1);
       margin-top: 4px;
     }
 
-    .realdata-stats {
+    .proof-stats {
       padding: 0 28px 24px;
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 16px;
+      gap: 12px;
     }
 
-    .realdata-stat {
-      padding: 14px 16px;
+    .proof-stat {
+      padding: 12px 14px;
       background: rgba(255,255,255,0.04);
       border-radius: 12px;
     }
 
-    .realdata-stat .stat-label {
+    .proof-stat .stat-label {
       font-size: 0.68rem;
       color: rgba(255,255,255,0.35);
-      margin-bottom: 4px;
+      margin-bottom: 2px;
     }
 
-    .realdata-stat .stat-value {
-      font-size: 1.1rem;
+    .proof-stat .stat-value {
+      font-size: 1rem;
       font-weight: 600;
       color: rgba(255,255,255,0.85);
     }
 
-    .realdata-screenshot {
-      width: 100%;
-      display: block;
-      opacity: 0.85;
-    }
-
-    .realdata-narrative {
-      margin-top: 56px;
-      max-width: 720px;
+    .proof-narrative {
+      margin-top: 48px;
+      max-width: 640px;
       margin-left: auto;
       margin-right: auto;
     }
 
-    .realdata-narrative p {
-      font-size: 0.92rem;
-      line-height: 2.2;
+    .proof-narrative p {
+      font-size: 0.9rem;
+      line-height: 2.1;
       color: rgba(255,255,255,0.55);
-      font-weight: 300;
+      font-weight: 400;
     }
 
-    .realdata-narrative strong {
+    .proof-narrative strong {
       color: rgba(255,255,255,0.9);
       font-weight: 500;
     }
 
-    .realdata-narrative .accent-text {
+    .proof-narrative .accent-text {
       color: rgba(96,165,250,1);
-      font-weight: 500;
+      font-weight: 600;
     }
 
-    .realdata-note {
-      margin-top: 28px;
+    .proof-note {
+      margin-top: 24px;
       font-size: 0.72rem;
       color: rgba(255,255,255,0.25);
       text-align: center;
     }
 
-    /* ─── CTA section ───────────────────────── */
-    .cta-section {
-      padding: 160px 40px;
+    /* ─── Benefits ─────────────────────────── */
+    .benefits-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      margin-top: 56px;
+    }
+
+    .benefit-card {
+      padding: 40px 28px;
+      background: var(--surface-strong);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
       text-align: center;
     }
 
-    .cta-section .desc {
-      max-width: 440px;
-      margin: 0 auto 52px;
+    .benefit-icon {
+      font-size: 2.4rem;
+      margin-bottom: 16px;
+    }
+
+    .benefit-card h3 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .benefit-card p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.8;
+    }
+
+    /* ─── Comparison ───────────────────────── */
+    .compare-cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+      margin-top: 56px;
+      max-width: 760px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .compare-card {
+      padding: 40px 32px;
+      border-radius: 18px;
+      border: 1px solid var(--border);
+    }
+
+    .compare-card-bad {
+      background: rgba(2,6,23,.02);
+    }
+
+    .compare-card-good {
+      background: var(--surface-strong);
+      border-color: var(--accent);
+      box-shadow: 0 8px 32px rgba(37,99,235,.10);
+    }
+
+    .compare-card h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .compare-list {
+      list-style: none;
+    }
+
+    .compare-list li {
+      font-size: 0.88rem;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      line-height: 1.6;
+    }
+
+    .compare-list li:last-child { border-bottom: none; }
+
+    .compare-icon {
+      flex-shrink: 0;
+      font-size: 0.82rem;
+      margin-top: 2px;
+    }
+
+    .compare-card-bad .compare-list li { color: var(--text-muted); }
+    .compare-card-good .compare-list li { color: var(--text); font-weight: 500; }
+
+    /* ─── Final CTA ────────────────────────── */
+    .cta-final {
+      padding: 120px 40px;
+      text-align: center;
+      background: linear-gradient(180deg, var(--bg), rgba(37,99,235,.06), var(--bg));
+    }
+
+    .cta-final h2 {
+      font-size: clamp(1.8rem, 4vw, 2.6rem);
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+
+    .cta-final p {
+      font-size: 1rem;
+      color: var(--text-muted);
+      margin-bottom: 40px;
+      line-height: 1.9;
+    }
+
+    .cta-sub {
+      margin-top: 16px;
+      font-size: 0.78rem;
+      color: var(--gray-mid);
     }
 
     /* ─── Footer ────────────────────────────── */
     footer {
       border-top: 1px solid var(--border);
-      padding: 36px 40px;
+      padding: 32px 40px;
     }
 
     .footer-inner {
@@ -855,81 +632,23 @@
       text-decoration: none;
       transition: color 0.15s;
     }
-
     footer a:hover { color: var(--text); }
-
-    /* ─── QR Code ──────────────────────────── */
-    .hero-qr, .cta-qr {
-      margin-top: 36px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .qr-wrap {
-      display: inline-block;
-      padding: 10px;
-      background: var(--white);
-      border-radius: 14px;
-      line-height: 0;
-      transition: opacity 0.2s;
-      box-shadow: var(--shadow);
-    }
-
-    .qr-wrap:hover { opacity: 0.85; }
-
-    .qr-wrap img {
-      display: block;
-      border-radius: 8px;
-    }
-
-    .qr-label {
-      font-size: 0.75rem;
-      letter-spacing: 0.05em;
-      color: var(--text-muted);
-    }
 
     /* ─── Responsive ────────────────────────── */
     @media (max-width: 900px) {
       .steps-grid { grid-template-columns: repeat(2, 1fr); gap: 20px; }
-      .pricing-grid { grid-template-columns: 1fr; max-width: 400px; margin-left: auto; margin-right: auto; }
-      .learn-grid { grid-template-columns: 1fr; }
-      .persona-grid { grid-template-columns: repeat(2, 1fr); }
+      .demo-phones { grid-template-columns: 1fr; gap: 56px; }
+      .phone-frame { max-width: 280px; }
+      .benefits-grid { grid-template-columns: 1fr; max-width: 400px; margin-left: auto; margin-right: auto; }
+      .compare-cards { grid-template-columns: 1fr; max-width: 400px; }
     }
 
     @media (max-width: 768px) {
-      .section { padding: 88px 24px; }
-      .hero    { padding: 120px 24px 100px; }
+      .section { padding: 72px 24px; }
+      .hero { padding: 120px 24px 88px; }
 
-      .realdata-grid { grid-template-columns: 1fr; gap: 32px; }
-
-      .problem-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .feature-row {
-        grid-template-columns: 1fr;
-        gap: 16px;
-      }
-
-      .preview-layout {
-        grid-template-columns: 1fr;
-        gap: 48px;
-      }
-
-      .preview-layout .preview-text { order: 1; }
-      .preview-layout .line-mockup  { order: 2; }
-
-      .compare-table { font-size: 0.78rem; border-radius: 12px; }
-      .compare-table th, .compare-table td { padding: 14px 12px; }
-
-      .output-block {
-        grid-template-columns: 1fr;
-        gap: 8px;
-      }
-
-      .stats-row { gap: 56px; }
+      .problem-grid { grid-template-columns: 1fr; }
+      .proof-grid { grid-template-columns: 1fr; gap: 24px; }
 
       .footer-inner {
         flex-direction: column;
@@ -940,427 +659,320 @@
 
     @media (max-width: 480px) {
       .steps-grid { grid-template-columns: 1fr; }
-      .container  { padding: 0 24px; }
-      .persona-grid { grid-template-columns: 1fr; }
+      .container { padding: 0 20px; }
     }
   </style>
 </head>
 <body>
 
-  <!-- ① Hero — 価値を1秒で伝える -->
+  <!-- ═══ Hero ═══════════════════════════════ -->
   <section class="hero">
     <div class="container">
-      <span class="hero-eyebrow">個人店オーナーのためのAI秘書</span>
+      <span class="hero-badge">個人店オーナーのためのAI秘書</span>
       <h1>写真を送るだけ。<br>Instagram投稿が<br><em>30秒で完成</em>する。</h1>
-      <p class="hero-sub">LINEで写真を送るだけで、あなたのお店らしい投稿文をAIが作成します。</p>
-      <a href="https://lin.ee/OWTIvhZ" class="btn">無料で試す</a>
+      <p class="hero-sub">LINEで写真を送るだけで、AIがあなたのお店らしい投稿文を生成します。</p>
+      <a href="https://lin.ee/OWTIvhZ" class="btn btn-large">無料で試す</a>
     </div>
   </section>
 
-  <!-- ② 共感 — SNS投稿の悩み -->
+  <!-- ═══ Problem ════════════════════════════ -->
   <section class="section">
-    <div class="container">
+    <div class="container section-center">
       <p class="label">Problem</p>
-      <h2 class="title">Instagram運用の<br>よくある悩み</h2>
-      <p class="desc">日本の飲食店・小売店は約150万店舗。<br>そのうち定期的にInstagramを更新できているのは、わずか2割以下と言われています。</p>
+      <h2 class="title">SNS投稿で<br>こんな悩みありませんか？</h2>
 
       <div class="problem-grid">
-        <div class="problem-cell">
-          <p class="problem-num">01</p>
-          <h3>投稿作成に<br>時間がかかる</h3>
-          <p>写真を撮って、文章を考えて、ハッシュタグを選んで。毎回30分以上かかり、本業を圧迫してしまう。</p>
+        <div class="problem-card">
+          <div class="problem-icon">📝</div>
+          <h3>写真は撮った。<br>でも投稿文が思いつかない</h3>
+          <p>写真を撮って、文章を考えて、ハッシュタグを選んで。毎回30分以上かかり、結局やめてしまう。</p>
         </div>
-        <div class="problem-cell">
-          <p class="problem-num">02</p>
-          <h3>何を書けば<br>いいかわからない</h3>
-          <p>毎日同じような文章になる。お店の魅力をどう言葉にすればいいか、正解がわからない。</p>
+        <div class="problem-card">
+          <div class="problem-icon">⏰</div>
+          <h3>忙しくて<br>投稿できない</h3>
+          <p>接客、仕込み、経理…やることだらけ。SNSに時間を割けない。分かっているのに後回しにしてしまう。</p>
         </div>
-        <div class="problem-cell">
-          <p class="problem-num">03</p>
-          <h3>SNS代行は<br>高すぎる</h3>
-          <p>プロに依頼すれば月5〜30万円。個人店には現実的でない。かといってChatGPTでは「自分の店の言葉」にならない。</p>
+        <div class="problem-card">
+          <div class="problem-icon">🔁</div>
+          <h3>毎回<br>同じ文章になる</h3>
+          <p>「本日も営業中です」「新メニュー始めました」…。お店の魅力をどう言葉にすればいいか分からない。</p>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ③ 解決 — 使い方はシンプル -->
-  <section class="section section-alt">
+  <!-- ═══ Solution bridge ════════════════════ -->
+  <section class="solution-bridge">
+    <div class="container">
+      <h2>それを解決するのが<br><em>AI店舗秘書</em>です</h2>
+      <p class="desc">写真を送るだけで、AIが投稿文を作成します。</p>
+    </div>
+  </section>
+
+  <!-- ═══ How it works ═══════════════════════ -->
+  <section class="section section-alt section-center">
     <div class="container">
       <p class="label">How it works</p>
-      <h2 class="title">使い方はシンプル</h2>
+      <h2 class="title">使い方は4ステップ</h2>
 
       <div class="steps-grid">
-        <div class="step">
+        <div class="step-card">
           <div class="step-num">1</div>
-          <h3>LINE登録</h3>
-          <p>LINEで友だち追加して「登録」と送信。業種・店名・こだわり・口調を設定。3分で完了。</p>
+          <h3>LINEで写真を送る</h3>
+          <p>お店の写真をLINEで送信。それだけでOK。</p>
         </div>
-        <div class="step">
+        <div class="step-card">
           <div class="step-num">2</div>
-          <h3>写真を送信</h3>
-          <p>商品やお店の写真をLINEで送るだけ。投稿の方向性をボタンで選べます。</p>
+          <h3>AIが3案を生成</h3>
+          <p>異なるコンセプトの投稿文が3つ届きます。</p>
         </div>
-        <div class="step">
+        <div class="step-card">
           <div class="step-num">3</div>
-          <h3>3案から選択</h3>
-          <p>異なるコンセプトの3案が届く。気に入ったものを選んでコピペ。修正も「直し: 〇〇」で即対応。</p>
+          <h3>好きな案を選ぶ</h3>
+          <p>気に入った案をタップ。微調整も一言で。</p>
         </div>
-        <div class="step">
+        <div class="step-card">
           <div class="step-num">4</div>
-          <h3>報告で成長</h3>
-          <p>反応を報告するとAIが学習。使い続けるほど、あなたのお店にぴったりの投稿に育っていきます。</p>
+          <h3>Instagramに投稿</h3>
+          <p>テキストをコピペして投稿完了。</p>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ④ デモ — 実際に届く投稿案 -->
-  <section class="section">
+  <!-- ═══ Demo: Phone mockups ════════════════ -->
+  <section class="section section-center">
     <div class="container">
-      <p class="label">Output</p>
-      <h2 class="title">実際に届く投稿案</h2>
-      <p class="desc">写真1枚から、3つの異なる切り口で投稿案を提案します。</p>
+      <p class="label">Demo</p>
+      <h2 class="title">実際の使用イメージ</h2>
+      <p class="desc">LINEで写真を送るだけで、ここまでの投稿案が届きます。</p>
 
-      <div class="preview-layout">
-        <div class="preview-text">
-          <h3>3案から選ぶだけ</h3>
-          <p>AIが画像を分析し、3つの異なるコンセプトで投稿案を生成。「記憶に残る日常」「さりげない誘い」「店主のひとりごと」の中から、その日の気分で選べます。</p>
+      <div class="demo-phones">
 
-          <div>
-            <span class="preview-badge badge-green">本文</span>
-            <span class="preview-badge badge-gray">想起の一言</span>
-            <span class="preview-badge badge-gray">来店の一文</span>
-            <span class="preview-badge badge-gray">ハッシュタグ</span>
+        <!-- Phone 1: 写真を送る -->
+        <div class="demo-item">
+          <div class="phone-frame">
+            <div class="phone-header">AI店舗秘書</div>
+            <div class="phone-screen">
+              <div class="chat-bubble bubble-user">📷 写真を送信</div>
+              <div class="chat-bubble bubble-bot">
+                <div class="bubble-label">AI店舗秘書</div>
+                いい写真ですね！今日あったこと、思ったこと、一言もらえるとグッと「あなたらしい」投稿になります💡<br><br>
+                <span style="font-size:0.68rem;color:var(--gray-mid)">
+                  例：今朝これ焼けたとき嬉しかった<br>
+                  例：常連さんが褒めてくれた<br>
+                  例：新作、自信ある
+                </span>
+              </div>
+              <div class="qr-btns">
+                <span class="qr-btn">お知らせ</span>
+                <span class="qr-btn">日常感</span>
+                <span class="qr-btn">お役立ち</span>
+                <span class="qr-btn">スキップ</span>
+              </div>
+              <div class="chat-bubble bubble-user" style="margin-top:8px">日常感</div>
+            </div>
           </div>
-
-          <div class="output-structure">
-            <div class="output-block">
-              <div class="output-label">本文</div>
-              <div class="output-desc">お店の口調に合わせた投稿文。<strong>超短文（80字）〜長文（500字）</strong>まで設定可能。</div>
-            </div>
-            <div class="output-block">
-              <div class="output-label">想起の一言</div>
-              <div class="output-desc">五感（香り・音・温度・光・手触り）を含む15〜25文字。<strong>お店を思い出させる</strong>トリガー。</div>
-            </div>
-            <div class="output-block">
-              <div class="output-label">来店の一文</div>
-              <div class="output-desc">「今」「数量」「時間」など具体情報を1つ含め、<strong>押し売りにならない</strong>来店誘導。</div>
-            </div>
-            <div class="output-block">
-              <div class="output-label">ハッシュタグ</div>
-              <div class="output-desc">同業種で<strong>高エンゲージメントのタグ</strong>を自動選定。汎用タグは使わない。</div>
-            </div>
-            <div class="output-block">
-              <div class="output-label">撮影アドバイス</div>
-              <div class="output-desc">今回の写真を褒めつつ、<strong>次の投稿ネタ</strong>を1つ提案。</div>
-            </div>
+          <div class="demo-caption">
+            <span class="demo-step-num">Step 1</span>
+            <h3>写真を送る</h3>
+            <p>方向性をボタンで選ぶだけ</p>
           </div>
         </div>
 
-        <div class="line-mockup">
-          <div class="line-header">AI店舗秘書</div>
-
-          <div class="chat-bubble bubble-user">📷 (写真を送信)</div>
-
-          <div class="chat-bubble bubble-bot">
-            <div class="bubble-label">AI店舗秘書</div>
-            写真見ました！この写真で何を伝えたいですか？
+        <!-- Phone 2: 3案が届く -->
+        <div class="demo-item">
+          <div class="phone-frame">
+            <div class="phone-header">AI店舗秘書</div>
+            <div class="phone-screen">
+              <div class="chat-bubble bubble-bot">
+                <div class="bubble-label">AI店舗秘書</div>
+                <strong style="font-size:0.72rem">[ 案A：記憶に残る日常 ]</strong><br>
+                氷を入れた瞬間のカチンという音が妙に心地よくて、今日も一杯やってしまった。<br><br>
+                <span style="color:var(--gray-mid)">琥珀色の液体が氷に触れる冷たい感覚</span><br>
+                <span style="color:var(--gray-mid)">今夜も静かに開いてます</span><br><br>
+                <strong style="font-size:0.72rem">[ 案B：さりげない誘い ]</strong><br>
+                大きめの氷を2個入れて、ゆっくり溶けるのを眺めながら飲む。<br><br>
+                <strong style="font-size:0.72rem">[ 案C：店主のひとりごと ]</strong><br>
+                閉店前に一杯だけ。氷がゆっくり溶けて薄くなっていくのを見てると…
+              </div>
+              <div class="qr-btns">
+                <span class="qr-btn">A案</span>
+                <span class="qr-btn">B案</span>
+                <span class="qr-btn">C案</span>
+                <span class="qr-btn">✏️直し</span>
+              </div>
+            </div>
           </div>
-
-          <div class="quick-replies">
-            <span class="qr-btn">お知らせ</span>
-            <span class="qr-btn">日常感</span>
-            <span class="qr-btn">お役立ち</span>
-            <span class="qr-btn">スキップ</span>
-          </div>
-
-          <div class="chat-bubble bubble-user">日常感</div>
-
-          <div class="chat-bubble bubble-bot">
-            <div class="bubble-label">AI店舗秘書</div>
-            [ 案A：記憶に残る日常 ]<br>
-            今朝の焙煎は深煎りで<br>
-            豆の音がいつもよりパチパチ鳴ってた<br><br>
-            焙煎の煙に朝の光が差し込む瞬間<br>
-            今日は15時まで。残り8杯分<br>
-            #自家焙煎 #カフェ巡り ...<br><br>
-            [ 案B：さりげない誘い ]<br>
-            ...<br><br>
-            [ 案C：店主のひとりごと ]<br>
-            ...
-          </div>
-
-          <div class="quick-replies">
-            <span class="qr-btn">案A</span>
-            <span class="qr-btn">案B</span>
-            <span class="qr-btn">案C</span>
+          <div class="demo-caption">
+            <span class="demo-step-num">Step 2</span>
+            <h3>3案が届く</h3>
+            <p>異なる切り口で3つの投稿案</p>
           </div>
         </div>
+
+        <!-- Phone 3: 選んで完成 -->
+        <div class="demo-item">
+          <div class="phone-frame">
+            <div class="phone-header">AI店舗秘書</div>
+            <div class="phone-screen">
+              <div class="chat-bubble bubble-user">A</div>
+              <div class="chat-bubble bubble-bot">
+                <div class="bubble-label">AI店舗秘書</div>
+                案Aですね！コピペでどうぞ👇<br>
+                ──────<br>
+                氷を入れた瞬間のカチンという音が妙に心地よくて、今日も一杯やってしまった。<br><br>
+                琥珀色の液体が氷に触れる冷たい感覚<br>
+                今夜も静かに開いてます<br><br>
+                #ウイスキー #ロックグラス #カフェ #夜カフェ #東京カフェ<br>
+                ──────<br><br>
+                📸 次の撮影に<br>
+                <span style="font-size:0.68rem;color:var(--gray-mid)">次はグラスを持つ手元も一緒に写してみませんか？</span><br><br>
+                🎯 明日撮るべきもの<br>
+                <span style="font-size:0.68rem;color:var(--gray-mid)">コーヒーを淹れている手元を横から撮ってください。</span>
+              </div>
+            </div>
+          </div>
+          <div class="demo-caption">
+            <span class="demo-step-num">Step 3</span>
+            <h3>選んで完成</h3>
+            <p>コピペで投稿 + 次の撮影アイデアも</p>
+          </div>
+        </div>
+
       </div>
     </div>
   </section>
 
-  <!-- ⑤ 価値 — 使うとどうなるか（実績データ） -->
+  <!-- ═══ Social Proof ═══════════════════════ -->
   <section class="section section-dark section-center">
     <div class="container">
-      <p class="label">Real Data</p>
-      <h2 class="title">「投稿が続く」だけで、数字は変わる</h2>
+      <p class="label">Results</p>
+      <h2 class="title">「投稿が続く」だけで<br>数字は変わる</h2>
       <p class="desc">同じアカウント・同じフォロワー数。違いは「投稿頻度」だけ。</p>
 
-      <div class="realdata-grid">
-        <!-- Before -->
-        <div class="realdata-card">
-          <div class="realdata-card-header">
-            <span class="realdata-period">2025年 1月（31日間）</span>
-            <span class="realdata-badge realdata-badge-before">自力で投稿</span>
+      <div class="proof-grid">
+        <div class="proof-card">
+          <div class="proof-header">
+            <span class="proof-period">2025年 1月（31日間）</span>
+            <span class="proof-badge proof-badge-before">自力で投稿</span>
           </div>
-          <div class="realdata-hero-num">
+          <div class="proof-num">
             <p class="num-label">閲覧数</p>
             <p class="num-value num-value-before">216</p>
           </div>
-          <div class="realdata-stats">
-            <div class="realdata-stat">
+          <div class="proof-stats">
+            <div class="proof-stat">
               <p class="stat-label">リーチ</p>
               <p class="stat-value">20</p>
             </div>
-            <div class="realdata-stat">
+            <div class="proof-stat">
               <p class="stat-label">フォロワー外</p>
               <p class="stat-value">50.9%</p>
             </div>
           </div>
-          <img src="images/before-insights.png" alt="導入前のInstagramインサイト" class="realdata-screenshot" loading="lazy">
         </div>
 
-        <!-- After -->
-        <div class="realdata-card">
-          <div class="realdata-card-header">
-            <span class="realdata-period">2025年 2月（28日間）</span>
-            <span class="realdata-badge realdata-badge-after">AI秘書で投稿</span>
+        <div class="proof-card">
+          <div class="proof-header">
+            <span class="proof-period">2025年 2月（28日間）</span>
+            <span class="proof-badge proof-badge-after">AI秘書で投稿</span>
           </div>
-          <div class="realdata-hero-num">
+          <div class="proof-num">
             <p class="num-label">閲覧数</p>
             <p class="num-value num-value-after">710</p>
             <p class="num-change">日割り 3.6倍</p>
           </div>
-          <div class="realdata-stats">
-            <div class="realdata-stat">
+          <div class="proof-stats">
+            <div class="proof-stat">
               <p class="stat-label">リーチ</p>
-              <p class="stat-value">314 <span style="font-size:0.7rem;color:var(--accent)">+1,470%</span></p>
+              <p class="stat-value">314 <span style="font-size:0.7rem;color:rgba(96,165,250,1)">+1,470%</span></p>
             </div>
-            <div class="realdata-stat">
+            <div class="proof-stat">
               <p class="stat-label">フォロワー外</p>
               <p class="stat-value">64.6%</p>
             </div>
           </div>
-          <img src="images/after-insights.png" alt="導入後のInstagramインサイト" class="realdata-screenshot" loading="lazy">
         </div>
       </div>
 
-      <div class="realdata-narrative">
+      <div class="proof-narrative">
         <p>
           文章を考える手間がなくなると、<strong>素材さえあれば投稿できる</strong>ようになります。<br>
-          そのハードルの低さが投稿頻度を変え、<br>
-          たった1ヶ月で<span class="accent-text">閲覧数3.6倍・リーチ17倍</span>の差がつきました。<br>
-          <span style="font-size:0.8rem">※ 計測期間の差（31日 vs 28日）を補正した日割り換算</span>
-        </p>
-        <p style="margin-top:20px;">
-          「リール動画を頑張らないと見てもらえない」——そう言われる時代でも、<br>
-          <strong>投稿をやめてしまえば、ゼロはゼロのまま。</strong><br>
-          まず投稿を「続けられる状態」にすることが、最初の一歩です。
+          たった1ヶ月で<span class="accent-text">閲覧数3.6倍・リーチ17倍</span>の差がつきました。
         </p>
       </div>
 
-      <p class="realdata-note">※ 同一アカウントの実データに基づく月別比較です。効果は運用状況により異なります。</p>
+      <p class="proof-note">※ 同一アカウントの実データ。効果は運用状況により異なります。</p>
     </div>
   </section>
 
-  <!-- ⑤ 価値 — 5つの仕組み -->
-  <section class="section">
+  <!-- ═══ Benefits ═══════════════════════════ -->
+  <section class="section section-center">
     <div class="container">
-      <p class="label">Features</p>
-      <h2 class="title">5つの仕組み</h2>
+      <p class="label">Benefits</p>
+      <h2 class="title">AI店舗秘書を使うと</h2>
 
-      <div class="feature-list">
-        <div class="feature-row">
-          <div class="f-num">01</div>
-          <div class="f-body">
-            <h3>画像を送るだけで投稿完成</h3>
-            <p>LINEで写真を送ると、AIが画像を5つの視点で分析。3つの異なるコンセプトで投稿案を生成します。投稿の方向性（お知らせ/日常感/お役立ち）をボタンで選べば、さらに的確な提案に。</p>
-          </div>
+      <div class="benefits-grid">
+        <div class="benefit-card">
+          <div class="benefit-icon">⚡</div>
+          <h3>投稿作成が30秒</h3>
+          <p>写真を送って案を選ぶだけ。文章を考える時間はゼロになります。</p>
         </div>
-        <div class="feature-row">
-          <div class="f-num">02</div>
-          <div class="f-body">
-            <h3>使うほど「お店の声」に育つ</h3>
-            <p>フィードバックや修正指示をAIが学習し、「思想ログ」として蓄積。10回、20回と使ううちに「あ、うちっぽい」という文章に変わっていきます。口癖・NGワード・性格も設定可能。</p>
-          </div>
+        <div class="benefit-card">
+          <div class="benefit-icon">🧠</div>
+          <h3>文章を考える必要なし</h3>
+          <p>AIがお店の雰囲気に合った投稿文を3パターン提案。選ぶだけでOK。</p>
         </div>
-        <div class="feature-row">
-          <div class="f-num">03</div>
-          <div class="f-body">
-            <h3>同業種の成功パターンを活用</h3>
-            <p>27業種以上に対応した集合知エンジン。同じ業種で保存されやすかった投稿の文字数・絵文字数・書き出し・CTA位置を自動で分析し、あなたの投稿に反映します。</p>
-          </div>
-        </div>
-        <div class="feature-row">
-          <div class="f-num">04</div>
-          <div class="f-body">
-            <h3>エンゲージメント自動学習</h3>
-            <p>投稿後の反応（いいね・保存・コメント）を報告すると、保存強度やエンゲージメント率（ER）を自動計算。高パフォーマンス投稿の成功要因をAIが分析し、次の提案に自動反映します。</p>
-          </div>
-        </div>
-        <div class="feature-row">
-          <div class="f-num">05</div>
-          <div class="f-body">
-            <h3>Instagram連携でデータ同期</h3>
-            <p>Instagramアカウントを接続すれば、過去の投稿データ（いいね・リーチ・保存数）を自動取得。手入力なしでエンゲージメントデータを蓄積し、高精度な提案につなげます。</p>
-          </div>
+        <div class="benefit-card">
+          <div class="benefit-icon">📅</div>
+          <h3>毎日投稿できる</h3>
+          <p>ハードルが下がるから続く。続くから数字が変わる。</p>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ⑤ 価値 — AIの成長エンジン -->
-  <section class="section section-dark section-center">
-    <div class="container">
-      <p class="label">AI that grows</p>
-      <h2 class="title">使うほど賢くなる、3つのエンジン</h2>
-      <p class="desc" style="max-width:540px; margin: 0 auto 0;">
-        一般的なAIツールは毎回リセットされます。<br>AI店舗秘書は使い込むほど「お店の専属ライター」に育ちます。
-      </p>
-
-      <div class="learn-grid">
-        <div class="learn-card">
-          <div class="learn-icon">🧠</div>
-          <h3>人格学習</h3>
-          <p>フィードバックや修正指示から「思想ログ」を蓄積。5件以上たまると人格定義を自動生成し、バージョニングで進化を記録します。</p>
-        </div>
-        <div class="learn-card">
-          <div class="learn-icon">📊</div>
-          <h3>集合知エンジン</h3>
-          <p>同業種の投稿データから、保存されやすい文字数・絵文字数・書き出しパターンを抽出。信頼レベル付きで提案に反映します。</p>
-        </div>
-        <div class="learn-card">
-          <div class="learn-icon">📈</div>
-          <h3>エンゲージメント学習</h3>
-          <p>高パフォーマンス投稿（保存強度が平均の1.5倍以上）の成功要因をAIが自動分析。次の投稿に自動で反映します。</p>
-        </div>
-      </div>
-
-      <div class="stats-row">
-        <div class="stat">
-          <div class="stat-n">30秒</div>
-          <div class="stat-l">投稿作成時間</div>
-        </div>
-        <div class="stat">
-          <div class="stat-n">27+</div>
-          <div class="stat-l">対応業種</div>
-        </div>
-        <div class="stat">
-          <div class="stat-n">3種</div>
-          <div class="stat-l">口調設定</div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ⑥ 信頼 — こんなお店のオーナーへ -->
-  <section class="section">
-    <div class="container">
-      <p class="label">Target</p>
-      <h2 class="title">こんなお店のオーナーへ</h2>
-      <p class="desc">「SNSをやらなきゃと思っているけど、手が回っていない」<br>そんなあなたのためのサービスです。</p>
-
-      <div class="persona-grid">
-        <div class="persona-card">
-          <div class="persona-icon">☕</div>
-          <h4>飲食店</h4>
-          <p>カフェ、ベーカリー、ラーメン、居酒屋、レストランなど</p>
-        </div>
-        <div class="persona-card">
-          <div class="persona-icon">💇</div>
-          <h4>美容系</h4>
-          <p>美容室、ネイルサロン、エステ、まつエクなど</p>
-        </div>
-        <div class="persona-card">
-          <div class="persona-icon">🛍️</div>
-          <h4>小売</h4>
-          <p>雑貨店、花屋、アパレル、セレクトショップなど</p>
-        </div>
-        <div class="persona-card">
-          <div class="persona-icon">🧘</div>
-          <h4>サービス</h4>
-          <p>整体、ヨガスタジオ、写真スタジオ、教室など</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ⑥ 信頼 — 比較表 -->
-  <section class="section section-alt">
+  <!-- ═══ Comparison ═════════════════════════ -->
+  <section class="section section-alt section-center">
     <div class="container">
       <p class="label">Comparison</p>
       <h2 class="title">何が違うのか</h2>
-      <p class="desc">「ただのAI文章生成」ではありません。</p>
 
-      <table class="compare-table">
-        <thead>
-          <tr>
-            <th></th>
-            <th>ChatGPT / 汎用AI</th>
-            <th>SNS代行業者</th>
-            <th>AI店舗秘書</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>月額</td>
-            <td>無料〜$20</td>
-            <td>5〜30万円</td>
-            <td>無料</td>
-          </tr>
-          <tr>
-            <td>お店の個性</td>
-            <td>毎回説明が必要</td>
-            <td>担当者次第</td>
-            <td>自動で学習・蓄積</td>
-          </tr>
-          <tr>
-            <td>業界知識</td>
-            <td>なし</td>
-            <td>担当者次第</td>
-            <td>同業種の成功データ内蔵</td>
-          </tr>
-          <tr>
-            <td>操作方法</td>
-            <td>PCでプロンプト入力</td>
-            <td>おまかせ</td>
-            <td>LINEで写真を送るだけ</td>
-          </tr>
-          <tr>
-            <td>成長</td>
-            <td>しない</td>
-            <td>しない</td>
-            <td>使うほど「お店の声」に育つ</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
-
-  <!-- ⑦ CTA — 行動 -->
-  <section class="section section-center">
-    <div class="container">
-      <h2 class="title">SNSが「やらなきゃ」から<br>「楽しい」に変わる</h2>
-      <p class="desc" style="max-width:480px; margin: 0 auto;">大手チェーンには専任のマーケティング部門がある。<br>でも、個人店には「自分」しかいない。<br>その格差を、AIが埋めます。</p>
-      <div style="margin-top: 2rem;">
-        <a href="https://lin.ee/OWTIvhZ" class="btn">無料で試す</a>
+      <div class="compare-cards">
+        <div class="compare-card compare-card-bad">
+          <h3><span style="font-size:1.2rem">🤖</span> ChatGPT / 汎用AI</h3>
+          <ul class="compare-list">
+            <li><span class="compare-icon">✗</span>毎回プロンプトを入力</li>
+            <li><span class="compare-icon">✗</span>文章がAIっぽい</li>
+            <li><span class="compare-icon">✗</span>お店の個性を覚えない</li>
+            <li><span class="compare-icon">✗</span>業種データなし</li>
+          </ul>
+        </div>
+        <div class="compare-card compare-card-good">
+          <h3><span style="font-size:1.2rem">✨</span> AI店舗秘書</h3>
+          <ul class="compare-list">
+            <li><span class="compare-icon" style="color:var(--accent)">✓</span>写真を送るだけ</li>
+            <li><span class="compare-icon" style="color:var(--accent)">✓</span>お店らしい言葉で書く</li>
+            <li><span class="compare-icon" style="color:var(--accent)">✓</span>使うほど「あなたの声」に育つ</li>
+            <li><span class="compare-icon" style="color:var(--accent)">✓</span>同業種の成功データ内蔵</li>
+          </ul>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- Footer -->
+  <!-- ═══ Final CTA ══════════════════════════ -->
+  <section class="cta-final">
+    <div class="container">
+      <h2>今すぐ、無料で試す</h2>
+      <p>写真を送るだけで、30秒で投稿が届く。<br>まずは1回、試してみてください。</p>
+      <a href="https://lin.ee/OWTIvhZ" class="btn btn-large">LINEで使ってみる</a>
+      <p class="cta-sub">無料・登録3分・いつでも解除OK</p>
+    </div>
+  </section>
+
+  <!-- ═══ Footer ═════════════════════════════ -->
   <footer>
     <div class="footer-inner">
       <span>&copy; 2026 AI店舗秘書</span>
