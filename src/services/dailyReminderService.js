@@ -70,13 +70,34 @@ export async function sendDailyReminders() {
       return;
     }
 
+    // Instagram連携済み店舗のstore_idを取得（連携済みユーザーはリマインダー不要）
+    let instagramLinkedStoreIds = new Set();
+    try {
+      const { data: igAccounts } = await supabase
+        .from('instagram_accounts')
+        .select('store_id')
+        .eq('is_active', true);
+      if (igAccounts) {
+        instagramLinkedStoreIds = new Set(igAccounts.map(a => a.store_id));
+      }
+    } catch (err) {
+      console.warn('[DailyReminder] Instagram連携チェック失敗（続行）:', err.message);
+    }
+
     let sentCount = 0;
     let skipCount = 0;
+    let igSkipCount = 0;
     const sentLineUserIds = new Set(); // 重複防止用
 
     for (const user of users) {
       if (sentLineUserIds.has(user.line_user_id)) {
         skipCount++;
+        continue;
+      }
+
+      // Instagram連携済みの店舗を使っている場合はスキップ
+      if (user.current_store_id && instagramLinkedStoreIds.has(user.current_store_id)) {
+        igSkipCount++;
         continue;
       }
 
@@ -92,7 +113,7 @@ export async function sendDailyReminders() {
       }
     }
 
-    console.log(`[DailyReminder] リマインダー送信完了: 送信=${sentCount}, スキップ=${skipCount}`);
+    console.log(`[DailyReminder] リマインダー送信完了: 送信=${sentCount}, スキップ=${skipCount}, IG連携スキップ=${igSkipCount}`);
   } catch (err) {
     console.error('[DailyReminder] リマインダー送信エラー:', err.message);
   }

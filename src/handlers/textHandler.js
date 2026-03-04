@@ -15,7 +15,7 @@ import {
 } from '../services/supabaseService.js';
 import { handleFeedback, handleStyleLearning } from './feedbackHandler.js';
 import { handleEngagementReport, handlePostSelection } from './reportHandler.js';
-import { handleOnboardingStart, handleOnboardingResponse, handleHelpMenu, handleHelpCategory } from './onboardingHandler.js';
+import { handleOnboardingStart, handleOnboardingResponse, handleHelpMenu, handleHelpCategory, handleCommandList } from './onboardingHandler.js';
 import { handleDataStats } from './dataStatsHandler.js';
 import { handleAdminMenu, handleAdminTestData, handleAdminClearData, handleAdminClearTestData, handleAdminReportMode, handleAdminReportSave, handleAdminCategoryRequests, handleAdminSub } from './adminHandler.js';
 import { handleInstagramCommand } from './instagramHandler.js';
@@ -103,7 +103,7 @@ export async function handleTextMessage(user, text, replyToken) {
   // （システムコマンドはスキップ、それ以外はここで受け取る）
   const isSystemCommand = ['キャンセル', 'cancel', 'リセット', 'データリセット',
     '店舗一覧', '店舗切り替え', '店舗切替', '店舗削除', 'ヘルプ', 'help', '学習状況', '問い合わせ', '登録',
-    'プラン', 'アップグレード', '今週の計画'].includes(trimmed)
+    'プラン', 'アップグレード', '今週の計画', 'コマンド一覧'].includes(trimmed)
     || trimmed.startsWith('切替:') || trimmed.startsWith('/');
   if (user.pending_image_context && !isSystemCommand) {
     const handled = await handlePendingImageResponse(user, trimmed, replyToken);
@@ -261,6 +261,11 @@ export async function handleTextMessage(user, text, replyToken) {
   // 週間コンテンツ計画
   if (trimmed === '今週の計画' || trimmed === '/weekly') {
     return await handleWeeklyPlan(user, replyToken);
+  }
+
+  // コマンド一覧
+  if (trimmed === 'コマンド一覧') {
+    return await handleCommandList(user, replyToken);
   }
 
   // ヘルプ: 階層型メニュー

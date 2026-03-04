@@ -87,9 +87,15 @@ async function getCrossIndustryInsight(storeCategory) {
  * 週間計画用のClaude APIプロンプトを構築
  */
 function buildWeeklyPlanPrompt(store, blendedInsights, crossIndustryData, personalization) {
-  const bestHours = blendedInsights?.category?.bestPostingHours
-    || blendedInsights?.group?.bestPostingHours
-    || [12, 18, 20];
+  // 自店舗データが十分にある場合は自店舗の最適時間を優先
+  // データが溜まるほど、その店舗固有の最適時間に収束する
+  const ownHours = blendedInsights?.own?.bestPostingHours;
+  const ownSampleSize = blendedInsights?.own?.sampleSize || 0;
+  const bestHours = (ownSampleSize >= 5 && ownHours?.length > 0)
+    ? ownHours
+    : blendedInsights?.category?.bestPostingHours
+      || blendedInsights?.group?.bestPostingHours
+      || [12, 18, 20];
 
   const winningPattern = blendedInsights?.own?.winningPattern
     || blendedInsights?.category?.winningPattern;
@@ -139,8 +145,9 @@ function buildWeeklyPlanPrompt(store, blendedInsights, crossIndustryData, person
 - こだわり: ${store.strength || '未設定'}
 - 口調: ${store.tone || 'casual'}
 
-【最適投稿時間帯（データに基づく）】
+【最適投稿時間帯（${ownSampleSize >= 5 ? 'この店舗の実績データ' : '同業種の傾向データ'}に基づく）】
 ${bestHours.map(h => `${h}:00`).join(', ')}
+※ データソース: ${ownSampleSize >= 5 ? `自店舗${ownSampleSize}件のエンゲージメント分析` : ownSampleSize > 0 ? `自店舗${ownSampleSize}件+同業種データ（5件以上で自店舗優先に切替）` : '同業種の全体傾向'}
 ${winPatternSection}
 ${crossIndustrySection}
 

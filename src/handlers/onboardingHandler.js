@@ -370,6 +370,7 @@ export async function handleHelpMenu(user, replyToken) {
 5️⃣ 【学習】
 　　AI学習・フィードバック機能
 
+📋 「コマンド一覧」で全コマンドを確認
 💬 「問い合わせ」でサポート連絡先を確認`;
 
   await replyWithQuickReply(replyToken, message, [
@@ -378,8 +379,69 @@ export async function handleHelpMenu(user, replyToken) {
     { type: 'action', action: { type: 'message', label: '報告', text: '報告' } },
     { type: 'action', action: { type: 'message', label: '設定', text: '設定' } },
     { type: 'action', action: { type: 'message', label: '学習', text: '学習' } },
+    { type: 'action', action: { type: 'message', label: 'コマンド一覧', text: 'コマンド一覧' } },
     { type: 'action', action: { type: 'message', label: '問い合わせ', text: '問い合わせ' } },
   ]);
+}
+
+/**
+ * コマンド一覧（管理者コマンドを除く全コマンド）
+ */
+export async function handleCommandList(user, replyToken) {
+  const message = `📋 コマンド一覧
+━━━━━━━━━━━━━━━
+
+🏪 店舗管理
+・登録 → 新しい店舗を登録
+・店舗一覧 → 登録店舗の一覧＋切替
+・切替:店名 → 店舗を切替
+・店舗更新 → 店舗情報を変更
+・店舗削除 → 現在の店舗を削除
+
+📝 投稿生成
+・画像を送信 → 3案生成
+・テキストを送信 → 投稿生成
+・A / B / C → 案を選択
+・直し:指示 → 選んだ案を修正
+・学習:文章 → スタイル学習
+・超短文で:内容 → 文字数指定して生成
+ （短文で / 中文で / 長文で も可）
+
+📊 報告・データ
+・報告:いいね,保存,コメント → 数値報告
+・フォロワー:数 → フォロワー数を報告
+・データ確認 → データ統計を見る
+・学習状況 → AI学習の蓄積状況
+
+⚙️ 設定
+・長さ:short → デフォルト文字数設定
+ （xshort / short / medium / long）
+・テンプレ登録 → テンプレート登録方法
+・テンプレ:key:value → テンプレート登録
+・設定確認 → 現在のテンプレート表示
+・テンプレート削除 → テンプレート削除
+・キャラ設定 → 口癖の設定
+・リマインダー停止 / リマインダー再開
+
+📱 Instagram
+・/instagram connect トークン → 連携
+・/instagram post → 直近の投稿を投稿
+・/instagram status → 連携状態確認
+
+💎 プラン
+・プラン → 現在のプラン確認
+・アップグレード → プラン変更案内
+・今週の計画 → 週間コンテンツ計画
+
+🔧 その他
+・ヘルプ → ヘルプメニュー
+・問い合わせ → サポート連絡先
+・季節提案 → 季節ごとのヒント
+・👍 / 👎 → 投稿を評価
+・キャンセル → 操作をキャンセル
+・データリセット → 学習データ全削除`;
+
+  await replyText(replyToken, message);
 }
 
 /**
@@ -550,7 +612,8 @@ export async function handleHelpCategory(user, category, replyToken) {
     '投稿': 'post',
     '報告': 'report',
     '設定': 'settings',
-    '学習': 'learning'
+    '学習': 'learning',
+    'コマンド一覧': 'commandList',
   };
 
   const selectedCategory = categoryMap[normalizedCategory];
@@ -566,6 +629,8 @@ export async function handleHelpCategory(user, category, replyToken) {
       return await handleHelpSettings(user, replyToken);
     case 'learning':
       return await handleHelpLearning(user, replyToken);
+    case 'commandList':
+      return await handleCommandList(user, replyToken);
     default:
       return null; // カテゴリーが見つからない場合
   }

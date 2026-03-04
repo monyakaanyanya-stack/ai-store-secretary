@@ -103,23 +103,52 @@ function analyzeEngagementData(data) {
   const topPosts = data.slice(0, 20);
   const topPostsAvgLength = topPosts.reduce((sum, post) => sum + (post.post_length || 0), 0) / topPosts.length;
 
-  // 投稿時間帯の分析（"HH:MM:SS" 形式を安全にパース）
-  const timeDistribution = {};
+  // 投稿時間帯の分析（エンゲージメント成績ベース）
+  // 頻度ではなく「何時に投稿したら反応が良かったか」で最適時間を導出
+  const hourPerformance = {};
   data.forEach(post => {
     if (post.post_time) {
       // new Date("HH:MM:SS") は Invalid Date になるため split で抽出
       const hourStr = String(post.post_time).split(':')[0];
       const hour = parseInt(hourStr, 10);
       if (Number.isFinite(hour) && hour >= 0 && hour <= 23) {
-        timeDistribution[hour] = (timeDistribution[hour] || 0) + 1;
+        if (!hourPerformance[hour]) {
+          hourPerformance[hour] = { totalSaveIntensity: 0, count: 0 };
+        }
+        const si = post.save_intensity != null ? post.save_intensity
+          : (post.likes_count > 0 && post.saves_count != null ? post.saves_count / post.likes_count : 0);
+        hourPerformance[hour].totalSaveIntensity += si;
+        hourPerformance[hour].count++;
       }
     }
   });
 
-  const bestPostingHours = Object.entries(timeDistribution)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3)
-    .map(([hour]) => parseInt(hour));
+  // スコア = 平均保存強度 × √件数（信頼性と性能のバランス）
+  // データが溜まるほど、成績の良い時間帯に収束する
+  const hourScores = Object.entries(hourPerformance)
+    .map(([hour, stats]) => ({
+      hour: parseInt(hour),
+      score: (stats.count > 0 ? stats.totalSaveIntensity / stats.count : 0) * Math.sqrt(stats.count),
+      avgSI: stats.count > 0 ? stats.totalSaveIntensity / stats.count : 0,
+      count: stats.count,
+    }));
+
+  let bestPostingHours;
+  // 保存強度データがある場合は成績ベース、なければ頻度ベース
+  const hasEngagementData = hourScores.some(h => h.avgSI > 0);
+  if (hasEngagementData) {
+    bestPostingHours = hourScores
+      .filter(h => h.count >= 1)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3)
+      .map(h => h.hour);
+  } else {
+    // まだ報告数値がない場合は頻度（投稿回数）で代用
+    bestPostingHours = hourScores
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3)
+      .map(h => h.hour);
+  }
 
   // 保存強度の平均（メイン指標）— H3修正: NaN防止
   const avgSaveIntensity = data.reduce((sum, post) => {

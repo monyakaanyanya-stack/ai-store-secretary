@@ -313,9 +313,15 @@ export function buildImagePostPrompt(store, lengthOverride = null, blendedInsigh
       insights.push(`【絵文字（必須）】\n同業種の平均絵文字数: ${Math.round(avgEmojiCount)}個\n※ この数を目安に使用してください`);
     }
 
-    const bestHours = category?.bestPostingHours || group?.bestPostingHours;
+    // 投稿時間帯: 自店舗データがあれば優先（エンゲージメント成績で収束）
+    const ownHours = own?.bestPostingHours;
+    const ownSampleSize = own?.sampleSize || 0;
+    const bestHours = (ownSampleSize >= 5 && ownHours?.length > 0)
+      ? ownHours
+      : category?.bestPostingHours || group?.bestPostingHours;
     if (bestHours && bestHours.length > 0) {
-      insights.push(`【参考】最適投稿時間帯: ${bestHours.join('時, ')}時`);
+      const source = (ownSampleSize >= 5 && ownHours?.length > 0) ? 'この店舗の実績' : '同業種の傾向';
+      insights.push(`【参考】最適投稿時間帯（${source}）: ${bestHours.join('時, ')}時`);
     }
 
     // 勝ちパターン: 出所で扱いを分ける（署名性保護）
@@ -585,10 +591,15 @@ export function buildTextPostPrompt(store, userText, lengthOverride = null, blen
       insights.push(`【絵文字（必須）】\n同業種の平均絵文字数: ${Math.round(avgEmojiCount)}個\n※ この数を目安に使用してください`);
     }
 
-    // 投稿時間帯（参考情報）
-    const bestHours = category?.bestPostingHours || group?.bestPostingHours;
+    // 投稿時間帯: 自店舗データがあれば優先（エンゲージメント成績で収束）
+    const ownHoursText = own?.bestPostingHours;
+    const ownSampleSizeText = own?.sampleSize || 0;
+    const bestHours = (ownSampleSizeText >= 5 && ownHoursText?.length > 0)
+      ? ownHoursText
+      : category?.bestPostingHours || group?.bestPostingHours;
     if (bestHours && bestHours.length > 0) {
-      insights.push(`【参考】最適投稿時間帯: ${bestHours.join('時, ')}時`);
+      const source = (ownSampleSizeText >= 5 && ownHoursText?.length > 0) ? 'この店舗の実績' : '同業種の傾向';
+      insights.push(`【参考】最適投稿時間帯（${source}）: ${bestHours.join('時, ')}時`);
     }
 
     // 勝ちパターン: 出所で扱いを分ける（署名性保護）
