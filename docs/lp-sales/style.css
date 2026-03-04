@@ -1,0 +1,886 @@
+/* ═══════════════════════════════════════════
+   AI店舗秘書 — Sales Letter LP
+   和テイスト / 落ち着き / Mobile-first
+   ═══════════════════════════════════════════ */
+
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --sumi: #2c2421;           /* 墨色 — メインテキスト */
+  --sumi-deep: #3d3530;      /* 淡墨 — ヒーロー背景（明るめ） */
+  --kincha: #c4a35a;          /* 金茶 — アクセント（和の金） */
+  --kincha-soft: rgba(196,163,90,0.12);
+  --matcha: #6b8e5e;          /* 抹茶色 — サブアクセント */
+  --matcha-soft: rgba(107,142,94,0.10);
+  --shironeri: #f8f5ef;       /* 白練 — 背景ベース */
+  --kinari: #f0ebe0;          /* 生成り — セクション背景 */
+  --hai: #8a8178;             /* 灰色 — サブテキスト */
+  --usuzumi: #b5ada4;         /* 薄墨 — ミュートテキスト */
+  --kabe: #e8e2d8;            /* 壁色 — ボーダー */
+  --white: #fff;
+  --beni: #b5495b;            /* 紅色 — 警告・痛み */
+  --beni-soft: #fdf5f3;       /* 薄紅 */
+  --line-green: #06c755;      /* LINE公式色 — CTAのみ */
+  --line-glow: rgba(6,199,85,0.15);
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: "Noto Sans JP", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  color: var(--sumi);
+  background: var(--shironeri);
+  line-height: 2;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+img { max-width: 100%; height: auto; }
+
+/* ─── Utility ──────────────────────────── */
+.wrap {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.text-center { text-align: center; }
+.text-accent { color: var(--kincha); }
+.text-red { color: var(--beni); }
+.text-small { font-size: 0.82rem; color: var(--hai); }
+.text-muted { color: var(--usuzumi); }
+
+.mt-0 { margin-top: 0; }
+.mt-1 { margin-top: 12px; }
+.mt-2 { margin-top: 24px; }
+.mt-3 { margin-top: 40px; }
+.mt-4 { margin-top: 64px; }
+
+.mb-0 { margin-bottom: 0; }
+.mb-1 { margin-bottom: 12px; }
+.mb-2 { margin-bottom: 24px; }
+
+.marker {
+  background: linear-gradient(transparent 60%, var(--kincha-soft) 60%);
+  padding: 0 2px;
+}
+
+.underline-accent {
+  border-bottom: 2px solid var(--kincha);
+  padding-bottom: 2px;
+}
+
+/* ─── 和の装飾線 ──────────────────────── */
+.wa-divider {
+  text-align: center;
+  padding: 32px 0;
+  position: relative;
+}
+
+.wa-divider::before {
+  content: '◆';
+  font-size: 0.6rem;
+  color: var(--usuzumi);
+  letter-spacing: 1.2em;
+}
+
+/* ─── CTA Button (LINE) ───────────────── */
+.cta-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 380px;
+  background: var(--line-green);
+  color: var(--white);
+  font-size: 1.05rem;
+  font-weight: 700;
+  padding: 17px 32px;
+  border-radius: 8px;
+  text-decoration: none;
+  letter-spacing: 0.04em;
+  box-shadow: 0 4px 20px var(--line-glow), 0 2px 6px rgba(0,0,0,0.08);
+  transition: transform 0.2s, box-shadow 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+
+.cta-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px var(--line-glow), 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.cta-btn::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -60%;
+  width: 50%;
+  height: 200%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  animation: shimmer 4s infinite;
+}
+
+@keyframes shimmer {
+  0% { left: -60%; }
+  100% { left: 120%; }
+}
+
+.cta-btn svg {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.cta-sub {
+  font-size: 0.75rem;
+  color: var(--usuzumi);
+  margin-top: 10px;
+  text-align: center;
+}
+
+.cta-block {
+  text-align: center;
+  padding: 48px 24px;
+}
+
+/* ─── Section: Hero / Hook ─────────────── */
+.hero {
+  background: var(--sumi-deep);
+  color: var(--shironeri);
+  padding: 80px 24px 68px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(196,163,90,0.04) 0%, transparent 50%),
+    radial-gradient(ellipse at 70% 80%, rgba(107,142,94,0.03) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+/* 上部の和柄装飾線 */
+.hero::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--kincha), transparent);
+  opacity: 0.4;
+}
+
+.hero-eyebrow {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.25em;
+  color: var(--kincha);
+  border: 1px solid rgba(196,163,90,0.3);
+  padding: 6px 20px;
+  border-radius: 2px;
+  margin-bottom: 36px;
+}
+
+.hero h1 {
+  font-size: clamp(1.5rem, 5.5vw, 2.6rem);
+  font-weight: 700;
+  line-height: 1.6;
+  letter-spacing: 0.02em;
+  margin-bottom: 28px;
+}
+
+.hero h1 .hook-line {
+  display: block;
+  font-size: clamp(1rem, 3.5vw, 1.4rem);
+  font-weight: 400;
+  color: rgba(248,245,239,0.5);
+  margin-bottom: 12px;
+  line-height: 1.8;
+}
+
+.hero h1 em {
+  font-style: normal;
+  color: var(--kincha);
+}
+
+.hero-desc {
+  font-size: 0.92rem;
+  color: rgba(248,245,239,0.5);
+  line-height: 2.1;
+  max-width: 460px;
+  margin: 0 auto 44px;
+}
+
+.hero .cta-sub {
+  color: rgba(248,245,239,0.3);
+}
+
+/* ─── Section: Pain / Empathy ──────────── */
+.pain-section {
+  padding: 80px 24px;
+  background: var(--shironeri);
+  position: relative;
+}
+
+.pain-title {
+  font-size: clamp(1.2rem, 4.5vw, 1.7rem);
+  font-weight: 700;
+  line-height: 1.8;
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.pain-list {
+  list-style: none;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.pain-list li {
+  position: relative;
+  padding: 20px 20px 20px 20px;
+  margin-bottom: 14px;
+  background: var(--beni-soft);
+  border-left: 3px solid var(--beni);
+  border-radius: 0 8px 8px 0;
+  font-size: 0.92rem;
+  line-height: 1.9;
+  color: var(--sumi);
+}
+
+.pain-list li strong {
+  font-weight: 700;
+}
+
+.pain-outro {
+  text-align: center;
+  margin-top: 52px;
+  font-size: 1.05rem;
+  font-weight: 500;
+  line-height: 2.2;
+  color: var(--sumi);
+}
+
+.pain-outro .big {
+  display: block;
+  font-size: clamp(1.2rem, 4.5vw, 1.6rem);
+  font-weight: 700;
+  margin-top: 16px;
+  color: var(--sumi);
+  position: relative;
+}
+
+.pain-outro .big::after {
+  content: '';
+  display: block;
+  width: 60px;
+  height: 2px;
+  background: var(--kincha);
+  margin: 16px auto 0;
+}
+
+/* ─── Section: Transition ──────────────── */
+.transition-section {
+  padding: 56px 24px;
+  background: var(--kinari);
+  text-align: center;
+  border-top: 1px solid var(--kabe);
+  border-bottom: 1px solid var(--kabe);
+}
+
+.transition-section p {
+  font-size: clamp(1rem, 3.8vw, 1.4rem);
+  font-weight: 500;
+  line-height: 2.2;
+  color: var(--sumi);
+}
+
+.transition-section .accent-block {
+  display: inline-block;
+  background: var(--sumi);
+  color: var(--shironeri);
+  padding: 6px 24px;
+  border-radius: 2px;
+  margin-top: 12px;
+  font-size: clamp(1.1rem, 4.5vw, 1.5rem);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+/* ─── Section: Solution ────────────────── */
+.solution-section {
+  padding: 80px 24px;
+  background: var(--shironeri);
+}
+
+.solution-title {
+  font-size: clamp(1.2rem, 4.5vw, 1.7rem);
+  font-weight: 700;
+  line-height: 1.7;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.solution-desc {
+  text-align: center;
+  font-size: 0.92rem;
+  color: var(--hai);
+  line-height: 2.1;
+  margin-bottom: 48px;
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.solution-steps {
+  max-width: 540px;
+  margin: 0 auto;
+}
+
+.sol-step {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  margin-bottom: 36px;
+  position: relative;
+}
+
+.sol-step::after {
+  content: '';
+  position: absolute;
+  left: 21px;
+  top: 50px;
+  width: 1px;
+  height: calc(100% + 2px);
+  background: var(--kabe);
+}
+
+.sol-step:last-child::after { display: none; }
+
+.sol-num {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  background: var(--sumi);
+  color: var(--shironeri);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1rem;
+  position: relative;
+  z-index: 1;
+}
+
+.sol-body h3 {
+  font-size: 1.02rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+  letter-spacing: 0.02em;
+}
+
+.sol-body p {
+  font-size: 0.85rem;
+  color: var(--hai);
+  line-height: 2;
+}
+
+/* ─── Section: Features (なぜこのツール) ── */
+.why-section {
+  padding: 80px 24px;
+  background: var(--kinari);
+  border-top: 1px solid var(--kabe);
+}
+
+.why-title {
+  font-size: clamp(1.2rem, 4.5vw, 1.7rem);
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.7;
+  margin-bottom: 48px;
+}
+
+.why-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  max-width: 540px;
+  margin: 0 auto;
+}
+
+.why-card {
+  background: var(--shironeri);
+  border-radius: 8px;
+  padding: 28px 24px;
+  border: 1px solid var(--kabe);
+  position: relative;
+}
+
+/* 和風の左線アクセント */
+.why-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 16px;
+  bottom: 16px;
+  width: 3px;
+  background: var(--kincha);
+  border-radius: 0 2px 2px 0;
+  opacity: 0.5;
+}
+
+.why-card-icon {
+  font-size: 1.4rem;
+  margin-bottom: 10px;
+}
+
+.why-card h3 {
+  font-size: 0.98rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+  letter-spacing: 0.02em;
+}
+
+.why-card p {
+  font-size: 0.84rem;
+  color: var(--hai);
+  line-height: 2;
+}
+
+/* ─── Section: Results / Social Proof ──── */
+.results-section {
+  padding: 80px 24px;
+  background: var(--sumi-deep);
+  color: var(--shironeri);
+  position: relative;
+}
+
+.results-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--kincha), transparent);
+  opacity: 0.3;
+}
+
+.results-title {
+  font-size: clamp(1.2rem, 4.5vw, 1.7rem);
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.7;
+  margin-bottom: 12px;
+}
+
+.results-sub {
+  text-align: center;
+  font-size: 0.85rem;
+  color: rgba(248,245,239,0.4);
+  margin-bottom: 48px;
+}
+
+.results-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  max-width: 520px;
+  margin: 0 auto 40px;
+}
+
+.result-card {
+  background: rgba(248,245,239,0.04);
+  border: 1px solid rgba(248,245,239,0.08);
+  border-radius: 8px;
+  padding: 28px 16px;
+  text-align: center;
+}
+
+.result-card .label {
+  font-size: 0.72rem;
+  color: rgba(248,245,239,0.4);
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+}
+
+.result-card .number {
+  font-size: clamp(2rem, 8vw, 2.8rem);
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--kincha);
+}
+
+.result-card .change {
+  font-size: 0.8rem;
+  color: rgba(248,245,239,0.45);
+  margin-top: 6px;
+}
+
+.result-card .change em {
+  font-style: normal;
+  color: var(--kincha);
+  font-weight: 600;
+}
+
+.result-narrative {
+  max-width: 500px;
+  margin: 0 auto;
+  text-align: center;
+  font-size: 0.9rem;
+  line-height: 2.3;
+  color: rgba(248,245,239,0.5);
+}
+
+.result-narrative strong {
+  color: rgba(248,245,239,0.85);
+  font-weight: 600;
+}
+
+.result-note {
+  text-align: center;
+  font-size: 0.72rem;
+  color: rgba(248,245,239,0.2);
+  margin-top: 28px;
+}
+
+/* ─── Section: Comparison ──────────────── */
+.compare-section {
+  padding: 80px 24px;
+  background: var(--kinari);
+  border-top: 1px solid var(--kabe);
+}
+
+.compare-title {
+  font-size: clamp(1.1rem, 3.8vw, 1.5rem);
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 36px;
+}
+
+.compare-table-wrap {
+  max-width: 540px;
+  margin: 0 auto;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.compare-tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.compare-tbl th,
+.compare-tbl td {
+  padding: 14px 10px;
+  text-align: center;
+  border-bottom: 1px solid var(--kabe);
+  vertical-align: middle;
+}
+
+.compare-tbl th {
+  font-weight: 700;
+  font-size: 0.76rem;
+  letter-spacing: 0.04em;
+  background: var(--shironeri);
+  border-bottom: 2px solid var(--sumi);
+}
+
+.compare-tbl th:first-child,
+.compare-tbl td:first-child {
+  text-align: left;
+  font-weight: 600;
+  color: var(--hai);
+  font-size: 0.76rem;
+  min-width: 72px;
+}
+
+.compare-tbl th:last-child {
+  color: var(--kincha);
+  font-size: 0.8rem;
+}
+
+.compare-tbl td:last-child {
+  font-weight: 600;
+  color: var(--sumi);
+}
+
+.compare-tbl .highlight-col {
+  background: var(--kincha-soft);
+}
+
+/* ─── Section: Final CTA ──────────────── */
+.final-cta {
+  padding: 80px 24px;
+  background: var(--sumi-deep);
+  color: var(--shironeri);
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.final-cta::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--kincha), transparent);
+  opacity: 0.3;
+}
+
+.final-cta h2 {
+  font-size: clamp(1.3rem, 5vw, 2rem);
+  font-weight: 700;
+  line-height: 1.7;
+  margin-bottom: 20px;
+  letter-spacing: 0.02em;
+}
+
+.final-cta h2 em {
+  font-style: normal;
+  color: var(--kincha);
+}
+
+.final-cta .desc {
+  font-size: 0.9rem;
+  color: rgba(248,245,239,0.5);
+  line-height: 2.2;
+  margin-bottom: 40px;
+  max-width: 440px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.final-cta .cta-btn {
+  max-width: 360px;
+}
+
+.final-cta .cta-sub {
+  color: rgba(248,245,239,0.3);
+}
+
+.limited-list {
+  list-style: none;
+  max-width: 340px;
+  margin: 0 auto 36px;
+  text-align: left;
+}
+
+.limited-list li {
+  padding: 8px 0;
+  font-size: 0.85rem;
+  color: rgba(248,245,239,0.6);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.limited-list li::before {
+  content: '—';
+  color: var(--kincha);
+  font-weight: 400;
+  flex-shrink: 0;
+}
+
+/* ─── QR Code ──────────────────────────── */
+.qr-block {
+  margin-top: 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.qr-frame {
+  display: inline-block;
+  padding: 10px;
+  background: var(--white);
+  border-radius: 4px;
+  line-height: 0;
+}
+
+.qr-frame img {
+  display: block;
+  border-radius: 2px;
+}
+
+.qr-text {
+  font-size: 0.72rem;
+  color: rgba(248,245,239,0.3);
+}
+
+/* ─── Floating CTA (mobile) ────────────── */
+.floating-cta {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(248,245,239,0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 12px 20px;
+  box-shadow: 0 -2px 16px rgba(0,0,0,0.06);
+  z-index: 100;
+  display: flex;
+  justify-content: center;
+  transform: translateY(100%);
+  transition: transform 0.4s ease;
+}
+
+.floating-cta.visible {
+  transform: translateY(0);
+}
+
+.floating-cta .cta-btn {
+  width: 100%;
+  max-width: 340px;
+  padding: 13px 24px;
+  font-size: 0.92rem;
+  box-shadow: 0 2px 12px var(--line-glow);
+}
+
+/* ─── FAQ ───────────────────────────────── */
+.faq-section {
+  padding: 80px 24px;
+  background: var(--shironeri);
+  border-top: 1px solid var(--kabe);
+}
+
+.faq-title {
+  font-size: clamp(1.1rem, 3.8vw, 1.5rem);
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.faq-list {
+  max-width: 540px;
+  margin: 0 auto;
+}
+
+.faq-item {
+  border-bottom: 1px solid var(--kabe);
+  padding: 20px 0;
+}
+
+.faq-q {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--sumi);
+  margin-bottom: 8px;
+  display: flex;
+  gap: 10px;
+}
+
+.faq-q::before {
+  content: 'Q';
+  flex-shrink: 0;
+  color: var(--kincha);
+  font-weight: 700;
+}
+
+.faq-a {
+  font-size: 0.84rem;
+  color: var(--hai);
+  line-height: 2;
+  padding-left: 24px;
+}
+
+/* ─── Footer ───────────────────────────── */
+.footer {
+  padding: 36px 24px;
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--usuzumi);
+  border-top: 1px solid var(--kabe);
+  background: var(--shironeri);
+}
+
+.footer a {
+  color: var(--usuzumi);
+  text-decoration: none;
+  margin: 0 12px;
+}
+
+.footer a:hover {
+  color: var(--sumi);
+}
+
+/* ─── Responsive ───────────────────────── */
+@media (min-width: 600px) {
+  .wrap { padding: 0 40px; }
+
+  .hero { padding: 120px 40px 96px; }
+
+  .pain-list li {
+    padding: 22px 28px;
+  }
+
+  .results-cards {
+    gap: 24px;
+  }
+
+  .result-card {
+    padding: 36px 20px;
+  }
+
+  .why-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .floating-cta {
+    display: none;
+  }
+}
+
+@media (min-width: 900px) {
+  .hero h1 {
+    font-size: 2.4rem;
+  }
+
+  .hero h1 .hook-line {
+    font-size: 1.3rem;
+  }
+
+  .pain-title,
+  .solution-title,
+  .why-title,
+  .results-title {
+    font-size: 1.7rem;
+  }
+}
+
+/* ─── Animations ───────────────────────── */
+.fade-up {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+
+.fade-up.visible {
+  opacity: 1;
+  transform: translateY(0);
+}

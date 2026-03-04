@@ -16,15 +16,15 @@
     }
 
     :root {
-      --black:      #0d0d0d;
+      --black:      #2c2421;      /* 墨色 */
       --white:      #ffffff;
-      --off-white:  #f7f6f3;
-      --gray-text:  #555;
-      --gray-mid:   #999;
-      --gray-light: #e8e8e8;
-      --accent:     #06c755;
+      --off-white:  #f5f2ec;      /* 白練 */
+      --gray-text:  #5c524a;      /* 本文サブ（読みやすく濃く） */
+      --gray-mid:   #8a8178;      /* ラベル・補足 */
+      --gray-light: #e0dbd3;      /* ボーダー */
+      --accent:     #06c755;      /* LINE green */
       --accent-dark: #05a849;
-      --border:     rgba(0,0,0,0.08);
+      --border:     rgba(44,36,33,0.10);
     }
 
     html { font-size: 16px; scroll-behavior: smooth; }
@@ -45,7 +45,7 @@
 
     /* ─── Hero ──────────────────────────────── */
     .hero {
-      background: var(--black);
+      background: #3d3530;
       color: var(--white);
       padding: 160px 40px 130px;
       text-align: center;
@@ -117,7 +117,7 @@
     /* ─── Section base ──────────────────────── */
     .section        { padding: 120px 40px; }
     .section-alt    { background: var(--off-white); }
-    .section-dark   { background: var(--black); color: var(--white); }
+    .section-dark   { background: #3d3530; color: var(--white); }
     .section-center { text-align: center; }
 
     .label {
@@ -650,7 +650,7 @@
     .realdata-card {
       border-radius: 12px;
       overflow: hidden;
-      background: #1a1a1a;
+      background: #3d3530;
     }
 
     .realdata-card-header {
@@ -1324,20 +1324,12 @@
     </div>
   </section>
 
-  <!-- CTA -->
-  <section class="cta-section" style="background: var(--off-white);">
+  <!-- CTA message -->
+  <section class="section section-center" style="background: var(--off-white); padding-top: 80px; padding-bottom: 80px;">
     <div class="container">
-      <p class="label" style="text-align:center">Get started</p>
-      <h2 class="title" style="text-align:center">SNSが「やらなきゃ」から<br>「楽しい」に変わる</h2>
+      <p class="label">Get started</p>
+      <h2 class="title">SNSが「やらなきゃ」から<br>「楽しい」に変わる</h2>
       <p class="desc">大手チェーンには専任のマーケティング部門がある。<br>でも、個人店には「自分」しかいない。<br>その格差を、AIが埋めます。</p>
-      <a href="https://lin.ee/OWTIvhZ" class="btn">LINEで無料で始める</a>
-
-      <div class="cta-qr">
-        <a href="https://lin.ee/OWTIvhZ" class="qr-wrap">
-          <img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=https://lin.ee/OWTIvhZ&color=000000&bgcolor=ffffff&margin=10" alt="LINE友だち追加QRコード" width="100" height="100">
-        </a>
-        <p class="qr-label" style="color:var(--gray-mid)">QRをスキャン or タップして追加</p>
-      </div>
     </div>
   </section>
 
