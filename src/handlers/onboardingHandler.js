@@ -24,6 +24,14 @@ function buildDetailQuickReply(groupLabel) {
       action: { type: 'message', label: cat, text: cat },
     })),
     { type: 'action', action: { type: 'message', label: 'その他', text: 'その他' } },
+    { type: 'action', action: { type: 'message', label: '🔙 戻る', text: '戻る' } },
+  ];
+}
+
+/** 「🔙 戻る」ボタンだけのQuick Reply */
+function buildBackOnlyQuickReply() {
+  return [
+    { type: 'action', action: { type: 'message', label: '🔙 戻る', text: '戻る' } },
   ];
 }
 
@@ -103,6 +111,44 @@ export async function handleOnboardingResponse(user, message, replyToken) {
     return await replyText(replyToken, 'キャンセルしました！「登録」でいつでも再開できます');
   }
 
+  // 戻る処理（1つ前のステップに戻る）
+  if (trimmed === '戻る') {
+    if (state.step === 'category_detail') {
+      // 詳細カテゴリー → 大カテゴリーに戻る
+      await supabase
+        .from('onboarding_state')
+        .update({ step: 'category_group', selected_group: null, updated_at: new Date().toISOString() })
+        .eq('user_id', user.id);
+      return await replyWithQuickReply(replyToken, '業種を選び直してください👇', buildGroupQuickReply());
+    }
+    if (state.step === 'custom_category') {
+      // 自由入力 → 詳細カテゴリーに戻る
+      await supabase
+        .from('onboarding_state')
+        .update({ step: 'category_detail', updated_at: new Date().toISOString() })
+        .eq('user_id', user.id);
+      return await replyWithQuickReply(
+        replyToken,
+        `【${state.selected_group}】どれが一番近いですか？`,
+        buildDetailQuickReply(state.selected_group)
+      );
+    }
+    if (state.step === 'store_info') {
+      // 店舗情報入力 → 詳細カテゴリーに戻る
+      await supabase
+        .from('onboarding_state')
+        .update({ step: 'category_detail', selected_category: null, updated_at: new Date().toISOString() })
+        .eq('user_id', user.id);
+      return await replyWithQuickReply(
+        replyToken,
+        `【${state.selected_group}】どれが一番近いですか？`,
+        buildDetailQuickReply(state.selected_group)
+      );
+    }
+    // category_group（最初のステップ）→ そのまま再表示
+    return await replyWithQuickReply(replyToken, '業種を選んでください👇', buildGroupQuickReply());
+  }
+
   // ステップごとの処理
   if (state.step === 'category_group') {
     return await handleCategoryGroupSelection(user, trimmed, replyToken);
@@ -171,7 +217,11 @@ async function handleCustomCategoryInput(user, state, input, replyToken) {
   const customCategory = input.trim();
 
   if (!customCategory || customCategory.length > 30) {
-    return await replyText(replyToken, '業種名を30文字以内で送ってください！\n\n例: ペットサロン');
+    return await replyWithQuickReply(
+      replyToken,
+      '業種名を30文字以内で送ってください！\n\n例: ペットサロン',
+      buildBackOnlyQuickReply()
+    );
   }
 
   // category_requests テーブルに記録（管理者が後で確認してリストに追加可能）
@@ -211,7 +261,7 @@ async function handleCustomCategoryInput(user, state, input, replyToken) {
 ・カジュアル（タメ口・親しみやすい）
 ・丁寧（ビジネス的・プロフェッショナル）`;
 
-  await replyText(replyToken, storeInfoMessage);
+  await replyWithQuickReply(replyToken, storeInfoMessage, buildBackOnlyQuickReply());
   return true;
 }
 
@@ -231,9 +281,11 @@ async function handleCategoryDetailSelection(user, state, input, replyToken) {
       })
       .eq('user_id', user.id);
 
-    await replyText(replyToken, `業種名をそのまま送ってください！
-
-例: ペットサロン、占い師、整骨院 など`);
+    await replyWithQuickReply(
+      replyToken,
+      `業種名をそのまま送ってください！\n\n例: ペットサロン、占い師、整骨院 など`,
+      buildBackOnlyQuickReply()
+    );
     return true;
   }
 
@@ -278,7 +330,7 @@ async function handleCategoryDetailSelection(user, state, input, replyToken) {
 ・元気（ハイテンション）
 ・落ち着いた（穏やか）`;
 
-  await replyText(replyToken, message);
+  await replyWithQuickReply(replyToken, message, buildBackOnlyQuickReply());
 
   return true;
 }
@@ -291,13 +343,21 @@ async function handleStoreInfoInput(user, state, input, replyToken) {
   const parts = input.split(/[,，、]/).map(s => s.trim());
 
   if (parts.length !== 3) {
-    return await replyText(replyToken, '「店名,こだわり,口調」の3つをカンマで区切って送ってください！\n\n例: 幸福堂,天然酵母の手作りパン,フレンドリー');
+    return await replyWithQuickReply(
+      replyToken,
+      '「店名,こだわり,口調」の3つをカンマで区切って送ってください！\n\n例: 幸福堂,天然酵母の手作りパン,フレンドリー',
+      buildBackOnlyQuickReply()
+    );
   }
 
   const [storeName, strength, tone] = parts;
 
   if (!storeName || !strength || !tone) {
-    return await replyText(replyToken, '3つとも必要です！「店名,こだわり,口調」で送ってください');
+    return await replyWithQuickReply(
+      replyToken,
+      '3つとも必要です！「店名,こだわり,口調」で送ってください',
+      buildBackOnlyQuickReply()
+    );
   }
 
   try {
