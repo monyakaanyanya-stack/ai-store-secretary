@@ -40,30 +40,8 @@ export async function handleFeedback(user, feedback, replyToken) {
       return await replyText(replyToken, 'まだ投稿がないみたいです。先に画像やテキストを送ってください！');
     }
 
-    // ========== ハイブリッド学習方式 ==========
-    // 「直し:」の詳細フィードバック → Claude API分析（高精度）
-    // それ以外（👍👎など） → キーワードマッチ（無料）
-
-    // ── 学習フェーズ ──────────────────────────────────────
-    // 「直し:」は明示的な指示なので短くても常に Claude API 分析で永続学習させる
-    // （長さによる分岐をなくし「ギャル風」など短い指示も必ず writing_style に保存）
     // S17修正: ユーザー入力をログにそのまま出力しない（PII混入防止）
     console.log(`[Feedback] 高度な学習を使用: len=${feedback.length}`);
-
-    const analysis = await analyzeFeedbackWithClaude(feedback, latestPost.content);
-
-    if (analysis) {
-      await updateAdvancedProfile(store.id, analysis, feedback);
-      console.log(`[Feedback] 思想ログ学習完了: beliefs=${analysis.beliefs?.length || 0}件`);
-    }
-
-    await saveLearningData(
-      store.id,
-      'feedback',
-      latestPost.content,
-      feedback,
-      analysis || extractLearningHints(feedback)
-    );
 
     // ── 修正生成フェーズ ──────────────────────────────────
     // 生成上限チェック（修正も1生成としてカウント）
@@ -82,6 +60,24 @@ export async function handleFeedback(user, feedback, replyToken) {
     await updatePostContent(latestPost.id, revisedContent);
 
     console.log(`[Feedback] 修正完了: store=${store.name}`);
+
+    // ── diff学習フェーズ ──────────────────────────────────
+    // 修正前 vs 修正後の差分を分析し、具体的なライティングルールを抽出
+    // ユーザーの指示文は「なぜ直したか」の文脈として使用
+    const analysis = await analyzeFeedbackWithClaude(feedback, latestPost.content, revisedContent);
+
+    if (analysis) {
+      await updateAdvancedProfile(store.id, analysis);
+      console.log(`[Feedback] diff学習完了: beliefs=${analysis.beliefs?.length || 0}件`);
+    }
+
+    await saveLearningData(
+      store.id,
+      'feedback',
+      latestPost.content,
+      feedback,
+      analysis || extractLearningHints(feedback)
+    );
 
     // 学習プロファイルを取得して学習回数・学習内容を確認
     const profile = await getOrCreateLearningProfile(store.id);
@@ -146,7 +142,7 @@ export async function handleStyleLearning(user, userRewrite, replyToken) {
     );
 
     if (analysis) {
-      await updateAdvancedProfile(store.id, analysis, userRewrite);
+      await updateAdvancedProfile(store.id, analysis);
       console.log(`[StyleLearning] 見本学習完了: beliefs=${analysis.beliefs?.length || 0}件`);
     }
 

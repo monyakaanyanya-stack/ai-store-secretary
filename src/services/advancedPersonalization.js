@@ -16,15 +16,14 @@ const MIN_BELIEFS_FOR_PERSONA = 3;
  * @returns {Object|null} - 思想ログ用の分析結果
  */
 export async function analyzeFeedbackWithClaude(feedback, originalPost, revisedPost = null) {
-  const prompt = `以下のフィードバックを分析して、この店主の「文章に対する思想・価値観・好み」を抽出してください。
+  const diffSection = revisedPost
+    ? `【元の投稿】\n${originalPost}\n\n【修正後の投稿】\n${revisedPost}\n\n【店主の修正指示】\n${feedback}`
+    : `【元の投稿】\n${originalPost}\n\n【店主のフィードバック】\n${feedback}`;
 
-【元の投稿】
-${originalPost}
+  const prompt = `${diffSection}
 
-${revisedPost ? `【修正後の投稿】\n${revisedPost}\n` : ''}
-
-【フィードバック】
-${feedback}
+上記の「元の投稿」と「修正後の投稿」の具体的な差分を分析して、この店主のライティングルールを抽出してください。
+${revisedPost ? '修正指示は「なぜ直したか」の文脈として参照し、実際に何が変わったかを重視してください。' : 'フィードバックから、この店主が次回以降どう書いてほしいかを具体的に読み取ってください。'}
 
 以下のJSON形式で出力してください（それ以外は何も出力しないこと）:
 {
@@ -40,12 +39,12 @@ ${feedback}
 }
 
 説明:
-- beliefs: この店主の文章に対する思想・価値観を短い日本語文で1〜3件抽出（例: "売り込みは強くしたくない", "余韻を残す文章が好き", "カジュアルだけど安っぽくはしたくない"）。フィードバックの背景にある「なぜそう直したいのか」を読み取って言語化する
-- writing_style.sentence_endings: 「〜だわ」「〜じゃん」「笑」「w」など語尾・文末表現をそのまま抽出
-- writing_style.catchphrases: 「まじ」「やばい」など口癖となりうる表現
-- avoided_words: 避けるべき表現・単語
-- preferred_words: 好まれる表現・単語
-- human_readable_learnings: ユーザーに見せる「今回学習したこと」を3件以内（例: ["余韻を残す表現を重視", "売り込み表現を控えめに"]）`;
+- beliefs: 元と修正後の差分から読み取れる具体的なライティングルールを1〜3件抽出。${revisedPost ? '「何を消したか」「何を足したか」「語尾がどう変わったか」「構成がどう変わったか」を具体的に。' : ''}例: "語尾を「〜です」から「〜だな」に変える", "最後の一文のCTAを削って余韻で終わる", "商品名を先頭に置く"。抽象的な表現（"カジュアルを好む"等）は禁止、必ず「〜する/〜しない」の行動指示にする
+- writing_style.sentence_endings: 修正後の投稿で使われている語尾・文末表現をそのまま抽出（例: 「〜だな」「〜かも」）
+- writing_style.catchphrases: 修正後に追加された口癖となりうる表現
+- avoided_words: 元の投稿にあって修正後に消された表現・単語
+- preferred_words: 修正後に新たに使われた表現・単語
+- human_readable_learnings: ユーザーに見せる「今回学習したこと」を3件以内。具体的な変化を書く（例: ["語尾を「〜だな」に統一", "最後のCTAを削除"]）`;
 
   try {
     const response = await askClaude(prompt, {
@@ -76,9 +75,8 @@ ${feedback}
  * 思想ログベースのプロファイル更新
  * @param {string} storeId - 店舗ID
  * @param {Object} analysis - analyzeFeedbackWithClaude の結果
- * @param {string|null} feedbackText - 修正指示の原文（直近3件をプロンプトに反映するため保存）
  */
-export async function updateAdvancedProfile(storeId, analysis, feedbackText = null) {
+export async function updateAdvancedProfile(storeId, analysis) {
   if (!analysis) return;
 
   const { data: profile } = await supabase
@@ -164,19 +162,6 @@ export async function updateAdvancedProfile(storeId, analysis, feedbackText = nu
     profileData.latest_learnings = analysis.human_readable_learnings;
   }
 
-  // ── 4.5. 直近の修正指示を保存（最新3件FIFO） ──
-  if (feedbackText && typeof feedbackText === 'string' && feedbackText.length <= 500) {
-    const recentFeedbacks = profileData.recent_feedbacks || [];
-    recentFeedbacks.push({
-      text: feedbackText,
-      created_at: new Date().toISOString(),
-    });
-    while (recentFeedbacks.length > 3) {
-      recentFeedbacks.shift();
-    }
-    profileData.recent_feedbacks = recentFeedbacks;
-  }
-
   // ── 5. プロファイル更新 ──
   const newInteractionCount = profile.interaction_count + 1;
   await supabase
@@ -190,17 +175,13 @@ export async function updateAdvancedProfile(storeId, analysis, feedbackText = nu
 
   console.log(`[AdvancedPersonalization] 思想ログ更新: beliefs=${beliefLogs.length}件, interaction=${newInteractionCount}`);
 
-  // ── 6. 人格要約の生成（条件付き） ──
-  if (beliefLogs.length >= MIN_BELIEFS_FOR_PERSONA) {
-    const prevBeliefCount = profileData._last_persona_belief_count || 0;
-    const newBeliefsAdded = beliefLogs.length - prevBeliefCount;
-    // 初回生成 or 前回から3件以上新規ログがあれば再生成
-    if (!profileData.persona_definition || newBeliefsAdded >= 3) {
-      try {
-        await regeneratePersonaDefinition(storeId, profileData, beliefLogs);
-      } catch (personaErr) {
-        console.error('[AdvancedPersonalization] 人格要約生成エラー（学習は成功）:', personaErr.message);
-      }
+  // ── 6. ライティング指示集の即時更新 ──
+  // 毎回の「直し」でdiffから学んだことを即座にライティング指示集に反映する
+  if (beliefLogs.length >= 1) {
+    try {
+      await regeneratePersonaDefinition(storeId, profileData, beliefLogs);
+    } catch (personaErr) {
+      console.error('[AdvancedPersonalization] ライティング指示集更新エラー（学習は成功）:', personaErr.message);
     }
   }
 }
@@ -246,12 +227,6 @@ export async function addSimpleBelief(storeId, beliefText, source) {
  * 抽象的な「人格」ではなく、具体的な「ライティング指示集」を生成する
  */
 async function regeneratePersonaDefinition(storeId, profileData, beliefLogs) {
-  // recent_feedbacks も材料に含める（原文のニュアンスを拾うため）
-  const recentFeedbacks = profileData.recent_feedbacks || [];
-  const feedbackSection = recentFeedbacks.length > 0
-    ? `\n\n【直近の修正指示（原文）】\n${recentFeedbacks.map(f => `・「${f.text}」`).join('\n')}`
-    : '';
-
   // writing_style も材料に含める
   const ws = profileData.writing_style || {};
   const styleSection = [];
@@ -265,10 +240,10 @@ async function regeneratePersonaDefinition(storeId, profileData, beliefLogs) {
     ? `\n\n【抽出済みの文体パターン】\n${styleSection.join('\n')}`
     : '';
 
-  const prompt = `以下はある店主がInstagram投稿文に対して出したフィードバックから抽出した思想ログと修正指示です。
+  const prompt = `以下はある店主がInstagram投稿文に対して出したフィードバックから抽出した思想ログです。
 
 【思想ログ（古い順）】
-${beliefLogs.map(b => `・${b.text}`).join('\n')}${feedbackSection}${styleMaterial}
+${beliefLogs.map(b => `・${b.text}`).join('\n')}${styleMaterial}
 
 これらの情報を元に、この店主の「具体的なライティング指示集」を作ってください。
 
@@ -426,18 +401,12 @@ export async function getAdvancedPersonalizationPrompt(storeId) {
     parts.push(`・避ける表現: ${avoided.join(', ')}`);
   }
 
-  // 人格未生成時（belief_logs < MIN_BELIEFS_FOR_PERSONA）はログをそのまま表示
+  // ライティング指示集がまだ生成されていない場合、belief_logsをそのまま表示
   if (!profileData.persona_definition) {
     const beliefLogs = profileData.belief_logs || [];
     if (beliefLogs.length > 0) {
-      parts.push(`【この店主の好み（必ず反映せよ）】\n${beliefLogs.map(b => `・${b.text}`).join('\n')}\n※ 上記は店主が明示的に伝えた好み。生成時に必ず全項目を反映すること。`);
+      parts.push(`【この店主のライティングルール（必ず反映せよ）】\n${beliefLogs.map(b => `・${b.text}`).join('\n')}\n※ 上記は店主の修正から抽出した具体的なルール。生成時に全項目を厳守すること。`);
     }
-  }
-
-  // 直近の修正指示（原文をそのままClaude に見せる）
-  const recentFeedbacks = profileData.recent_feedbacks || [];
-  if (recentFeedbacks.length > 0) {
-    parts.push(`【直近の修正指示（これらの要望を次の生成に必ず反映せよ）】\n${recentFeedbacks.map(f => `・「${f.text}」`).join('\n')}`);
   }
 
   // A/B/C選択傾向（3回以上選択後に表示）
