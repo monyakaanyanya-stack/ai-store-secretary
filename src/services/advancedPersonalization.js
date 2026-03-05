@@ -7,6 +7,22 @@ const MAX_BELIEF_LOGS = 20;
 const MAX_PERSONA_HISTORY = 5;
 // 人格要約生成の最低ログ数（早期に学習効果を実感させるため3件に設定）
 const MIN_BELIEFS_FOR_PERSONA = 3;
+// persona_definition の最大文字数
+const MAX_PERSONA_LENGTH = 1000;
+
+/**
+ * persona_definition_next のバリデーション
+ * - string型かつ空でない
+ * - 1000文字以内
+ * - 「・」始まりの箇条書きを含む
+ */
+function validatePersonaDefinition(value) {
+  if (typeof value !== 'string' || value.trim().length === 0) return false;
+  if (value.trim().length > MAX_PERSONA_LENGTH) return false;
+  // 「・」で始まる行が最低1つ含まれること
+  if (!/^・/m.test(value)) return false;
+  return true;
+}
 
 /**
  * フィードバックから店主の思想・価値観を抽出（Claude APIを使用）
@@ -188,20 +204,21 @@ export async function updateAdvancedProfile(storeId, analysis) {
 
   // ── 5. ライティング指示集の即時更新（persona_definition_next がある場合はDB保存前に適用）──
   let personaUpdated = false;
-  if (analysis.persona_definition_next) {
+  if (analysis.persona_definition_next && validatePersonaDefinition(analysis.persona_definition_next)) {
     try {
+      const sanitized = analysis.persona_definition_next.trim();
       const history = profileData.persona_history || [];
       const newVersion = (profileData.persona_version || 0) + 1;
       history.push({
         version: newVersion,
-        definition: analysis.persona_definition_next.trim(),
+        definition: sanitized,
         created_at: new Date().toISOString(),
         belief_count: beliefLogs.length,
       });
       while (history.length > MAX_PERSONA_HISTORY) {
         history.shift();
       }
-      profileData.persona_definition = analysis.persona_definition_next.trim();
+      profileData.persona_definition = sanitized;
       profileData.persona_version = newVersion;
       profileData.persona_history = history;
       profileData._last_persona_belief_count = beliefLogs.length;
@@ -210,6 +227,8 @@ export async function updateAdvancedProfile(storeId, analysis) {
     } catch (personaErr) {
       console.error('[AdvancedPersonalization] ライティング指示集更新エラー（学習は成功）:', personaErr.message);
     }
+  } else if (analysis.persona_definition_next) {
+    console.warn('[AdvancedPersonalization] persona_definition_next バリデーション失敗 → スキップ');
   }
 
   // ── 6. プロファイル更新（DB 1回で全データ保存）──
@@ -406,22 +425,11 @@ ${postContent.slice(0, 500)}
 }
 
 /**
- * 学習プロファイルをプロンプトに反映（人格定義ベース）
- * @param {string} storeId - 店舗ID
- * @returns {string} - プロンプト用の人格定義テキスト
+ * profileData からプロンプト注入用のパーツ配列を構築（共通ロジック）
+ * @param {Object} profileData - profile_data
+ * @returns {string[]} - プロンプト用パーツ配列
  */
-export async function getAdvancedPersonalizationPrompt(storeId) {
-  const { data: profile } = await supabase
-    .from('learning_profiles')
-    .select('*')
-    .eq('store_id', storeId)
-    .single();
-
-  if (!profile || profile.interaction_count < 1) {
-    return '';
-  }
-
-  const profileData = profile.profile_data || {};
+function _buildPromptParts(profileData) {
   const parts = [];
 
   // ★ ライティング指示集（最重要）
@@ -429,7 +437,7 @@ export async function getAdvancedPersonalizationPrompt(storeId) {
     parts.push(`\n━━━━━━━━━━━━━━━━━━━━━━━━\n【最重要：この店主専用ライティング指示 Ver.${profileData.persona_version || 1}】\n${profileData.persona_definition}\n※ 上記は店主のフィードバックから構築した具体的なルール。生成時に全項目を厳守せよ。\n━━━━━━━━━━━━━━━━━━━━━━━━`);
   }
 
-  // 語尾・口癖（具体的で有用なので維持）
+  // 語尾・口癖
   const ws = profileData.writing_style || {};
   const styleParts = [];
   if (ws.sentence_endings?.length > 0) {
@@ -471,12 +479,31 @@ export async function getAdvancedPersonalizationPrompt(storeId) {
     const favorite = Object.entries(styleSelections)
       .filter(([k]) => k !== 'total')
       .sort((a, b) => b[1] - a[1])[0];
-
     if (favorite && favorite[1] >= 2) {
       parts.push(`【この店主が好む案の傾向】\n・${styleDescriptions[favorite[0]] || favorite[0]}を好む（${totalSelections}回中${favorite[1]}回選択）\n→ 3案すべてにこの傾向をベースとして反映しつつ、各案の個性は維持せよ`);
     }
   }
 
+  return parts;
+}
+
+/**
+ * 学習プロファイルをプロンプトに反映（人格定義ベース）
+ * @param {string} storeId - 店舗ID
+ * @returns {string} - プロンプト用の人格定義テキスト
+ */
+export async function getAdvancedPersonalizationPrompt(storeId) {
+  const { data: profile } = await supabase
+    .from('learning_profiles')
+    .select('*')
+    .eq('store_id', storeId)
+    .single();
+
+  if (!profile || profile.interaction_count < 1) {
+    return '';
+  }
+
+  const parts = _buildPromptParts(profile.profile_data || {});
   return parts.length > 0 ? '\n' + parts.join('\n') : '';
 }
 
@@ -492,12 +519,11 @@ export async function getProfileAndPrompt(storeId) {
     .single();
 
   const profileData = profile?.profile_data || {};
-  const beliefLogs = profileData.belief_logs || [];
   const ws = profileData.writing_style || {};
 
   // analyzeFeedbackWithClaude に渡す profileContext
   const profileContext = {
-    beliefLogs,
+    beliefLogs: profileData.belief_logs || [],
     personaDefinition: profileData.persona_definition || null,
     writingStyle: {
       sentence_endings: ws.sentence_endings || [],
@@ -506,56 +532,11 @@ export async function getProfileAndPrompt(storeId) {
     },
   };
 
-  // プロンプト注入用文字列（getAdvancedPersonalizationPrompt と同じロジック）
   if (!profile || profile.interaction_count < 1) {
     return { profileContext, advancedPersonalization: '' };
   }
 
-  const parts = [];
-
-  if (profileData.persona_definition) {
-    parts.push(`\n━━━━━━━━━━━━━━━━━━━━━━━━\n【最重要：この店主専用ライティング指示 Ver.${profileData.persona_version || 1}】\n${profileData.persona_definition}\n※ 上記は店主のフィードバックから構築した具体的なルール。生成時に全項目を厳守せよ。\n━━━━━━━━━━━━━━━━━━━━━━━━`);
-  }
-
-  const styleParts = [];
-  if (ws.sentence_endings?.length > 0) {
-    styleParts.push(`・語尾: 「${ws.sentence_endings.join('」「')}」を使う`);
-  }
-  if (ws.catchphrases?.length > 0) {
-    styleParts.push(`・口癖: 「${ws.catchphrases.join('」「')}」を自然に使う`);
-  }
-  if (ws.line_break_style === 'frequent') {
-    styleParts.push('・改行を多めに使って縦に展開する');
-  }
-  if (styleParts.length > 0) {
-    parts.push(`【文体ルール】\n${styleParts.join('\n')}`);
-  }
-
-  const avoided = profileData.avoided_words || [];
-  if (avoided.length > 0) {
-    parts.push(`・避ける表現: ${avoided.join(', ')}`);
-  }
-
-  if (!profileData.persona_definition && beliefLogs.length > 0) {
-    parts.push(`【この店主のライティングルール（必ず反映せよ）】\n${beliefLogs.map(b => `・${b.text}`).join('\n')}\n※ 上記は店主の修正から抽出した具体的なルール。生成時に全項目を厳守すること。`);
-  }
-
-  const styleSelections = profileData.style_selections || {};
-  const totalSelections = styleSelections.total || 0;
-  if (totalSelections >= 3) {
-    const styleDescriptions = {
-      '時間の肖像': '日常の一瞬を切り取る静かな表現',
-      '誠実の肖像': '正直で飾らない語り口',
-      '光の肖像': '店主の独り言のような親しみやすさ',
-    };
-    const favorite = Object.entries(styleSelections)
-      .filter(([k]) => k !== 'total')
-      .sort((a, b) => b[1] - a[1])[0];
-    if (favorite && favorite[1] >= 2) {
-      parts.push(`【この店主が好む案の傾向】\n・${styleDescriptions[favorite[0]] || favorite[0]}を好む（${totalSelections}回中${favorite[1]}回選択）\n→ 3案すべてにこの傾向をベースとして反映しつつ、各案の個性は維持せよ`);
-    }
-  }
-
+  const parts = _buildPromptParts(profileData);
   const advancedPersonalization = parts.length > 0 ? '\n' + parts.join('\n') : '';
   return { profileContext, advancedPersonalization };
 }

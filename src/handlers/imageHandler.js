@@ -1,6 +1,6 @@
 import { replyText, replyWithQuickReply, getImageAsBase64 } from '../services/lineService.js';
-import { askClaude, describeImage } from '../services/claudeService.js';
-import { getStore, savePostHistory, savePendingImageContext, clearPendingImageContext, uploadImageToStorage } from '../services/supabaseService.js';
+import { describeImage } from '../services/claudeService.js';
+import { getStore, savePendingImageContext, uploadImageToStorage } from '../services/supabaseService.js';
 import { buildImagePostPrompt, appendTemplateFooter } from '../utils/promptBuilder.js';
 import { getBlendedInsights, saveEngagementMetrics } from '../services/collectiveIntelligence.js';
 import { getPersonalizationPromptAddition, getPersonalizationLevel } from '../services/personalizationEngine.js';
