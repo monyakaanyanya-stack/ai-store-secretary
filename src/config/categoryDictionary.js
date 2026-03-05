@@ -453,6 +453,18 @@ export const CATEGORIES = [
     ],
     validation: null,
   },
+  {
+    id: 'influencer',
+    label: 'インフルエンサー',
+    groupId: 'creative',
+    synonyms: ['インフルエンサー', 'クリエイター', 'コンテンツクリエイター'],
+    hashtags: [
+      '#インフルエンサー', '#クリエイター', '#コンテンツクリエイター',
+      '#influencer', '#creator', '#PR',
+      '#インスタグラマー', '#ライフスタイル',
+    ],
+    validation: null,
+  },
 ];
 
 // ==================== general フォールバックハッシュタグ ====================
