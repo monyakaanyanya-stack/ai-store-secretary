@@ -95,12 +95,6 @@ export async function handleFeedback(user, feedback, replyToken) {
       ? latestLearnings.map(l => `✅ ${l}`).join('\n')
       : `✅ ${feedback}`;
 
-    // 人格定義セクション（あれば表示）
-    let personaSection = '';
-    if (profileData.persona_definition) {
-      personaSection = `\n【現在の人格定義 Ver.${profileData.persona_version || 1}】\n${profileData.persona_definition}\n`;
-    }
-
     const message = `覚えました！修正版はこちら👇
 ━━━━━━━━━━━
 ${revisedContent}
@@ -108,8 +102,7 @@ ${revisedContent}
 
 【学んだこと】
 ${learningList}
-${personaSection}
-📚 ${profile.interaction_count}回目の学習${profileData.persona_version ? `（人格 Ver.${profileData.persona_version}）` : ''}`;
+📚 ${profile.interaction_count}回目の学習`;
 
     await replyText(replyToken, message);
   } catch (err) {
@@ -173,17 +166,11 @@ export async function handleStyleLearning(user, userRewrite, replyToken) {
       ? latestLearnings.map(l => `✅ ${l}`).join('\n')
       : '✅ 文体パターンを学習しました';
 
-    let personaSection = '';
-    if (profileData.persona_definition) {
-      personaSection = `\n【現在の人格定義 Ver.${profileData.persona_version || 1}】\n${profileData.persona_definition}\n`;
-    }
-
     await replyText(replyToken, `見本から学習しました！
 
 【学んだこと】
 ${learningList}
-${personaSection}
-📚 ${profile.interaction_count}回目の学習${profileData.persona_version ? `（人格 Ver.${profileData.persona_version}）` : ''}`);
+📚 ${profile.interaction_count}回目の学習`);
   } catch (err) {
     console.error('[StyleLearning] エラー:', err);
     await replyText(replyToken, 'うまくいきませんでした...もう一度試してみてください');

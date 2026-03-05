@@ -243,20 +243,55 @@ export async function addSimpleBelief(storeId, beliefText, source) {
 
 /**
  * 人格要約を生成・更新
+ * 抽象的な「人格」ではなく、具体的な「ライティング指示集」を生成する
  */
 async function regeneratePersonaDefinition(storeId, profileData, beliefLogs) {
-  const prompt = `以下はある店主がInstagram投稿文に対して出したフィードバックから抽出した思想ログです。
+  // recent_feedbacks も材料に含める（原文のニュアンスを拾うため）
+  const recentFeedbacks = profileData.recent_feedbacks || [];
+  const feedbackSection = recentFeedbacks.length > 0
+    ? `\n\n【直近の修正指示（原文）】\n${recentFeedbacks.map(f => `・「${f.text}」`).join('\n')}`
+    : '';
 
-${beliefLogs.map(b => `・${b.text}`).join('\n')}
+  // writing_style も材料に含める
+  const ws = profileData.writing_style || {};
+  const styleSection = [];
+  if (ws.sentence_endings?.length > 0) {
+    styleSection.push(`語尾: ${ws.sentence_endings.join(', ')}`);
+  }
+  if (ws.catchphrases?.length > 0) {
+    styleSection.push(`口癖: ${ws.catchphrases.join(', ')}`);
+  }
+  const styleMaterial = styleSection.length > 0
+    ? `\n\n【抽出済みの文体パターン】\n${styleSection.join('\n')}`
+    : '';
 
-この店主の「文章に対する人格」を箇条書きで簡潔に定義してください。
-・で始まる箇条書き、5項目以内
-・「この店主は〜」という主語は不要、特徴のみ書く
+  const prompt = `以下はある店主がInstagram投稿文に対して出したフィードバックから抽出した思想ログと修正指示です。
+
+【思想ログ（古い順）】
+${beliefLogs.map(b => `・${b.text}`).join('\n')}${feedbackSection}${styleMaterial}
+
+これらの情報を元に、この店主の「具体的なライティング指示集」を作ってください。
+
+## ルール
+・で始まる箇条書き、7項目以内
+・「この店主は〜を好む」のような抽象的な性格描写は禁止
+・代わりに「〜する」「〜しない」「〜を使う」という具体的な行動指示にする
 ・矛盾するログがあれば新しいほう（下のほう）を優先
-・抽象的すぎず、具体的な文体の好みが伝わるように`;
+・語尾・口癖・避ける言葉がある場合は具体例を必ず含める
+
+## 良い例（具体的で実行可能）
+・語尾は「〜だな」「〜かも」「〜だよね」を中心に使う。「です・ます」は避ける
+・最後の一文はCTA（来てね・見てね）で閉じず、余韻や問いかけで終わる
+・「素敵」「魅力的」「おすすめ」は使わない。商品の具体的な特徴（手触り・温度・音）で伝える
+・1文は短く（15〜25字）。体言止めや倒置を混ぜてリズムを出す
+
+## 悪い例（抽象的で使えない）
+・カジュアルだが安っぽくはしない
+・余韻を大切にする
+・自然体な表現を好む`;
 
   const definition = await askClaude(prompt, {
-    max_tokens: 300,
+    max_tokens: 500,
     temperature: 0.3,
   });
 
@@ -364,9 +399,9 @@ export async function getAdvancedPersonalizationPrompt(storeId) {
   const profileData = profile.profile_data || {};
   const parts = [];
 
-  // ★ 人格定義（最重要）
+  // ★ ライティング指示集（最重要）
   if (profileData.persona_definition) {
-    parts.push(`\n━━━━━━━━━━━━━━━━━━━━━━━━\n【最重要：この店主の人格定義 Ver.${profileData.persona_version || 1}】\n${profileData.persona_definition}\n※ 必ずこの人格に従って文章を生成せよ。他の指示と矛盾する場合はこちらを優先。\n━━━━━━━━━━━━━━━━━━━━━━━━`);
+    parts.push(`\n━━━━━━━━━━━━━━━━━━━━━━━━\n【最重要：この店主専用ライティング指示 Ver.${profileData.persona_version || 1}】\n${profileData.persona_definition}\n※ 上記は店主のフィードバックから構築した具体的なルール。生成時に全項目を厳守せよ。\n━━━━━━━━━━━━━━━━━━━━━━━━`);
   }
 
   // 語尾・口癖（具体的で有用なので維持）
