@@ -701,19 +701,20 @@ async function handleStoreUpdatePrompt(user, replyToken) {
       return await replyText(replyToken, '選択中の店舗が見つかりません。');
     }
 
+    const isInfluencer = store.category === 'インフルエンサー';
+    const settingsDisplay = isInfluencer
+      ? `【ジャンル】${store.name}\n【業種】${store.category}`
+      : `【店舗名】${store.name}\n【業種】${store.category || '未設定'}\n【こだわり・強み】${store.strength}\n【口調】${store.tone}`;
     const message = `📝 現在の店舗設定
 
-【店舗名】${store.name}
-【業種】${store.category || '未設定'}
-【こだわり・強み】${store.strength}
-【口調】${store.tone}
+${settingsDisplay}
 
 何を変更しますか？
 以下の形式で送信してください：
 
-更新: 店名: 新しい店名
+更新: ${isInfluencer ? 'ジャンル' : '店名'}: ${isInfluencer ? '新しいジャンル' : '新しい店名'}
 更新: 業種: カフェ
-更新: こだわり: 新しいこだわり
+${isInfluencer ? '' : '更新: こだわり: 新しいこだわり'}
 更新: 口調: フレンドリー
 
 または複数同時に：
@@ -980,7 +981,10 @@ async function handleShowSettings(user, replyToken) {
     const config = store.config || {};
     const lengthInfo = POST_LENGTH_MAP[config.post_length || 'medium'];
 
-    let message = `📋 現在の設定\n\n【店舗名】${store.name}\n【業種】${store.category || '未設定'}\n【こだわり】${store.strength || '未設定'}\n【口調】${store.tone || '未設定'}\n【投稿長】${lengthInfo.description} (${lengthInfo.range})\n`;
+    const isInfluencer = store.category === 'インフルエンサー';
+    let message = isInfluencer
+      ? `📋 現在の設定\n\n【ジャンル】${store.name}\n【業種】${store.category}\n【投稿長】${lengthInfo.description} (${lengthInfo.range})\n`
+      : `📋 現在の設定\n\n【店舗名】${store.name}\n【業種】${store.category || '未設定'}\n【こだわり】${store.strength || '未設定'}\n【口調】${store.tone || '未設定'}\n【投稿長】${lengthInfo.description} (${lengthInfo.range})\n`;
 
     const templates = config.templates || {};
     if (templates.住所 || templates.営業時間 || templates.hashtags?.length > 0 || Object.keys(templates.custom_fields || {}).length > 0) {

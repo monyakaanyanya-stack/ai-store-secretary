@@ -186,22 +186,9 @@ export async function updateAdvancedProfile(storeId, analysis) {
     profileData.latest_learnings = analysis.human_readable_learnings;
   }
 
-  // ── 5. プロファイル更新 ──
-  const newInteractionCount = profile.interaction_count + 1;
-  await supabase
-    .from('learning_profiles')
-    .update({
-      profile_data: profileData,
-      interaction_count: newInteractionCount,
-      last_feedback_at: new Date().toISOString(),
-    })
-    .eq('store_id', storeId);
-
-  console.log(`[AdvancedPersonalization] 思想ログ更新: beliefs=${beliefLogs.length}件, interaction=${newInteractionCount}`);
-
-  // ── 6. ライティング指示集の即時更新 ──
+  // ── 5. ライティング指示集の即時更新（persona_definition_next がある場合はDB保存前に適用）──
+  let personaUpdated = false;
   if (analysis.persona_definition_next) {
-    // analyzeFeedbackWithClaude が指示集も同時生成済み → API節約（3回→2回）
     try {
       const history = profileData.persona_history || [];
       const newVersion = (profileData.persona_version || 0) + 1;
@@ -218,17 +205,28 @@ export async function updateAdvancedProfile(storeId, analysis) {
       profileData.persona_version = newVersion;
       profileData.persona_history = history;
       profileData._last_persona_belief_count = beliefLogs.length;
-
-      await supabase
-        .from('learning_profiles')
-        .update({ profile_data: profileData })
-        .eq('store_id', storeId);
-
+      personaUpdated = true;
       console.log(`[AdvancedPersonalization] 人格要約 Ver.${newVersion} 生成完了（統合モード）`);
     } catch (personaErr) {
       console.error('[AdvancedPersonalization] ライティング指示集更新エラー（学習は成功）:', personaErr.message);
     }
-  } else if (beliefLogs.length >= 1) {
+  }
+
+  // ── 6. プロファイル更新（DB 1回で全データ保存）──
+  const newInteractionCount = profile.interaction_count + 1;
+  await supabase
+    .from('learning_profiles')
+    .update({
+      profile_data: profileData,
+      interaction_count: newInteractionCount,
+      last_feedback_at: new Date().toISOString(),
+    })
+    .eq('store_id', storeId);
+
+  console.log(`[AdvancedPersonalization] 思想ログ更新: beliefs=${beliefLogs.length}件, interaction=${newInteractionCount}${personaUpdated ? ', persona=統合更新' : ''}`);
+
+  // ── 7. フォールバック: profileContext未渡し時は従来通り別APIコールで指示集再生成 ──
+  if (!analysis.persona_definition_next && beliefLogs.length >= 1) {
     // フォールバック: profileContext未渡し時は従来通り別APIコールで指示集再生成
     try {
       await regeneratePersonaDefinition(storeId, profileData, beliefLogs);

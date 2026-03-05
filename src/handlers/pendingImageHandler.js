@@ -64,9 +64,12 @@ export async function handlePendingImageResponse(user, text, replyToken) {
     // ヒントがある場合は imageDescription に追記してプロンプトに反映
     // ※ 画像は初回送信時に Claude Vision で分析済み（ctx.imageDescription に保存）
     //    再取得は不要。LINE のメッセージサーバーから画像が削除されても問題なし。
-    // ヒントは想起トリガー・来店トリガーどちらにも自然に反映してよい
+    const isInfluencer = store.category === 'インフルエンサー';
+    const hintLabel = isInfluencer
+      ? '【補足情報（投稿に自然に反映してよい）】'
+      : '【店主からの補足情報（想起・来店どちらのトリガーにも自然に反映してよい）】';
     const enrichedDescription = hint
-      ? `${ctx.imageDescription}\n\n【店主からの補足情報（想起・来店どちらのトリガーにも自然に反映してよい）】${hint}`
+      ? `${ctx.imageDescription}\n\n${hintLabel}${hint}`
       : ctx.imageDescription;
 
     const isPremium = await isFeatureEnabled(user.id, 'enhancedPhotoAdvice');
