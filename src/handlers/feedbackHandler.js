@@ -53,7 +53,7 @@ export async function handleFeedback(user, feedback, replyToken) {
     const analysis = await analyzeFeedbackWithClaude(feedback, latestPost.content);
 
     if (analysis) {
-      await updateAdvancedProfile(store.id, analysis);
+      await updateAdvancedProfile(store.id, analysis, feedback);
       console.log(`[Feedback] 思想ログ学習完了: beliefs=${analysis.beliefs?.length || 0}件`);
     }
 
@@ -153,7 +153,7 @@ export async function handleStyleLearning(user, userRewrite, replyToken) {
     );
 
     if (analysis) {
-      await updateAdvancedProfile(store.id, analysis);
+      await updateAdvancedProfile(store.id, analysis, userRewrite);
       console.log(`[StyleLearning] 見本学習完了: beliefs=${analysis.beliefs?.length || 0}件`);
     }
 

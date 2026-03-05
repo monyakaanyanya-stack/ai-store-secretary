@@ -157,6 +157,7 @@ export async function handleImageMessage(user, messageId, replyToken) {
       blendedInsights: blendedInsights ?? null,
       personalization,
       imageUrl,
+      hasLearning: (advancedPersonalization || '') !== '',
       createdAt: new Date().toISOString(),
     });
 

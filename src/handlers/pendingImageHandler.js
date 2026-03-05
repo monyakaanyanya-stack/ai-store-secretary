@@ -96,7 +96,8 @@ export async function handlePendingImageResponse(user, text, replyToken) {
     console.log(`[PendingImage] 投稿生成完了: store=${store.name}`);
 
     const revisionExample = getRevisionExample(store.category);
-    const formattedReply = `3つの投稿案ができました！どの案が理想に近いですか？👇
+    const learningNote = ctx.hasLearning ? '\n🧠 これまでの学習を反映しています' : '';
+    const formattedReply = `3つの投稿案ができました！どの案が理想に近いですか？👇${learningNote}
 ━━━━━━━━━━━
 ${rawContent}
 ━━━━━━━━━━━

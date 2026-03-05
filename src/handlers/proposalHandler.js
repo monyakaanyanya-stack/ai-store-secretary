@@ -221,8 +221,8 @@ async function addBeliefFromSelection(storeId, selection) {
     const selections = profileData.style_selections || {};
     const count = selections[STYLE_MAP[selection]] || 0;
 
-    // 3回以上選択した場合のみ思想ログに追加
-    if (count >= 3) {
+    // 2回以上選択した場合に思想ログに追加（学習の即時化）
+    if (count >= 2) {
       const belief = STYLE_BELIEFS[selection];
       if (belief) {
         await addSimpleBelief(storeId, belief, 'selection');

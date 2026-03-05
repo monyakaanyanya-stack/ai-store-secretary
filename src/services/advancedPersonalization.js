@@ -5,8 +5,8 @@ import { askClaude } from './claudeService.js';
 const MAX_BELIEF_LOGS = 20;
 // 人格要約の履歴上限
 const MAX_PERSONA_HISTORY = 5;
-// 人格要約生成の最低ログ数
-const MIN_BELIEFS_FOR_PERSONA = 5;
+// 人格要約生成の最低ログ数（早期に学習効果を実感させるため3件に設定）
+const MIN_BELIEFS_FOR_PERSONA = 3;
 
 /**
  * フィードバックから店主の思想・価値観を抽出（Claude APIを使用）
@@ -76,8 +76,9 @@ ${feedback}
  * 思想ログベースのプロファイル更新
  * @param {string} storeId - 店舗ID
  * @param {Object} analysis - analyzeFeedbackWithClaude の結果
+ * @param {string|null} feedbackText - 修正指示の原文（直近3件をプロンプトに反映するため保存）
  */
-export async function updateAdvancedProfile(storeId, analysis) {
+export async function updateAdvancedProfile(storeId, analysis, feedbackText = null) {
   if (!analysis) return;
 
   const { data: profile } = await supabase
@@ -161,6 +162,19 @@ export async function updateAdvancedProfile(storeId, analysis) {
   // ── 4. 人間に見せる学習サマリー ──
   if (Array.isArray(analysis.human_readable_learnings) && analysis.human_readable_learnings.length > 0) {
     profileData.latest_learnings = analysis.human_readable_learnings;
+  }
+
+  // ── 4.5. 直近の修正指示を保存（最新3件FIFO） ──
+  if (feedbackText && typeof feedbackText === 'string' && feedbackText.length <= 500) {
+    const recentFeedbacks = profileData.recent_feedbacks || [];
+    recentFeedbacks.push({
+      text: feedbackText,
+      created_at: new Date().toISOString(),
+    });
+    while (recentFeedbacks.length > 3) {
+      recentFeedbacks.shift();
+    }
+    profileData.recent_feedbacks = recentFeedbacks;
   }
 
   // ── 5. プロファイル更新 ──
@@ -377,11 +391,35 @@ export async function getAdvancedPersonalizationPrompt(storeId) {
     parts.push(`・避ける表現: ${avoided.join(', ')}`);
   }
 
-  // 人格未生成時（belief_logs < 5）はログをそのまま表示
+  // 人格未生成時（belief_logs < MIN_BELIEFS_FOR_PERSONA）はログをそのまま表示
   if (!profileData.persona_definition) {
     const beliefLogs = profileData.belief_logs || [];
     if (beliefLogs.length > 0) {
-      parts.push(`【この店主の好み（学習中・${beliefLogs.length}件）】\n${beliefLogs.map(b => `・${b.text}`).join('\n')}`);
+      parts.push(`【この店主の好み（必ず反映せよ）】\n${beliefLogs.map(b => `・${b.text}`).join('\n')}\n※ 上記は店主が明示的に伝えた好み。生成時に必ず全項目を反映すること。`);
+    }
+  }
+
+  // 直近の修正指示（原文をそのままClaude に見せる）
+  const recentFeedbacks = profileData.recent_feedbacks || [];
+  if (recentFeedbacks.length > 0) {
+    parts.push(`【直近の修正指示（これらの要望を次の生成に必ず反映せよ）】\n${recentFeedbacks.map(f => `・「${f.text}」`).join('\n')}`);
+  }
+
+  // A/B/C選択傾向（3回以上選択後に表示）
+  const styleSelections = profileData.style_selections || {};
+  const totalSelections = styleSelections.total || 0;
+  if (totalSelections >= 3) {
+    const styleDescriptions = {
+      '時間の肖像': '日常の一瞬を切り取る静かな表現',
+      '誠実の肖像': '正直で飾らない語り口',
+      '光の肖像': '店主の独り言のような親しみやすさ',
+    };
+    const favorite = Object.entries(styleSelections)
+      .filter(([k]) => k !== 'total')
+      .sort((a, b) => b[1] - a[1])[0];
+
+    if (favorite && favorite[1] >= 2) {
+      parts.push(`【この店主が好む案の傾向】\n・${styleDescriptions[favorite[0]] || favorite[0]}を好む（${totalSelections}回中${favorite[1]}回選択）\n→ 3案すべてにこの傾向をベースとして反映しつつ、各案の個性は維持せよ`);
     }
   }
 
