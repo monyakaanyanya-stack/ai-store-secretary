@@ -401,6 +401,11 @@ ${contactEmail}
     return await handleCharacterSettingsSave(user, trimmed, replyToken);
   }
 
+  // Instagram連携（日本語コマンド → /instagram へ転送）
+  if (trimmed === 'instagram連携' || trimmed === 'インスタ連携' || trimmed === 'インスタグラム連携') {
+    return await handleInstagramCommand(user, '', replyToken);
+  }
+
   // Instagram投稿（クイックリプライから送信される）
   if (trimmed === 'instagram投稿') {
     const { handleInstagramCommand } = await import('./instagramHandler.js');
