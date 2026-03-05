@@ -484,7 +484,7 @@ async function handleInfluencerGenreInput(user, state, input, replyToken) {
 ジャンル: ${genre}
 
 さっそく投稿を作ってみましょう！
-画像かテキストを送るだけでOKです`;
+画像を送るだけでOKです📸`;
 
     await replyText(replyToken, successMessage);
 
