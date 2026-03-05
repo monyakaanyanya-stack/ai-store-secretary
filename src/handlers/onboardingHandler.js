@@ -133,6 +133,18 @@ export async function handleOnboardingResponse(user, message, replyToken) {
         buildDetailQuickReply(state.selected_group)
       );
     }
+    if (state.step === 'influencer_genre') {
+      // インフルエンサージャンル入力 → 詳細カテゴリーに戻る
+      await supabase
+        .from('onboarding_state')
+        .update({ step: 'category_detail', selected_category: null, updated_at: new Date().toISOString() })
+        .eq('user_id', user.id);
+      return await replyWithQuickReply(
+        replyToken,
+        `【${state.selected_group}】どれが一番近いですか？`,
+        buildDetailQuickReply(state.selected_group)
+      );
+    }
     if (state.step === 'store_info') {
       // 店舗情報入力 → 詳細カテゴリーに戻る
       await supabase
@@ -164,6 +176,10 @@ export async function handleOnboardingResponse(user, message, replyToken) {
 
   if (state.step === 'store_info') {
     return await handleStoreInfoInput(user, state, trimmed, replyToken);
+  }
+
+  if (state.step === 'influencer_genre') {
+    return await handleInfluencerGenreInput(user, state, trimmed, replyToken);
   }
 
   return null;
@@ -306,6 +322,25 @@ async function handleCategoryDetailSelection(user, state, input, replyToken) {
     );
   }
 
+  // インフルエンサーの場合は専用フローへ（店名・こだわり・口調は不要）
+  if (selectedCategory === 'インフルエンサー') {
+    await supabase
+      .from('onboarding_state')
+      .update({
+        step: 'influencer_genre',
+        selected_category: selectedCategory,
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', user.id);
+
+    await replyWithQuickReply(
+      replyToken,
+      `何系の発信してますか？\n\n例: ファッション、グルメ、旅行、ライフスタイルなど`,
+      buildBackOnlyQuickReply()
+    );
+    return true;
+  }
+
   // 状態を更新
   await supabase
     .from('onboarding_state')
@@ -402,6 +437,62 @@ async function handleStoreInfoInput(user, state, input, replyToken) {
     return true;
   } catch (error) {
     console.error('[Onboarding] 店舗登録エラー:', error);
+    await replyText(replyToken, 'うまくいきませんでした...「登録」でもう一度やり直してみてください');
+    return true;
+  }
+}
+
+/**
+ * インフルエンサー専用: 発信ジャンル入力処理
+ * 「何系の発信してますか？」の回答をそのまま名前として登録
+ */
+async function handleInfluencerGenreInput(user, state, input, replyToken) {
+  if (!input || input.length > 30) {
+    return await replyWithQuickReply(
+      replyToken,
+      '30文字以内で発信ジャンルを教えてください！\n\n例: ファッション、グルメ、旅行など',
+      buildBackOnlyQuickReply()
+    );
+  }
+
+  try {
+    const genre = input.trim();
+
+    const store = await createStore(user.id, {
+      name: genre,
+      category: 'インフルエンサー',
+      strength: genre,
+      tone: 'casual'
+    });
+
+    await supabase
+      .from('users')
+      .update({
+        current_store_id: store.id,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', user.id);
+
+    // オンボーディング状態を削除
+    await supabase
+      .from('onboarding_state')
+      .delete()
+      .eq('user_id', user.id);
+
+    const successMessage = `「${genre}」で登録しました！
+
+ジャンル: ${genre}
+
+さっそく投稿を作ってみましょう！
+画像かテキストを送るだけでOKです`;
+
+    await replyText(replyToken, successMessage);
+
+    console.log(`[Onboarding] インフルエンサー登録完了: genre=${genre}`);
+
+    return true;
+  } catch (error) {
+    console.error('[Onboarding] インフルエンサー登録エラー:', error);
     await replyText(replyToken, 'うまくいきませんでした...「登録」でもう一度やり直してみてください');
     return true;
   }
