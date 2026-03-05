@@ -11,7 +11,7 @@ import { applyFeedbackToProfile, getOrCreateLearningProfile } from '../services/
 import {
   analyzeFeedbackWithClaude,
   updateAdvancedProfile,
-  getAdvancedPersonalizationPrompt,
+  getProfileAndPrompt,
 } from '../services/advancedPersonalization.js';
 import { checkGenerationLimit } from '../services/subscriptionService.js';
 
@@ -51,7 +51,8 @@ export async function handleFeedback(user, feedback, replyToken) {
     }
 
     // 「直し:」コマンドなので長短問わず常に修正案を返す
-    const advancedPersonalization = await getAdvancedPersonalizationPrompt(store.id);
+    // プロンプト注入用文字列 + diff分析用プロファイルを一括取得（DB1回）
+    const { profileContext, advancedPersonalization } = await getProfileAndPrompt(store.id);
     const prompt = buildRevisionPrompt(store, latestPost.content, feedback, advancedPersonalization);
     const revisedContent = await askClaude(prompt);
 
@@ -61,14 +62,13 @@ export async function handleFeedback(user, feedback, replyToken) {
 
     console.log(`[Feedback] 修正完了: store=${store.name}`);
 
-    // ── diff学習フェーズ ──────────────────────────────────
-    // 修正前 vs 修正後の差分を分析し、具体的なライティングルールを抽出
-    // ユーザーの指示文は「なぜ直したか」の文脈として使用
-    const analysis = await analyzeFeedbackWithClaude(feedback, latestPost.content, revisedContent);
+    // ── diff学習フェーズ（統合モード: 分析+指示集更新を1回のAPIで）──
+    // profileContext を渡すことで persona_definition_next も同時生成（API 3→2回に圧縮）
+    const analysis = await analyzeFeedbackWithClaude(feedback, latestPost.content, revisedContent, profileContext);
 
     if (analysis) {
       await updateAdvancedProfile(store.id, analysis);
-      console.log(`[Feedback] diff学習完了: beliefs=${analysis.beliefs?.length || 0}件`);
+      console.log(`[Feedback] diff学習完了: beliefs=${analysis.beliefs?.length || 0}件, persona=${analysis.persona_definition_next ? '統合更新' : 'フォールバック'}`);
     }
 
     await saveLearningData(
@@ -133,17 +133,18 @@ export async function handleStyleLearning(user, userRewrite, replyToken) {
 
     console.log(`[StyleLearning] 見本学習開始: store=${store.name}, len=${userRewrite.length}`);
 
-    // AI生成版とユーザー書き直し版の差分を分析
-    // revisedPost に userRewrite を渡すことで「2つの版の差分分析」として機能させる
+    // AI生成版とユーザー書き直し版の差分を分析（統合モード: 指示集も同時更新）
+    const { profileContext } = await getProfileAndPrompt(store.id);
     const analysis = await analyzeFeedbackWithClaude(
       'ユーザーが書き直したバージョンとAI生成版を比較し、ユーザーの好む文体・語尾・口癖・表現の特徴を抽出してください。',
       latestPost.content,
-      userRewrite
+      userRewrite,
+      profileContext
     );
 
     if (analysis) {
       await updateAdvancedProfile(store.id, analysis);
-      console.log(`[StyleLearning] 見本学習完了: beliefs=${analysis.beliefs?.length || 0}件`);
+      console.log(`[StyleLearning] 見本学習完了: beliefs=${analysis.beliefs?.length || 0}件, persona=${analysis.persona_definition_next ? '統合更新' : 'フォールバック'}`);
     }
 
     await saveLearningData(

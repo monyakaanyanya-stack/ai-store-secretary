@@ -15,15 +15,38 @@ const MIN_BELIEFS_FOR_PERSONA = 3;
  * @param {string} revisedPost - 修正後の投稿（もしあれば）
  * @returns {Object|null} - 思想ログ用の分析結果
  */
-export async function analyzeFeedbackWithClaude(feedback, originalPost, revisedPost = null) {
+export async function analyzeFeedbackWithClaude(feedback, originalPost, revisedPost = null, profileContext = null) {
   const diffSection = revisedPost
     ? `【元の投稿】\n${originalPost}\n\n【修正後の投稿】\n${revisedPost}\n\n【店主の修正指示】\n${feedback}`
     : `【元の投稿】\n${originalPost}\n\n【店主のフィードバック】\n${feedback}`;
 
+  // profileContext がある場合、現在の指示集+蓄積ログを含めて persona_definition_next も生成させる
+  let profileSection = '';
+  let personaOutputInstruction = '';
+  if (profileContext) {
+    const logs = profileContext.beliefLogs || [];
+    const ws = profileContext.writingStyle || {};
+    const styleParts = [];
+    if (ws.sentence_endings?.length > 0) styleParts.push(`語尾: ${ws.sentence_endings.join(', ')}`);
+    if (ws.catchphrases?.length > 0) styleParts.push(`口癖: ${ws.catchphrases.join(', ')}`);
+
+    profileSection = `
+
+【現在のライティング指示集】
+${profileContext.personaDefinition || 'まだありません'}
+
+【蓄積済みの思想ログ（古い順）】
+${logs.length > 0 ? logs.map(b => `・${b.text}`).join('\n') : 'なし'}
+${styleParts.length > 0 ? `\n【蓄積済みの文体パターン】\n${styleParts.join('\n')}` : ''}`;
+
+    personaOutputInstruction = `,
+  "persona_definition_next": string`;
+  }
+
   const prompt = `${diffSection}
 
 上記の「元の投稿」と「修正後の投稿」の具体的な差分を分析して、この店主のライティングルールを抽出してください。
-${revisedPost ? '修正指示は「なぜ直したか」の文脈として参照し、実際に何が変わったかを重視してください。' : 'フィードバックから、この店主が次回以降どう書いてほしいかを具体的に読み取ってください。'}
+${revisedPost ? '修正指示は「なぜ直したか」の文脈として参照し、実際に何が変わったかを重視してください。' : 'フィードバックから、この店主が次回以降どう書いてほしいかを具体的に読み取ってください。'}${profileSection}
 
 以下のJSON形式で出力してください（それ以外は何も出力しないこと）:
 {
@@ -35,7 +58,7 @@ ${revisedPost ? '修正指示は「なぜ直したか」の文脈として参照
   },
   "avoided_words": [string],
   "preferred_words": [string],
-  "human_readable_learnings": [string]
+  "human_readable_learnings": [string]${personaOutputInstruction}
 }
 
 説明:
@@ -44,11 +67,12 @@ ${revisedPost ? '修正指示は「なぜ直したか」の文脈として参照
 - writing_style.catchphrases: 修正後に追加された口癖となりうる表現
 - avoided_words: 元の投稿にあって修正後に消された表現・単語
 - preferred_words: 修正後に新たに使われた表現・単語
-- human_readable_learnings: ユーザーに見せる「今回学習したこと」を3件以内。具体的な変化を書く（例: ["語尾を「〜だな」に統一", "最後のCTAを削除"]）`;
+- human_readable_learnings: ユーザーに見せる「今回学習したこと」を3件以内。具体的な変化を書く（例: ["語尾を「〜だな」に統一", "最後のCTAを削除"]）${profileContext ? `
+- persona_definition_next: 今回の学習結果を反映した更新版ライティング指示集。「・」で始まる箇条書き7項目以内。「この店主は〜を好む」のような抽象的な性格描写は禁止。「〜する」「〜しない」「〜を使う」という具体的な行動指示にする。矛盾するログがあれば新しいほうを優先。語尾・口癖・避ける言葉がある場合は具体例を必ず含める` : ''}`;
 
   try {
     const response = await askClaude(prompt, {
-      max_tokens: 800,
+      max_tokens: profileContext ? 1200 : 800,
       temperature: 0.2,
     });
 
@@ -176,8 +200,36 @@ export async function updateAdvancedProfile(storeId, analysis) {
   console.log(`[AdvancedPersonalization] 思想ログ更新: beliefs=${beliefLogs.length}件, interaction=${newInteractionCount}`);
 
   // ── 6. ライティング指示集の即時更新 ──
-  // 毎回の「直し」でdiffから学んだことを即座にライティング指示集に反映する
-  if (beliefLogs.length >= 1) {
+  if (analysis.persona_definition_next) {
+    // analyzeFeedbackWithClaude が指示集も同時生成済み → API節約（3回→2回）
+    try {
+      const history = profileData.persona_history || [];
+      const newVersion = (profileData.persona_version || 0) + 1;
+      history.push({
+        version: newVersion,
+        definition: analysis.persona_definition_next.trim(),
+        created_at: new Date().toISOString(),
+        belief_count: beliefLogs.length,
+      });
+      while (history.length > MAX_PERSONA_HISTORY) {
+        history.shift();
+      }
+      profileData.persona_definition = analysis.persona_definition_next.trim();
+      profileData.persona_version = newVersion;
+      profileData.persona_history = history;
+      profileData._last_persona_belief_count = beliefLogs.length;
+
+      await supabase
+        .from('learning_profiles')
+        .update({ profile_data: profileData })
+        .eq('store_id', storeId);
+
+      console.log(`[AdvancedPersonalization] 人格要約 Ver.${newVersion} 生成完了（統合モード）`);
+    } catch (personaErr) {
+      console.error('[AdvancedPersonalization] ライティング指示集更新エラー（学習は成功）:', personaErr.message);
+    }
+  } else if (beliefLogs.length >= 1) {
+    // フォールバック: profileContext未渡し時は従来通り別APIコールで指示集再生成
     try {
       await regeneratePersonaDefinition(storeId, profileData, beliefLogs);
     } catch (personaErr) {
@@ -428,4 +480,84 @@ export async function getAdvancedPersonalizationPrompt(storeId) {
   }
 
   return parts.length > 0 ? '\n' + parts.join('\n') : '';
+}
+
+/**
+ * プロンプト注入用文字列 + analyzeFeedbackWithClaude用のプロファイルコンテキストを一括取得
+ * DB読み取り1回で両方を返す（getAdvancedPersonalizationPrompt との重複クエリ防止）
+ */
+export async function getProfileAndPrompt(storeId) {
+  const { data: profile } = await supabase
+    .from('learning_profiles')
+    .select('*')
+    .eq('store_id', storeId)
+    .single();
+
+  const profileData = profile?.profile_data || {};
+  const beliefLogs = profileData.belief_logs || [];
+  const ws = profileData.writing_style || {};
+
+  // analyzeFeedbackWithClaude に渡す profileContext
+  const profileContext = {
+    beliefLogs,
+    personaDefinition: profileData.persona_definition || null,
+    writingStyle: {
+      sentence_endings: ws.sentence_endings || [],
+      catchphrases: ws.catchphrases || [],
+      line_break_style: ws.line_break_style || null,
+    },
+  };
+
+  // プロンプト注入用文字列（getAdvancedPersonalizationPrompt と同じロジック）
+  if (!profile || profile.interaction_count < 1) {
+    return { profileContext, advancedPersonalization: '' };
+  }
+
+  const parts = [];
+
+  if (profileData.persona_definition) {
+    parts.push(`\n━━━━━━━━━━━━━━━━━━━━━━━━\n【最重要：この店主専用ライティング指示 Ver.${profileData.persona_version || 1}】\n${profileData.persona_definition}\n※ 上記は店主のフィードバックから構築した具体的なルール。生成時に全項目を厳守せよ。\n━━━━━━━━━━━━━━━━━━━━━━━━`);
+  }
+
+  const styleParts = [];
+  if (ws.sentence_endings?.length > 0) {
+    styleParts.push(`・語尾: 「${ws.sentence_endings.join('」「')}」を使う`);
+  }
+  if (ws.catchphrases?.length > 0) {
+    styleParts.push(`・口癖: 「${ws.catchphrases.join('」「')}」を自然に使う`);
+  }
+  if (ws.line_break_style === 'frequent') {
+    styleParts.push('・改行を多めに使って縦に展開する');
+  }
+  if (styleParts.length > 0) {
+    parts.push(`【文体ルール】\n${styleParts.join('\n')}`);
+  }
+
+  const avoided = profileData.avoided_words || [];
+  if (avoided.length > 0) {
+    parts.push(`・避ける表現: ${avoided.join(', ')}`);
+  }
+
+  if (!profileData.persona_definition && beliefLogs.length > 0) {
+    parts.push(`【この店主のライティングルール（必ず反映せよ）】\n${beliefLogs.map(b => `・${b.text}`).join('\n')}\n※ 上記は店主の修正から抽出した具体的なルール。生成時に全項目を厳守すること。`);
+  }
+
+  const styleSelections = profileData.style_selections || {};
+  const totalSelections = styleSelections.total || 0;
+  if (totalSelections >= 3) {
+    const styleDescriptions = {
+      '時間の肖像': '日常の一瞬を切り取る静かな表現',
+      '誠実の肖像': '正直で飾らない語り口',
+      '光の肖像': '店主の独り言のような親しみやすさ',
+    };
+    const favorite = Object.entries(styleSelections)
+      .filter(([k]) => k !== 'total')
+      .sort((a, b) => b[1] - a[1])[0];
+    if (favorite && favorite[1] >= 2) {
+      parts.push(`【この店主が好む案の傾向】\n・${styleDescriptions[favorite[0]] || favorite[0]}を好む（${totalSelections}回中${favorite[1]}回選択）\n→ 3案すべてにこの傾向をベースとして反映しつつ、各案の個性は維持せよ`);
+    }
+  }
+
+  const advancedPersonalization = parts.length > 0 ? '\n' + parts.join('\n') : '';
+  return { profileContext, advancedPersonalization };
 }
