@@ -3,6 +3,7 @@ import { notifyClaudeError } from './errorNotification.js';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const MODEL = 'claude-sonnet-4-20250514';
+const MODEL_HAIKU = 'claude-3-5-haiku-20241022';
 
 /**
  * テキストのみのリクエスト
@@ -50,11 +51,12 @@ export async function askClaude(prompt, options = {}) {
 /**
  * 画像付きリクエスト（Vision）
  */
-export async function askClaudeWithImage(prompt, imageBase64, mediaType = 'image/jpeg') {
+export async function askClaudeWithImage(prompt, imageBase64, mediaType = 'image/jpeg', options = {}) {
+  const { model = MODEL, max_tokens = 1024 } = options;
   try {
     const response = await client.messages.create({
-      model: MODEL,
-      max_tokens: 1024,
+      model,
+      max_tokens,
       messages: [
         {
           role: 'user',
