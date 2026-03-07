@@ -84,7 +84,8 @@ async function handleInstagramConnect(user, token, pageId, replyToken) {
     try {
       const authUrl = buildInstagramAuthUrl(user.line_user_id, user.current_store_id);
       await replyText(replyToken, `📸 Instagram連携\n\n下のリンクをタップして、Instagramアカウントを認証してください:\n\n${authUrl}\n\n⏱ リンクは10分間有効です。`);
-    } catch {
+    } catch (err) {
+      console.error('[Instagram] OAuth URL生成エラー:', err.message);
       // INSTAGRAM_REDIRECT_URI 未設定時は手動フローにフォールバック
       await replyText(replyToken, `📸 Instagram連携\n\nアクセストークンを指定してください:\n\n/instagram connect [アクセストークン]`);
     }
