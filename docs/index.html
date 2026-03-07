@@ -98,7 +98,7 @@
     .hero {
       background: transparent;
       color: var(--text);
-      padding: 140px 40px 120px;
+      padding: 140px 40px 56px;
       text-align: center;
     }
 
@@ -115,8 +115,16 @@
       margin-bottom: 32px;
     }
 
+    .hero-tagline {
+      font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+      font-weight: 600;
+      color: var(--accent);
+      letter-spacing: 0.06em;
+      margin-bottom: 20px;
+    }
+
     .hero h1 {
-      font-size: clamp(2.4rem, 6vw, 4.2rem);
+      font-size: clamp(2.2rem, 5vw, 3.6rem);
       font-weight: 700;
       line-height: 1.2;
       letter-spacing: -0.03em;
@@ -233,6 +241,40 @@
 
     .step-arrow {
       display: none;
+    }
+
+    .steps-time {
+      margin-top: 32px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--accent);
+      letter-spacing: 0.04em;
+    }
+
+    .steps-note {
+      margin-top: 40px;
+      padding: 28px 32px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      text-align: center;
+      line-height: 2;
+    }
+    .steps-note strong {
+      display: block;
+      font-size: 1.05rem;
+      margin-bottom: 8px;
+    }
+    .steps-note-types {
+      display: inline-flex;
+      gap: 16px;
+      font-weight: 600;
+      color: var(--accent);
+    }
+    .steps-note p {
+      margin-top: 8px;
+      color: var(--text-muted);
+      font-size: 0.95rem;
     }
 
     /* ─── Demo: Phone mockups ──────────────── */
@@ -560,6 +602,38 @@
     }
     footer a:hover { color: var(--text); }
 
+    /* ─── Price comparison strip ──────────── */
+    .price-compare {
+      text-align: center;
+      padding: 0 40px 20px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .price-strip {
+      height: 56px;
+      background: rgba(37,99,235,.15);
+    }
+
+    .price-strip-before {
+      color: var(--gray-mid);
+      text-decoration: line-through;
+    }
+
+    .price-strip-arrow {
+      display: inline-block;
+      margin: 0 16px;
+      color: var(--accent);
+      font-size: 1.3rem;
+    }
+
+    .price-strip-after {
+      color: var(--accent);
+      font-size: 1.2rem;
+      font-weight: 700;
+    }
+
     /* ─── Responsive ────────────────────────── */
     @media (max-width: 900px) {
       .steps-grid { grid-template-columns: repeat(2, 1fr); gap: 20px; }
@@ -572,7 +646,7 @@
 
     @media (max-width: 768px) {
       .section { padding: 56px 24px; }
-      .hero { padding: 120px 24px 88px; }
+      .hero { padding: 120px 24px 40px; }
 
       .problem-grid { grid-template-columns: 1fr; }
       .proof-grid { grid-template-columns: 1fr; gap: 24px; }
@@ -588,6 +662,7 @@
       /* Comparison table: horizontal scroll */
       .compare-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -24px; padding: 0 24px; }
       .compare-table { min-width: 540px; }
+      .plan-grid { grid-template-columns: 1fr !important; max-width: 400px !important; margin-left: auto !important; margin-right: auto !important; }
 
       .footer-inner {
         flex-direction: column;
@@ -607,13 +682,21 @@
   <!-- ═══ Hero ═══════════════════════════════ -->
   <section class="hero">
     <div class="container">
-      <span class="hero-badge">個人店オーナーのためのAI秘書</span>
-      <h1>写真を送るだけ。<br>Instagram投稿が<br><em>毎日、続く</em>。</h1>
-      <p class="hero-sub">文章を考えなくていい。だから続く。<br>続くから、数字が変わる。</p>
+      <p class="hero-tagline">個人店に、SNS担当AIを。</p>
+      <h1>LINEに写真を送るだけ。<br>Instagram投稿が<em>無理なく、続く</em>。</h1>
+      <p class="hero-sub">文章を考えなくていい。だから続く。<br>続くと、フォロワーも来店も変わる。</p>
       <a href="https://lin.ee/OWTIvhZ" class="btn btn-large">無料で試す</a>
       <p class="cta-sub">LINE追加だけ / 30秒</p>
     </div>
   </section>
+
+  <!-- ═══ Price comparison ═══════════════════════ -->
+  <div class="price-compare">
+    <span class="price-strip-before">SNS代行 月5万円</span>
+    <span class="price-strip-arrow">→</span>
+    <span class="price-strip-after">AI秘書 月2,980円</span>
+  </div>
+  <div class="price-strip"></div>
 
   <!-- ═══ Problem ════════════════════════════ -->
   <section class="section">
@@ -644,8 +727,8 @@
   <!-- ═══ Solution bridge ════════════════════ -->
   <section class="solution-bridge">
     <div class="container">
-      <h2>「投稿が続く」をつくるのが<br><em>AI店舗秘書</em>です</h2>
-      <p class="desc">文章はAIが考える。あなたは写真を送るだけ。</p>
+      <h2>SNS代行を、<br><em>AIが引き受けます</em></h2>
+      <p class="desc">文章作成・投稿管理・データ分析。<br>あなた専属のSNS担当が、月額2,980円で働きます。</p>
     </div>
   </section>
 
@@ -653,9 +736,9 @@
   <section class="section section-alt section-center">
     <div class="container">
       <p class="label">How it works</p>
-      <h2 class="title">使い方は4ステップ</h2>
+      <h2 class="title">使い方は3ステップ</h2>
 
-      <div class="steps-grid">
+      <div class="steps-grid" style="grid-template-columns:repeat(3,1fr);">
         <div class="step-card">
           <div class="step-num">1</div>
           <h3>LINEで写真を送る</h3>
@@ -663,20 +746,17 @@
         </div>
         <div class="step-card">
           <div class="step-num">2</div>
-          <h3>AIが3案を生成</h3>
+          <h3>AIが投稿案を3つ作る</h3>
           <p>異なるコンセプトの投稿文が3つ届きます。</p>
         </div>
         <div class="step-card">
           <div class="step-num">3</div>
-          <h3>好きな案を選ぶ</h3>
-          <p>気に入った案をタップ。微調整も一言で。</p>
-        </div>
-        <div class="step-card">
-          <div class="step-num">4</div>
-          <h3>Instagramに投稿</h3>
+          <h3>コピーしてInstagramへ</h3>
           <p>コピペでも、ボタンひとつで直接投稿でも。</p>
         </div>
       </div>
+      <p class="steps-time">所要時間：約30秒</p>
+
     </div>
   </section>
 
@@ -698,6 +778,7 @@
             <span class="demo-step-num">Step 1</span>
             <h3>写真を送る</h3>
             <p>一言添えるとさらにあなたらしく</p>
+            <p style="margin-top:12px;font-size:0.82rem;color:var(--accent);font-weight:600;">AIが3つの投稿案を作ります：日常 / お知らせ / 誘い<br><span style="font-weight:400;color:var(--text-muted);">そのままコピーして使えます</span></p>
           </div>
         </div>
 
@@ -709,7 +790,7 @@
           <div class="demo-caption">
             <span class="demo-step-num">Step 2</span>
             <h3>3案が届く</h3>
-            <p>記憶に残る日常 / さりげない誘い / 店主のひとりごと</p>
+            <p>日常 / 誘い / ひとりごと の3タイプ</p>
           </div>
         </div>
 
@@ -734,7 +815,7 @@
   <section class="section section-alt">
     <div class="container">
       <p class="label">Features</p>
-      <h2 class="title">5つの仕組み</h2>
+      <h2 class="title">あなたのSNS担当がやること</h2>
 
       <div style="margin-top:48px;max-width:780px;">
         <div style="border-top:1px solid var(--border);padding:40px 0;display:flex;gap:32px;align-items:baseline;">
@@ -761,14 +842,14 @@
         <div style="border-top:1px solid var(--border);padding:40px 0;display:flex;gap:32px;align-items:baseline;">
           <span style="font-size:clamp(1.6rem,3vw,2.2rem);font-weight:700;color:var(--accent-soft);min-width:56px;">04</span>
           <div>
-            <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:8px;">エンゲージメント自動学習</h3>
+            <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:8px;">エンゲージメント自動学習 <span style="font-size:0.72rem;font-weight:600;color:var(--accent);background:var(--accent-soft);padding:2px 10px;border-radius:100px;margin-left:8px;">今後実装予定</span></h3>
             <p style="font-size:0.88rem;color:var(--text-muted);line-height:1.9;">投稿後の反応（いいね・保存・コメント）を報告すると、保存強度やエンゲージメント率（ER）を自動計算。高パフォーマンス投稿の成功要因をAIが分析し、次の提案に自動反映します。</p>
           </div>
         </div>
         <div style="border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:40px 0;display:flex;gap:32px;align-items:baseline;">
           <span style="font-size:clamp(1.6rem,3vw,2.2rem);font-weight:700;color:var(--accent-soft);min-width:56px;">05</span>
           <div>
-            <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:8px;">Instagram連携でデータ同期</h3>
+            <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:8px;">Instagram連携でデータ同期 <span style="font-size:0.72rem;font-weight:600;color:var(--accent);background:var(--accent-soft);padding:2px 10px;border-radius:100px;margin-left:8px;">今後実装予定</span></h3>
             <p style="font-size:0.88rem;color:var(--text-muted);line-height:1.9;">Instagramアカウントを接続すれば、過去の投稿データ（いいね・リーチ・保存数）を自動取得。手入力なしでエンゲージメントデータを蓄積し、高精度な提案につなげます。</p>
           </div>
         </div>
@@ -922,7 +1003,7 @@
     <div class="container">
       <p class="label">AI That Grows</p>
       <h2 class="title">使うほど賢くなる、3つのエンジン</h2>
-      <p class="desc">一般的なAIツールは毎回リセットされます。<br>AI店舗秘書は使うほど「お店の言葉」を覚え、投稿のハードルがさらに下がります。</p>
+      <p class="desc">人間の代行担当は引き継ぎで振り出し。汎用AIは毎回リセット。<br>AI店舗秘書は辞めない・忘れない。使うほど「お店の声」に育ちます。</p>
 
       <div class="benefits-grid" style="margin-top:56px;">
         <div style="padding:36px 28px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:18px;text-align:center;">
@@ -937,7 +1018,7 @@
         </div>
         <div style="padding:36px 28px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:18px;text-align:center;">
           <div style="font-size:2rem;margin-bottom:16px;">📈</div>
-          <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:12px;color:var(--white);">エンゲージメント学習</h3>
+          <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:12px;color:var(--white);">エンゲージメント学習 <span style="font-size:0.72rem;font-weight:600;color:var(--accent);background:var(--accent-soft);padding:2px 10px;border-radius:100px;margin-left:8px;">今後実装予定</span></h3>
           <p style="font-size:0.82rem;color:rgba(255,255,255,0.5);line-height:1.8;">高パフォーマンス投稿（保存強度が平均の1.5倍以上）の成功要因をAIが自動分析。次の投稿に自動で反映します。</p>
         </div>
       </div>
@@ -982,7 +1063,7 @@
     <div class="container">
       <p class="label">Comparison</p>
       <h2 class="title">何が違うのか</h2>
-      <p class="desc">文章生成ではなく「続く仕組み」です。</p>
+      <p class="desc">文章生成ツールではなく、あなたのSNS担当です。</p>
 
       <div class="compare-wrap">
       <table class="compare-table">
@@ -1041,21 +1122,111 @@
   <section class="section section-center">
     <div class="container">
       <p class="label">Pricing</p>
-      <h2 class="title">現在ベータ版につき<br>すべての機能が<em style="font-style:normal;color:var(--accent);">無料</em></h2>
-      <p class="desc">正式リリースまで、全機能を無料でお使いいただけます。</p>
+      <h2 class="title">SNS代行の<em style="font-style:normal;color:var(--accent);">1/20以下</em>の価格で</h2>
+      <p class="desc">代行業者に頼む機能を、月額2,980円から。</p>
 
-      <div style="max-width:400px;margin:48px auto 0;padding:48px 40px;background:var(--surface-strong);border:2px solid var(--accent);border-radius:18px;box-shadow:var(--shadow);">
-        <span style="display:inline-block;font-size:0.72rem;font-weight:600;letter-spacing:0.15em;color:var(--accent);background:var(--accent-soft);padding:4px 14px;border-radius:100px;margin-bottom:20px;">BETA</span>
-        <div style="font-size:clamp(2.4rem,5vw,3.4rem);font-weight:700;margin-bottom:8px;">¥0<span style="font-size:0.9rem;font-weight:400;color:var(--text-muted);"> / 月</span></div>
-        <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:32px;">クレジットカード登録不要</p>
-        <ul style="text-align:left;list-style:none;font-size:0.88rem;line-height:2.4;margin-bottom:32px;">
-          <li>✓ 投稿生成（回数無制限）</li>
-          <li>✓ 3案提案 + 撮影アドバイス</li>
-          <li>✓ 人格学習・集合知エンジン</li>
-          <li>✓ エンゲージメント自動分析</li>
-          <li>✓ Instagram連携</li>
-        </ul>
-        <a href="https://lin.ee/OWTIvhZ" class="btn" style="width:100%;justify-content:center;">無料で始める</a>
+      <!-- 比較テーブル -->
+      <div style="max-width:640px;margin:48px auto 0;">
+        <table style="width:100%;border-collapse:collapse;font-size:0.9rem;text-align:center;">
+          <thead>
+            <tr>
+              <th style="padding:14px 12px;border-bottom:2px solid var(--border);text-align:left;"></th>
+              <th style="padding:14px 12px;border-bottom:2px solid var(--border);color:var(--text-muted);">SNS代行</th>
+              <th style="padding:14px 12px;border-bottom:2px solid var(--accent);color:var(--accent);font-weight:700;">AI店舗秘書</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding:12px;text-align:left;border-bottom:1px solid var(--border);">月額</td>
+              <td style="padding:12px;border-bottom:1px solid var(--border);color:var(--text-muted);">5〜30万円</td>
+              <td style="padding:12px;border-bottom:1px solid var(--border);font-weight:700;color:var(--accent);">2,980円〜</td>
+            </tr>
+            <tr>
+              <td style="padding:12px;text-align:left;border-bottom:1px solid var(--border);">投稿作成</td>
+              <td style="padding:12px;border-bottom:1px solid var(--border);color:var(--text-muted);">月10〜20本</td>
+              <td style="padding:12px;border-bottom:1px solid var(--border);font-weight:700;color:var(--accent);">月60本〜</td>
+            </tr>
+            <tr>
+              <td style="padding:12px;text-align:left;border-bottom:1px solid var(--border);">お店の理解</td>
+              <td style="padding:12px;border-bottom:1px solid var(--border);color:var(--text-muted);">担当者次第</td>
+              <td style="padding:12px;border-bottom:1px solid var(--border);font-weight:700;">自動学習で蓄積</td>
+            </tr>
+            <tr>
+              <td style="padding:12px;text-align:left;border-bottom:1px solid var(--border);">所要時間</td>
+              <td style="padding:12px;border-bottom:1px solid var(--border);color:var(--text-muted);">打ち合わせ必要</td>
+              <td style="padding:12px;border-bottom:1px solid var(--border);font-weight:700;">30秒</td>
+            </tr>
+            <tr>
+              <td style="padding:12px;text-align:left;">データ分析</td>
+              <td style="padding:12px;color:var(--text-muted);">レポート月1回</td>
+              <td style="padding:12px;font-weight:700;">毎回自動分析</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 3プランカード -->
+      <div class="plan-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:880px;margin:56px auto 0;">
+
+        <!-- Free -->
+        <div style="padding:32px 24px;background:var(--surface-strong);border:1px solid var(--border);border-radius:16px;">
+          <p style="font-size:0.78rem;font-weight:600;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:12px;">FREE</p>
+          <div style="font-size:2rem;font-weight:700;margin-bottom:4px;">¥0<span style="font-size:0.82rem;font-weight:400;color:var(--text-muted);"> / 月</span></div>
+          <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:24px;">まずは試してみたい方</p>
+          <ul style="text-align:left;list-style:none;font-size:0.82rem;line-height:2.2;color:var(--text-muted);">
+            <li>✓ 月20回生成</li>
+            <li>✓ 店舗1つ</li>
+            <li>✓ 3案提案</li>
+            <li>✓ 集合知エンジン</li>
+            <li style="opacity:0.4;">— 自動学習・人格学習</li>
+            <li style="opacity:0.4;">— Instagram連携</li>
+            <li style="opacity:0.4;">— 週間計画</li>
+          </ul>
+        </div>
+
+        <!-- Standard -->
+        <div style="padding:32px 24px;background:var(--surface-strong);border:2px solid var(--accent);border-radius:16px;box-shadow:var(--shadow);position:relative;">
+          <span style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);font-size:0.7rem;font-weight:600;letter-spacing:0.1em;color:var(--white);background:var(--accent);padding:4px 16px;border-radius:100px;">おすすめ</span>
+          <p style="font-size:0.78rem;font-weight:600;letter-spacing:0.1em;color:var(--accent);margin-bottom:12px;">STANDARD</p>
+          <div style="font-size:2rem;font-weight:700;margin-bottom:4px;">¥2,980<span style="font-size:0.82rem;font-weight:400;color:var(--text-muted);"> / 月</span></div>
+          <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:24px;">本格的に続けたい方</p>
+          <ul style="text-align:left;list-style:none;font-size:0.82rem;line-height:2.2;">
+            <li>✓ 月60回生成</li>
+            <li>✓ 店舗1つ</li>
+            <li>✓ 3案提案</li>
+            <li>✓ 集合知エンジン</li>
+            <li style="font-weight:600;color:var(--accent);">✓ 自動学習・人格学習</li>
+            <li style="font-weight:600;color:var(--accent);">✓ Instagram連携</li>
+            <li style="opacity:0.4;">— 週間計画</li>
+          </ul>
+        </div>
+
+        <!-- Premium -->
+        <div style="padding:32px 24px;background:var(--surface-strong);border:1px solid var(--border);border-radius:16px;">
+          <p style="font-size:0.78rem;font-weight:600;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:12px;">PREMIUM</p>
+          <div style="font-size:2rem;font-weight:700;margin-bottom:4px;">¥5,980<span style="font-size:0.82rem;font-weight:400;color:var(--text-muted);"> / 月</span></div>
+          <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:24px;">複数店舗・フル活用</p>
+          <ul style="text-align:left;list-style:none;font-size:0.82rem;line-height:2.2;">
+            <li>✓ 月200回生成</li>
+            <li style="font-weight:600;">✓ 店舗5つまで</li>
+            <li>✓ 3案提案</li>
+            <li>✓ 集合知エンジン</li>
+            <li>✓ 自動学習・人格学習</li>
+            <li>✓ Instagram連携</li>
+            <li style="font-weight:600;color:var(--accent);">✓ 週間計画・強化版アドバイス</li>
+          </ul>
+        </div>
+
+      </div>
+
+      <!-- ベータ無料バナー -->
+      <div style="max-width:880px;margin:32px auto 0;padding:28px 32px;background:var(--accent-soft);border-radius:12px;display:flex;align-items:center;justify-content:center;gap:24px;flex-wrap:wrap;">
+        <div style="text-align:center;">
+          <span style="display:inline-block;font-size:0.72rem;font-weight:600;letter-spacing:0.15em;color:var(--accent);background:var(--white);padding:3px 12px;border-radius:100px;margin-bottom:8px;">BETA</span>
+          <p style="font-size:1.05rem;font-weight:700;">現在ベータ版につき<span style="color:var(--accent);">全プラン無料</span></p>
+          <p style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">クレジットカード登録不要</p>
+        </div>
+        <a href="https://lin.ee/OWTIvhZ" class="btn">無料で始める</a>
       </div>
     </div>
   </section>
@@ -1063,7 +1234,7 @@
   <!-- ═══ Final CTA ══════════════════════════ -->
   <section class="cta-final">
     <div class="container">
-      <h2>SNSが「やらなきゃ」から<br>「楽しい」に変わる</h2>
+      <h2>個人店にも、<br>SNS担当を</h2>
       <p>大手チェーンには専任のマーケティング部門がある。<br>でも、個人店には「自分」しかいない。<br>その格差を、AIが埋めます。</p>
       <a href="https://lin.ee/OWTIvhZ" class="btn btn-large">無料で試す</a>
       <p class="cta-sub">LINE追加だけ / 30秒</p>
