@@ -91,6 +91,9 @@ export async function handleFeedback(user, feedback, replyToken) {
       ? latestLearnings.map(l => `✅ ${l}`).join('\n')
       : `✅ ${feedback}`;
 
+    // 残り回数通知（Free/Standardなど上限のあるプランのみ）
+    const remaining = Number.isFinite(genLimit.limit) ? genLimit.limit - (genLimit.used + 1) : null;
+    const remainingNote = remaining !== null ? `\n📊 今月の残り: ${remaining}回` : '';
     const message = `覚えました！修正版はこちら👇
 ━━━━━━━━━━━
 ${revisedContent}
@@ -98,7 +101,7 @@ ${revisedContent}
 
 【学んだこと】
 ${learningList}
-📚 ${profile.interaction_count}回目の学習`;
+📚 ${profile.interaction_count}回目の学習${remainingNote}`;
 
     await replyText(replyToken, message);
   } catch (err) {

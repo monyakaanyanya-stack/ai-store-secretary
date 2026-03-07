@@ -1072,12 +1072,15 @@ async function handleTextPostGenerationWithLength(user, text, replyToken, length
 
     // コピペしやすい形式でフォーマット
     const revisionExample = getRevisionExample(store.category);
+    // 残り回数通知（Free/Standardなど上限のあるプランのみ）
+    const remaining = Number.isFinite(genLimit.limit) ? genLimit.limit - (genLimit.used + 1) : null;
+    const remainingNote = remaining !== null ? `\n📊 今月の残り: ${remaining}回` : '';
     const formattedReply = `できました！そのままコピペでどうぞ👇
 ━━━━━━━━━━━
 ${postContent}
 ━━━━━━━━━━━
 
-気になるところがあれば「直し: ${revisionExample}」で修正できます`;
+気になるところがあれば「直し: ${revisionExample}」で修正できます${remainingNote}`;
 
     await replyWithQuickReply(replyToken, formattedReply, [
       { type: 'action', action: { type: 'message', label: '👍 良い', text: '👍' } },
