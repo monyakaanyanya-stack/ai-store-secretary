@@ -47,7 +47,7 @@ export async function handleFeedback(user, feedback, replyToken) {
     // 生成上限チェック（修正も1生成としてカウント）
     const genLimit = await checkGenerationLimit(user.id);
     if (!genLimit.allowed) {
-      return await replyText(replyToken, `⚠️ 今月の生成上限（${genLimit.limit}回）に達しました。\n\n「アップグレード」で上限を増やせます。`);
+      return await replyText(replyToken, `⚠️ 今月の生成上限（${genLimit.limit}回）に達しました。\n\n現在: ${genLimit.used}回 / ${genLimit.limit}回\n\n「アップグレード」で上限を増やすことができます。\n\n次月（1日）にリセットされます。`);
     }
 
     // 「直し:」コマンドなので長短問わず常に修正案を返す

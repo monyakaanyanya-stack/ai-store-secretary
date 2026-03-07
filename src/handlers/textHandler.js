@@ -1028,7 +1028,7 @@ async function handleTextPostGenerationWithLength(user, text, replyToken, length
     const genLimit = await checkGenerationLimit(user.id);
     if (!genLimit.allowed) {
       return await replyText(replyToken,
-        `今月の生成上限（${genLimit.limit}回）に達しました。\n\n📊 今月の生成: ${genLimit.used} / ${genLimit.limit}回\n📋 プラン: ${genLimit.planName}\n\nプランをアップグレードすると上限が増えます。`
+        `⚠️ 今月の生成上限（${genLimit.limit}回）に達しました。\n\n現在: ${genLimit.used}回 / ${genLimit.limit}回\n\n「アップグレード」で上限を増やすことができます。\n\n次月（1日）にリセットされます。`
       );
     }
 
