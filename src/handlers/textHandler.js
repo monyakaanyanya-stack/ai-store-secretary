@@ -406,6 +406,11 @@ ${contactEmail}
     return await handleInstagramCommand(user, 'connect', replyToken);
   }
 
+  // Instagram連携解除（日本語コマンド → /instagram disconnect へ転送）
+  if (trimmed === 'instagram連携解除' || trimmed === 'インスタ連携解除' || trimmed === 'インスタ解除') {
+    return await handleInstagramCommand(user, 'disconnect', replyToken);
+  }
+
   // Instagram投稿（クイックリプライから送信される）
   if (trimmed === 'instagram投稿') {
     const { handleInstagramCommand } = await import('./instagramHandler.js');
