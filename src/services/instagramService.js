@@ -619,6 +619,127 @@ export async function publishToInstagram(storeId, imageUrl, caption) {
   return published;
 }
 
+// ============================================================
+// Instagram OAuth フロー（自動連携）
+// ============================================================
+
+/**
+ * OAuth state パラメータを生成（AES-256-GCM で暗号化）
+ */
+export function createOAuthState(lineUserId, storeId) {
+  const payload = JSON.stringify({ lineUserId, storeId, ts: Date.now() });
+  return encodeURIComponent(encrypt(payload));
+}
+
+/**
+ * OAuth state パラメータを復号・検証（10分有効）
+ */
+export function verifyOAuthState(encryptedState, maxAgeMs = 10 * 60 * 1000) {
+  const decrypted = decrypt(decodeURIComponent(encryptedState));
+  const payload = JSON.parse(decrypted);
+
+  if (!payload.lineUserId || !payload.storeId || !payload.ts) {
+    throw new Error('不正な state パラメータ');
+  }
+  if (Date.now() - payload.ts > maxAgeMs) {
+    throw new Error('認証リクエストの有効期限が切れています');
+  }
+  return { lineUserId: payload.lineUserId, storeId: payload.storeId };
+}
+
+/**
+ * Instagram OAuth 認証URLを生成
+ */
+export function buildInstagramAuthUrl(lineUserId, storeId) {
+  const appId = process.env.INSTAGRAM_APP_ID;
+  const redirectUri = process.env.INSTAGRAM_REDIRECT_URI;
+  if (!appId) throw new Error('INSTAGRAM_APP_ID が設定されていません');
+  if (!redirectUri) throw new Error('INSTAGRAM_REDIRECT_URI が設定されていません');
+
+  const state = createOAuthState(lineUserId, storeId);
+  const url = new URL('https://www.instagram.com/oauth/authorize');
+  url.searchParams.set('client_id', appId);
+  url.searchParams.set('redirect_uri', redirectUri);
+  url.searchParams.set('response_type', 'code');
+  url.searchParams.set('scope', 'instagram_business_basic,instagram_business_content_publish');
+  url.searchParams.set('state', state);
+  return url.toString();
+}
+
+/**
+ * 認証コード → 短期トークン（Instagram Login API）
+ */
+export async function exchangeCodeForIGToken(code) {
+  const appId = process.env.INSTAGRAM_APP_ID;
+  const appSecret = process.env.INSTAGRAM_APP_SECRET;
+  const redirectUri = process.env.INSTAGRAM_REDIRECT_URI;
+  if (!appId || !appSecret || !redirectUri) {
+    throw new Error('Instagram OAuth 環境変数が不足しています');
+  }
+
+  const res = await fetch('https://api.instagram.com/oauth/access_token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: appId,
+      client_secret: appSecret,
+      grant_type: 'authorization_code',
+      redirect_uri: redirectUri,
+      code,
+    }),
+  });
+  const data = await res.json();
+  if (data.error_type || data.error_message) {
+    throw new Error(`トークン交換失敗: ${data.error_message || data.error_type}`);
+  }
+  if (!data.access_token) {
+    throw new Error('トークン交換失敗: access_token が返されませんでした');
+  }
+  return data; // { access_token, user_id }
+}
+
+/**
+ * 短期→長期トークン（Instagram Login API、60日間有効）
+ */
+export async function exchangeIGShortForLongLived(shortToken) {
+  const appSecret = process.env.INSTAGRAM_APP_SECRET;
+  if (!appSecret) throw new Error('INSTAGRAM_APP_SECRET が設定されていません');
+
+  const url = new URL('https://graph.instagram.com/access_token');
+  url.searchParams.set('grant_type', 'ig_exchange_token');
+  url.searchParams.set('client_secret', appSecret);
+  url.searchParams.set('access_token', shortToken);
+
+  const res = await fetch(url.toString());
+  const data = await res.json();
+  if (data.error) {
+    throw new Error(`長期トークン交換失敗: ${data.error.message}`);
+  }
+  return data; // { access_token, token_type, expires_in }
+}
+
+/**
+ * OAuth コールバック処理（code→短期→長期→DB保存）
+ * @returns {{ success, username, lineUserId, followersCount }}
+ */
+export async function handleOAuthCallback(code, state) {
+  const { lineUserId, storeId } = verifyOAuthState(state);
+  const { access_token: shortToken } = await exchangeCodeForIGToken(code);
+  const { access_token: longToken } = await exchangeIGShortForLongLived(shortToken);
+  const { account, accountInfo } = await connectInstagramAccount(storeId, longToken);
+
+  return {
+    success: true,
+    username: accountInfo.username || account.instagram_user_id,
+    lineUserId,
+    followersCount: accountInfo.followers_count,
+  };
+}
+
+// ============================================================
+// 接続状態確認
+// ============================================================
+
 export async function getInstagramConnectionStatus(storeId) {
   const account = await getInstagramAccount(storeId);
 
@@ -627,14 +748,11 @@ export async function getInstagramConnectionStatus(storeId) {
 
 まだ連携されていません。
 
-【連携方法】
-1. Meta for Developers (developers.facebook.com) でアプリ作成
-2. Graph API Explorer でアクセストークンを生成
-3. LINEで以下を送信:
+LINEで以下を送信してください:
 
-/instagram connect [アクセストークン]
+/instagram connect
 
-※ Instagram はプロアカウント（ビジネス）に変換し、Facebook ページと接続しておく必要があります。`;
+または「インスタ連携」と入力してください。`;
   }
 
   const expiresAt = account.token_expires_at

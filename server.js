@@ -7,8 +7,9 @@ import { getOrCreateUser } from './src/services/supabaseService.js';
 import { startScheduler } from './src/services/scheduler.js';
 import { sendWelcomeMessage } from './src/handlers/welcomeHandler.js';
 import { checkRateLimit, maskUserId } from './src/utils/security.js';
-import { replyText } from './src/services/lineService.js';
+import { replyText, pushMessage } from './src/services/lineService.js';
 import { handleStripeWebhook } from './src/handlers/stripeWebhookHandler.js';
+import { handleOAuthCallback } from './src/services/instagramService.js';
 
 // ==================== C8: 起動時の環境変数検証 ====================
 const REQUIRED_ENV_VARS = [
@@ -57,6 +58,45 @@ app.post('/stripe/webhook',
   express.raw({ type: 'application/json', limit: '1mb' }),
   handleStripeWebhook
 );
+
+// ==================== Instagram OAuth Callback ====================
+app.get('/auth/instagram/callback', async (req, res) => {
+  const { code, state, error, error_description } = req.query;
+
+  if (error) {
+    console.warn(`[Instagram OAuth] 認証拒否: ${error} - ${error_description}`);
+    return res.status(200).send(buildCallbackPage(false, '認証がキャンセルされました。LINEに戻って再度お試しください。'));
+  }
+
+  if (!code || !state) {
+    return res.status(400).send(buildCallbackPage(false, 'パラメータが不足しています。LINEからやり直してください。'));
+  }
+
+  try {
+    const result = await handleOAuthCallback(code, state);
+
+    try {
+      await pushMessage(result.lineUserId, [{
+        type: 'text',
+        text: `✅ Instagram連携完了！\n\n@${result.username}\nフォロワー: ${result.followersCount?.toLocaleString() || '取得中'}人\n\nデータを同期するには:\n/instagram sync\n\nと送信してください。`,
+      }]);
+    } catch (pushErr) {
+      console.error('[Instagram OAuth] LINE通知失敗:', pushErr.message);
+    }
+
+    return res.status(200).send(buildCallbackPage(true, `@${result.username} との連携が完了しました！LINEに戻ってご確認ください。`));
+  } catch (err) {
+    console.error('[Instagram OAuth] コールバック処理エラー:', err.message);
+    return res.status(200).send(buildCallbackPage(false, '連携に失敗しました。LINEからやり直してください。'));
+  }
+});
+
+function buildCallbackPage(success, message) {
+  const emoji = success ? '✅' : '❌';
+  const title = success ? 'Instagram連携完了' : 'Instagram連携エラー';
+  const color = success ? '#7B9E6B' : '#C25450';
+  return `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>${title}</title><style>body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans',sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;background:#FAF7F2;color:#2A2420}.card{text-align:center;padding:2rem;max-width:400px}.emoji{font-size:3rem;margin-bottom:1rem}h1{color:${color};font-size:1.5rem;margin-bottom:.5rem}p{color:#666;line-height:1.6}</style></head><body><div class="card"><div class="emoji">${emoji}</div><h1>${title}</h1><p>${message}</p></div></body></html>`;
+}
 
 // C10: LINE Webhook は raw body が必要（署名検証用）+ リクエストサイズ制限
 app.post('/webhook', express.raw({ type: 'application/json', limit: '1mb' }), async (req, res) => {

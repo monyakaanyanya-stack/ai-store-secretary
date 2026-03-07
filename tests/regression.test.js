@@ -2246,3 +2246,74 @@ describe('Scenario 41: SNS Consultant AI 基盤', async () => {
       'データ削除後も匿名統計データが残る旨の記載がある');
   });
 });
+
+// ==================== Scenario 42: Instagram OAuth 自動連携 ====================
+describe('Scenario 42: Instagram OAuth 自動連携', async () => {
+  const fs = await import('node:fs');
+
+  it('instagramService に createOAuthState / verifyOAuthState がある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/instagramService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('export function createOAuthState'), 'createOAuthState がエクスポートされている');
+    assert.ok(content.includes('export function verifyOAuthState'), 'verifyOAuthState がエクスポートされている');
+  });
+
+  it('instagramService に buildInstagramAuthUrl がある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/instagramService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('export function buildInstagramAuthUrl'),
+      'buildInstagramAuthUrl がエクスポートされている');
+    assert.ok(content.includes('instagram.com/oauth/authorize'), '認証URLにInstagram OAuthエンドポイントを使用');
+  });
+
+  it('instagramService に exchangeCodeForIGToken / exchangeIGShortForLongLived がある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/instagramService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('export async function exchangeCodeForIGToken'),
+      'exchangeCodeForIGToken がエクスポートされている');
+    assert.ok(content.includes('export async function exchangeIGShortForLongLived'),
+      'exchangeIGShortForLongLived がエクスポートされている');
+  });
+
+  it('instagramService に handleOAuthCallback がある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/instagramService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('export async function handleOAuthCallback'),
+      'handleOAuthCallback がエクスポートされている');
+    assert.ok(content.includes('connectInstagramAccount(storeId, longToken)'),
+      '既存の connectInstagramAccount を再利用している');
+  });
+
+  it('server.js に /auth/instagram/callback ルートがある', () => {
+    const content = fs.readFileSync(
+      new URL('../server.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes("'/auth/instagram/callback'"),
+      'コールバックルートが定義されている');
+    assert.ok(content.includes('handleOAuthCallback'),
+      'handleOAuthCallback をインポート・使用している');
+  });
+
+  it('instagramHandler が OAuth URL生成にフォールバック対応している', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/instagramHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('buildInstagramAuthUrl'),
+      'buildInstagramAuthUrl を使用している');
+    assert.ok(content.includes('リンクは10分間有効'),
+      'OAuth URLの有効期限を案内している');
+  });
+
+  it('state パラメータに暗号化を使用している', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/instagramService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('encrypt(payload)'), 'state生成時に encrypt を使用');
+    assert.ok(content.includes('decrypt(decodeURIComponent'), 'state検証時に decrypt を使用');
+    assert.ok(content.includes('maxAgeMs'), '有効期限チェックがある');
+  });
+});

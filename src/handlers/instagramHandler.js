@@ -7,6 +7,7 @@ import {
   getInstagramStats,
   getInstagramAccount,
   publishToInstagram,
+  buildInstagramAuthUrl,
 } from '../services/instagramService.js';
 import { supabase } from '../services/supabaseService.js';
 
@@ -79,19 +80,14 @@ async function handleInstagramStatus(user, replyToken) {
 
 async function handleInstagramConnect(user, token, pageId, replyToken) {
   if (!token) {
-    await replyText(replyToken, `📸 Instagram連携
-
-アクセストークンを指定してください:
-
-/instagram connect [アクセストークン]
-
-【トークンの取得方法】
-1. Meta for Developers (developers.facebook.com) でアカウント作成
-2. 新しいアプリを作成（アプリタイプ: ビジネス）
-3. Instagram Graph API を追加
-4. アクセストークンを生成
-
-詳細は開発者ガイドをご参照ください。`);
+    // OAuth フロー: 認証URLを生成して返す
+    try {
+      const authUrl = buildInstagramAuthUrl(user.line_user_id, user.current_store_id);
+      await replyText(replyToken, `📸 Instagram連携\n\n下のリンクをタップして、Instagramアカウントを認証してください:\n\n${authUrl}\n\n⏱ リンクは10分間有効です。`);
+    } catch {
+      // INSTAGRAM_REDIRECT_URI 未設定時は手動フローにフォールバック
+      await replyText(replyToken, `📸 Instagram連携\n\nアクセストークンを指定してください:\n\n/instagram connect [アクセストークン]`);
+    }
     return true;
   }
 
