@@ -444,6 +444,7 @@
         0 0 0 1px rgba(184,112,74,.08);
     }
     .phone-frame img { width: 100%; display: block; }
+    .phone-frame-output { max-width: 280px; margin: 0 auto; }
     .demo-caption { margin-top: 28px; }
     .demo-step-num {
       display: inline-block;
@@ -943,7 +944,7 @@
       .steps-grid { grid-template-columns: repeat(2, 1fr); gap: 20px; }
       .steps-grid-3 { grid-template-columns: repeat(2, 1fr); }
       .demo-phones { grid-template-columns: 1fr; gap: 56px; }
-      .phone-frame { max-width: 100%; }
+      .phone-frame { max-width: 420px; }
       .benefits-grid { grid-template-columns: 1fr; max-width: 400px; margin-left: auto; margin-right: auto; }
       .compare-table { font-size: 0.78rem; border-radius: 12px; }
       .compare-table th, .compare-table td { padding: 14px 12px; }
@@ -964,6 +965,8 @@
       .output-grid { grid-template-columns: 1fr !important; gap: 32px !important; }
       .output-row { flex-direction: column !important; gap: 6px !important; }
       .output-row span { min-width: unset !important; }
+      .demo-phones { gap: 40px; }
+      .phone-frame { max-width: 100%; border-radius: 16px; }
       .feature-item { flex-direction: column; gap: 12px !important; padding: 28px 16px; }
       .feature-num { min-width: auto; }
       .compare-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -24px; padding: 0 24px; }
@@ -996,7 +999,8 @@
       .problem-card { padding: 28px 20px; }
       .step-card { padding: 24px 14px; }
       .demo-step-label { font-size: 0.72rem !important; }
-      .phone-frame { border-radius: 12px; }
+      .demo-phones { gap: 32px; }
+      .phone-frame { max-width: 100%; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.08), 0 4px 12px rgba(0,0,0,.03); }
     }
   </style>
 </head>
@@ -1008,7 +1012,8 @@
       <p class="hero-tagline">個人店に、SNS担当AIを。</p>
       <p class="hero-sub" style="margin-bottom:16px;">アプリ不要・ログイン不要</p>
       <h1>LINEに写真を送るだけ。<br>Instagram投稿が<em>無理なく、続く</em>。</h1>
-      <p style="font-size:0.95rem;color:var(--text-muted);margin-bottom:32px;">投稿を考えなくていい。だから続く。</p>
+      <p style="font-size:0.95rem;color:var(--text-muted);margin-bottom:12px;">投稿を考えなくていい。だから続く。</p>
+      <p style="font-size:0.85rem;color:var(--accent);font-weight:500;margin-bottom:32px;line-height:1.8;">投稿を作るAIではありません。<br>投稿を続けるAIです。</p>
       <a href="https://lin.ee/OWTIvhZ" class="btn btn-large">無料で試す</a>
       <p class="cta-sub">LINE追加だけ / 30秒</p>
     </div>
@@ -1247,7 +1252,7 @@
         </div>
 
         <div>
-          <div class="phone-frame" style="max-width:280px;margin:0 auto;">
+          <div class="phone-frame phone-frame-output">
             <img src="images/step2-proposals.png" alt="3案が届く実際の画面">
           </div>
         </div>
