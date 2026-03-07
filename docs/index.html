@@ -663,6 +663,7 @@
       .compare-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -24px; padding: 0 24px; }
       .compare-table { min-width: 540px; }
       .plan-grid { grid-template-columns: 1fr !important; max-width: 400px !important; margin-left: auto !important; margin-right: auto !important; }
+      .cycle-grid { grid-template-columns: 1fr !important; max-width: 400px !important; }
 
       .footer-inner {
         flex-direction: column;
@@ -683,8 +684,8 @@
   <section class="hero">
     <div class="container">
       <p class="hero-tagline">個人店に、SNS担当AIを。</p>
+      <p class="hero-sub" style="margin-bottom:16px;">アプリ不要・ログイン不要</p>
       <h1>LINEに写真を送るだけ。<br>Instagram投稿が<em>無理なく、続く</em>。</h1>
-      <p class="hero-sub">文章を考えなくていい。だから続く。<br>続くと、フォロワーも来店も変わる。</p>
       <a href="https://lin.ee/OWTIvhZ" class="btn btn-large">無料で試す</a>
       <p class="cta-sub">LINE追加だけ / 30秒</p>
     </div>
@@ -707,8 +708,8 @@
       <div class="problem-grid">
         <div class="problem-card">
           <div class="problem-icon">📝</div>
-          <h3>写真は撮った。<br>でも投稿文が思いつかない</h3>
-          <p>写真を撮って、文章を考えて、ハッシュタグを選んで。毎回30分以上かかり、結局やめてしまう。</p>
+          <h3>写真は撮った。<br>でも投稿文が思いつかない。</h3>
+          <p>文章を書いてハッシュタグを考えて30分。<br>結局、投稿しない。</p>
         </div>
         <div class="problem-card">
           <div class="problem-icon">⏰</div>
@@ -746,8 +747,8 @@
         </div>
         <div class="step-card">
           <div class="step-num">2</div>
-          <h3>AIが投稿案を3つ作る</h3>
-          <p>異なるコンセプトの投稿文が3つ届きます。</p>
+          <h3>AIが3つの投稿案を作る</h3>
+          <p>日常 / お知らせ / 誘い</p>
         </div>
         <div class="step-card">
           <div class="step-num">3</div>
@@ -811,6 +812,39 @@
     </div>
   </section>
 
+  <!-- ═══ Cycle: 投稿が続く仕組み ═══════════════ -->
+  <section class="section section-center">
+    <div class="container">
+      <p class="label">Why it keeps going</p>
+      <h2 class="title">投稿を作るだけじゃない。<br>投稿が<em style="font-style:normal;color:var(--accent);">続く仕組み</em>があります。</h2>
+      <p class="desc">多くのAIツールは文章を作って終わり。<br>AI店舗秘書は、次に何を撮ればいいかまで考えます。</p>
+
+      <div class="cycle-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:56px;max-width:880px;margin-left:auto;margin-right:auto;">
+
+        <div style="padding:32px 24px;background:var(--surface-strong);border:1px solid var(--border);border-radius:16px;text-align:center;box-shadow:var(--shadow);">
+          <div style="font-size:2rem;margin-bottom:16px;">📸</div>
+          <h3 style="font-size:1rem;font-weight:700;margin-bottom:10px;">撮影アドバイス</h3>
+          <p style="font-size:0.85rem;color:var(--text-muted);line-height:1.8;">投稿を作るたびに「次はこう撮ると映えます」とアドバイス。写真の腕も自然と上がります。</p>
+        </div>
+
+        <div style="padding:32px 24px;background:var(--surface-strong);border:1px solid var(--border);border-radius:16px;text-align:center;box-shadow:var(--shadow);">
+          <div style="font-size:2rem;margin-bottom:16px;">💡</div>
+          <h3 style="font-size:1rem;font-weight:700;margin-bottom:10px;">明日撮るものを提案</h3>
+          <p style="font-size:0.85rem;color:var(--text-muted);line-height:1.8;">「明日はこれを撮ってみて」と具体的にお題を出すので、ネタ切れになりません。</p>
+        </div>
+
+        <div style="padding:32px 24px;background:var(--surface-strong);border:1px solid var(--border);border-radius:16px;text-align:center;box-shadow:var(--shadow);">
+          <div style="font-size:2rem;margin-bottom:16px;">📅</div>
+          <h3 style="font-size:1rem;font-weight:700;margin-bottom:10px;">5日分の投稿ネタ</h3>
+          <p style="font-size:0.85rem;color:var(--text-muted);line-height:1.8;">週の投稿計画をまとめて作成。何を撮って何を書くか、5日分のネタが一気に決まります。</p>
+        </div>
+
+      </div>
+
+      <p style="margin-top:40px;font-size:0.95rem;color:var(--text-muted);text-align:center;">撮る → 投稿する → 次を知る。<strong style="color:var(--text);">このループが回るから、続く。</strong></p>
+    </div>
+  </section>
+
   <!-- ═══ Features: 5つの仕組み ═══════════════ -->
   <section class="section section-alt">
     <div class="container">
@@ -828,22 +862,22 @@
         <div style="border-top:1px solid var(--border);padding:40px 0;display:flex;gap:32px;align-items:baseline;">
           <span style="font-size:clamp(1.6rem,3vw,2.2rem);font-weight:700;color:var(--accent-soft);min-width:56px;">02</span>
           <div>
-            <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:8px;">使うほど「お店の声」に育つ</h3>
-            <p style="font-size:0.88rem;color:var(--text-muted);line-height:1.9;">フィードバックや修正指示をAIが学習し、「思想ログ」として蓄積。10回、20回と使ううちに「あ、うちっぽい」という文章に変わっていきます。口癖・NGワード・性格も設定可能。</p>
+            <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:8px;">使うほど、あなたのお店らしくなる</h3>
+            <p style="font-size:0.88rem;color:var(--text-muted);line-height:1.9;">投稿の修正や好みをAIが覚えます。使うほど、あなたのお店の書き方になります。</p>
           </div>
         </div>
         <div style="border-top:1px solid var(--border);padding:40px 0;display:flex;gap:32px;align-items:baseline;">
           <span style="font-size:clamp(1.6rem,3vw,2.2rem);font-weight:700;color:var(--accent-soft);min-width:56px;">03</span>
           <div>
-            <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:8px;">同業種の成功パターンを活用</h3>
-            <p style="font-size:0.88rem;color:var(--text-muted);line-height:1.9;">27業種以上に対応した集合知エンジン。同じ業種で保存されやすかった投稿の文字数・絵文字数・書き出し・CTA位置を自動で分析し、あなたの投稿に反映します。</p>
+            <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:8px;">同じ業種の成功パターンを活用</h3>
+            <p style="font-size:0.88rem;color:var(--text-muted);line-height:1.9;">同じ業種で反応が良かった投稿のパターンを自動で分析。あなたの投稿にも取り入れます。</p>
           </div>
         </div>
         <div style="border-top:1px solid var(--border);padding:40px 0;display:flex;gap:32px;align-items:baseline;">
           <span style="font-size:clamp(1.6rem,3vw,2.2rem);font-weight:700;color:var(--accent-soft);min-width:56px;">04</span>
           <div>
-            <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:8px;">エンゲージメント自動学習 <span style="font-size:0.72rem;font-weight:600;color:var(--accent);background:var(--accent-soft);padding:2px 10px;border-radius:100px;margin-left:8px;">今後実装予定</span></h3>
-            <p style="font-size:0.88rem;color:var(--text-muted);line-height:1.9;">投稿後の反応（いいね・保存・コメント）を報告すると、保存強度やエンゲージメント率（ER）を自動計算。高パフォーマンス投稿の成功要因をAIが分析し、次の提案に自動反映します。</p>
+            <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:8px;">反応データから自動改善 <span style="font-size:0.72rem;font-weight:600;color:var(--accent);background:var(--accent-soft);padding:2px 10px;border-radius:100px;margin-left:8px;">今後実装予定</span></h3>
+            <p style="font-size:0.88rem;color:var(--text-muted);line-height:1.9;">いいね・保存・コメントの数を報告すると、反応が良かった投稿の特徴をAIが分析。次の投稿に自動で活かします。</p>
           </div>
         </div>
         <div style="border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:40px 0;display:flex;gap:32px;align-items:baseline;">
@@ -906,14 +940,14 @@
   <section class="section section-dark section-center">
     <div class="container">
       <p class="label">Results</p>
-      <h2 class="title">「投稿が続く」だけで<br>数字は変わる</h2>
-      <p class="desc">同じアカウント・同じフォロワー数。主な違いは「投稿頻度」。</p>
+      <h2 class="title">投稿頻度が変わると<br>数字も変わる</h2>
+      <p class="desc">同じアカウント・同じフォロワー数。変えたのは投稿頻度だけ。</p>
 
       <div class="proof-grid">
         <div class="proof-card">
           <div class="proof-header">
             <span class="proof-period">2026年 1月（31日間）</span>
-            <span class="proof-badge proof-badge-before">自力で投稿</span>
+            <span class="proof-badge proof-badge-before">月2〜3回投稿</span>
           </div>
           <div class="proof-num">
             <p class="num-label">閲覧数</p>
@@ -934,7 +968,7 @@
         <div class="proof-card">
           <div class="proof-header">
             <span class="proof-period">2026年 2月（28日間）</span>
-            <span class="proof-badge proof-badge-after">AI秘書で投稿</span>
+            <span class="proof-badge proof-badge-after">週3〜4回投稿</span>
           </div>
           <div class="proof-num">
             <p class="num-label">閲覧数</p>
@@ -999,27 +1033,27 @@
   </section>
 
   <!-- ═══ AI Engines ═══════════════════════════ -->
-  <section class="section section-dark section-center">
+  <section class="section section-center">
     <div class="container">
       <p class="label">AI That Grows</p>
-      <h2 class="title">使うほど賢くなる、3つのエンジン</h2>
-      <p class="desc">人間の代行担当は引き継ぎで振り出し。汎用AIは毎回リセット。<br>AI店舗秘書は辞めない・忘れない。使うほど「お店の声」に育ちます。</p>
+      <h2 class="title">使うほど、あなたのお店の書き方になる</h2>
+      <p class="desc">代行担当は引き継ぎで振り出し。汎用AIは毎回リセット。<br>AI店舗秘書は辞めない・忘れない。使うほど、あなたのお店らしくなります。</p>
 
       <div class="benefits-grid" style="margin-top:56px;">
-        <div style="padding:36px 28px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:18px;text-align:center;">
+        <div style="padding:36px 28px;background:var(--surface-strong);border:1px solid var(--border);border-radius:18px;text-align:center;box-shadow:var(--shadow);">
           <div style="font-size:2rem;margin-bottom:16px;">🧠</div>
-          <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:12px;color:var(--white);">人格学習</h3>
-          <p style="font-size:0.82rem;color:rgba(255,255,255,0.5);line-height:1.8;">フィードバックや修正指示から「思想ログ」を蓄積。5件以上たまると人格定義を自動生成し、バージョニングで進化を記録します。</p>
+          <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:12px;">お店の書き方を覚える</h3>
+          <p style="font-size:0.82rem;color:var(--text-muted);line-height:1.8;">修正や好みをAIが記憶。使うほど、あなたのお店の雰囲気に合った投稿を作れるようになります。</p>
         </div>
-        <div style="padding:36px 28px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:18px;text-align:center;">
+        <div style="padding:36px 28px;background:var(--surface-strong);border:1px solid var(--border);border-radius:18px;text-align:center;box-shadow:var(--shadow);">
           <div style="font-size:2rem;margin-bottom:16px;">📊</div>
-          <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:12px;color:var(--white);">集合知エンジン</h3>
-          <p style="font-size:0.82rem;color:rgba(255,255,255,0.5);line-height:1.8;">同業種の投稿データから、保存されやすい文字数・絵文字数・書き出しパターンを抽出。信頼レベル付きで提案に反映します。</p>
+          <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:12px;">同じ業種の成功を活かす</h3>
+          <p style="font-size:0.82rem;color:var(--text-muted);line-height:1.8;">同じ業種で反応が良かった投稿の特徴を分析し、あなたの投稿にも取り入れます。</p>
         </div>
-        <div style="padding:36px 28px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:18px;text-align:center;">
+        <div style="padding:36px 28px;background:var(--surface-strong);border:1px solid var(--border);border-radius:18px;text-align:center;box-shadow:var(--shadow);">
           <div style="font-size:2rem;margin-bottom:16px;">📈</div>
-          <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:12px;color:var(--white);">エンゲージメント学習 <span style="font-size:0.72rem;font-weight:600;color:var(--accent);background:var(--accent-soft);padding:2px 10px;border-radius:100px;margin-left:8px;">今後実装予定</span></h3>
-          <p style="font-size:0.82rem;color:rgba(255,255,255,0.5);line-height:1.8;">高パフォーマンス投稿（保存強度が平均の1.5倍以上）の成功要因をAIが自動分析。次の投稿に自動で反映します。</p>
+          <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:12px;">反応から自動改善 <span style="font-size:0.72rem;font-weight:600;color:var(--accent);background:var(--accent-soft);padding:2px 10px;border-radius:100px;margin-left:8px;">今後実装予定</span></h3>
+          <p style="font-size:0.82rem;color:var(--text-muted);line-height:1.8;">いいね・保存の数から、反応が良かった投稿の特徴をAIが分析。次の投稿に自動で活かします。</p>
         </div>
       </div>
 
@@ -1177,8 +1211,8 @@
             <li>✓ 月20回生成</li>
             <li>✓ 店舗1つ</li>
             <li>✓ 3案提案</li>
-            <li>✓ 集合知エンジン</li>
-            <li style="opacity:0.4;">— 自動学習・人格学習</li>
+            <li>✓ 業種別の成功データ活用</li>
+            <li style="opacity:0.4;">— お店の書き方を学習</li>
             <li style="opacity:0.4;">— Instagram連携</li>
             <li style="opacity:0.4;">— 週間計画</li>
           </ul>
@@ -1194,8 +1228,8 @@
             <li>✓ 月60回生成</li>
             <li>✓ 店舗1つ</li>
             <li>✓ 3案提案</li>
-            <li>✓ 集合知エンジン</li>
-            <li style="font-weight:600;color:var(--accent);">✓ 自動学習・人格学習</li>
+            <li>✓ 業種別の成功データ活用</li>
+            <li style="font-weight:600;color:var(--accent);">✓ お店の書き方を学習</li>
             <li style="font-weight:600;color:var(--accent);">✓ Instagram連携</li>
             <li style="opacity:0.4;">— 週間計画</li>
           </ul>
@@ -1210,8 +1244,8 @@
             <li>✓ 月200回生成</li>
             <li style="font-weight:600;">✓ 店舗5つまで</li>
             <li>✓ 3案提案</li>
-            <li>✓ 集合知エンジン</li>
-            <li>✓ 自動学習・人格学習</li>
+            <li>✓ 業種別の成功データ活用</li>
+            <li>✓ お店の書き方を学習</li>
             <li>✓ Instagram連携</li>
             <li style="font-weight:600;color:var(--accent);">✓ 週間計画・強化版アドバイス</li>
           </ul>
@@ -1228,6 +1262,13 @@
         </div>
         <a href="https://lin.ee/OWTIvhZ" class="btn">無料で始める</a>
       </div>
+    </div>
+  </section>
+
+  <!-- ═══ Creator ═══════════════════════════ -->
+  <section style="padding:48px 40px;text-align:center;">
+    <div class="container" style="max-width:600px;">
+      <p style="font-size:0.88rem;color:var(--text-muted);line-height:2;">8年SNS発信を続けてきた制作者 × AI開発<br><strong style="color:var(--text);">「どうすれば投稿が続くのか」</strong><br>その答えを形にしました。</p>
     </div>
   </section>
 
