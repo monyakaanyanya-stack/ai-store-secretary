@@ -91,9 +91,9 @@ export async function handleFeedback(user, feedback, replyToken) {
       ? latestLearnings.map(l => `✅ ${l}`).join('\n')
       : `✅ ${feedback}`;
 
-    // 残り回数通知（Free/Standardなど上限のあるプランのみ）
+    // 残り回数通知（残り3回以下の時のみ表示）
     const remaining = Number.isFinite(genLimit.limit) ? genLimit.limit - (genLimit.used + 1) : null;
-    const remainingNote = remaining !== null ? `\n📊 今月の残り: ${remaining}回` : '';
+    const remainingNote = remaining !== null && remaining <= 3 ? `\n📊 今月の残り: ${remaining}回` : '';
     const message = `覚えました！修正版はこちら👇
 ━━━━━━━━━━━
 ${revisedContent}
