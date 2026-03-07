@@ -401,9 +401,9 @@ ${contactEmail}
     return await handleCharacterSettingsSave(user, trimmed, replyToken);
   }
 
-  // Instagram連携（日本語コマンド → /instagram へ転送）
+  // Instagram連携（日本語コマンド → /instagram connect へ転送）
   if (trimmed === 'instagram連携' || trimmed === 'インスタ連携' || trimmed === 'インスタグラム連携') {
-    return await handleInstagramCommand(user, '', replyToken);
+    return await handleInstagramCommand(user, 'connect', replyToken);
   }
 
   // Instagram投稿（クイックリプライから送信される）
