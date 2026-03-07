@@ -3,12 +3,10 @@ import { isFeatureEnabled } from '../services/subscriptionService.js';
 import { generateWeeklyPlan, getLatestWeeklyPlan, formatWeeklyPlanMessage } from '../services/weeklyPlanService.js';
 import { supabase } from '../services/supabaseService.js';
 
-/** JST日付から今週の月曜日を取得 */
-function getMonday(jstDate) {
+/** JST日付から今週の日曜日（週の開始）を取得 */
+function getWeekStartSunday(jstDate) {
   const d = new Date(jstDate);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff);
+  d.setDate(d.getDate() - d.getDay()); // 日曜日に戻す
   d.setHours(0, 0, 0, 0);
   return d;
 }
@@ -47,9 +45,9 @@ export async function handleWeeklyPlan(user, replyToken) {
 
     const JST_OFFSET = 9 * 60 * 60 * 1000;
     const nowJst = new Date(Date.now() + JST_OFFSET);
-    const currentMonday = getMonday(nowJst);
+    const currentSunday = getWeekStartSunday(nowJst);
 
-    if (existing && new Date(existing.week_start).getTime() >= currentMonday.getTime()) {
+    if (existing && new Date(existing.week_start).getTime() >= currentSunday.getTime()) {
       // 今週の計画がある → そのまま表示
       const message = formatWeeklyPlanMessage(existing);
       return await replyText(replyToken, message);

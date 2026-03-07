@@ -1012,8 +1012,8 @@ describe('Scenario 28: Ver.4.0 Dual Trigger Model', async () => {
     );
     assert.ok(!content.includes('equipmentLevel'),
       'equipmentLevel references should be removed from pendingImageHandler');
-    assert.ok(content.includes('想起・来店どちらのトリガー'),
-      'Hint instruction should mention dual triggers');
+    assert.ok(content.includes('options.hint') || content.includes('{ isPremium, hint }'),
+      'Hint should be passed via options, not mixed into imageDescription');
   });
 
   it('buildImagePostPrompt に Dual Trigger 出力形式がある', async () => {
@@ -1544,10 +1544,10 @@ describe('Scenario 31: 画像「一言ヒント」機能', async () => {
     assert.ok(content.includes('isSkip'), 'スキップ判定変数がある');
   });
 
-  it('ヒントがある場合は imageDescription に補足情報を追記', () => {
+  it('ヒントがoptions.hintとして別渡しされる', () => {
     const content = fs.readFileSync('src/handlers/pendingImageHandler.js', 'utf8');
-    assert.ok(content.includes('店主からの補足情報'), 'ヒントを描写に追記する');
-    assert.ok(content.includes('enrichedDescription'), '拡張した説明を使う');
+    assert.ok(content.includes('{ isPremium, hint }'), 'ヒントをoptions経由で渡す');
+    assert.ok(!content.includes('enrichedDescription'), '旧enrichedDescription方式は廃止');
   });
 });
 

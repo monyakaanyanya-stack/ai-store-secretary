@@ -9,12 +9,20 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-/** JST日付から今週の月曜日を取得 */
+/** JST日付から今週の月曜日を取得（プロンプトの月〜金日付計算用） */
 function getMonday(jstDate) {
   const d = new Date(jstDate);
   const day = d.getDay();
   const diff = d.getDate() - day + (day === 0 ? -6 : 1);
   d.setDate(diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+/** JST日付から今週の日曜日を取得（キャッシュ・DB保存の週境界用） */
+function getWeekStartSunday(jstDate) {
+  const d = new Date(jstDate);
+  d.setDate(d.getDate() - d.getDay());
   d.setHours(0, 0, 0, 0);
   return d;
 }
@@ -230,9 +238,9 @@ export async function generateWeeklyPlan(store, userId) {
       return null;
     }
 
-    // DB保存
+    // DB保存（週の境界は日曜基準）
     const nowJst = getNowJst();
-    const weekStart = getMonday(nowJst);
+    const weekStart = getWeekStartSunday(nowJst);
     await saveWeeklyPlan(store.id, userId, weekStart, planContent);
 
     console.log(`[WeeklyPlan] 生成完了: store=${store.name}, ${planContent.days.length}日分`);

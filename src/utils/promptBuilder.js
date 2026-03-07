@@ -264,6 +264,118 @@ function buildCharacterSection(store) {
   return `\n━━━━━━━━━━━━━━━━━━━━━━━━\n🎭 あなたの個性（最優先で反映）\n━━━━━━━━━━━━━━━━━━━━━━━━\n${parts.join('\n\n')}\n━━━━━━━━━━━━━━━━━━━━━━━━\n`;
 }
 
+// ボタン選択テキストの一覧
+const POST_TYPE_BUTTONS = ['お知らせ', 'お役立ち情報'];
+
+/**
+ * ボタン選択に応じた出力形式テンプレートを返す
+ * @param {string|null} hint - ユーザーの一言 or ボタンテキスト
+ * @param {string} hashtagInstruction - ハッシュタグ指示
+ */
+function buildOutputFormat(hint, hashtagInstruction) {
+  const tagNote = hashtagInstruction ? '上記のハッシュタグルールに従うこと。' : '';
+  const tagLine = `${tagNote}\n#タグ1 #タグ2 #タグ3 #タグ4 #タグ5`;
+
+  // ── お知らせモード ──
+  if (hint === 'お知らせ') {
+    return `【出力形式】
+
+[ 案A：やっとお見せできる新着 ]
+※「待ってました」感のある発表トーン。ずっと準備してきたものをお披露目する高揚感。
+ - 写真に写っているものを「新しく始めたこと」「初めてお見せするもの」として扱う
+ - 「実はずっと準備してて」「やっとお見せできる」のような店主のワクワク感を核に
+（本文）
+
+（想起の一言）
+（来店の一文——情報ではなく店主のつぶやきで）
+${tagLine}
+
+[ 案B：今だけ・限定の匂わせ ]
+※直接「限定です」「急いで」と煽らない。店主自身が「これ今だけだな」と惜しむ口調で。
+ - NG: 「数量限定です！お早めに」（セールス）
+ - OK: 「これ、材料がもうあんまり残ってないんだよな…」（店主の本音）
+ - 「今だけ」「この時期だけ」「なくなったら終わり」を店主の独り言として匂わせる
+（本文）
+
+（想起の一言）
+（来店の一文——情報ではなく店主のつぶやきで）
+${tagLine}
+
+[ 案C：店主のさらっと報告 ]
+※大げさに発表しない。「ちなみに」「そういえば」ぐらいのテンションで。
+ - 友達にLINEで「あ、そうそう」と伝えるような温度感
+ - お知らせの内容を日常会話の延長として自然に混ぜる
+（本文）
+
+（想起の一言）
+（来店の一文——情報ではなく店主のつぶやきで）
+${tagLine}`;
+  }
+
+  // ── お役立ちモード ──
+  if (hint === 'お役立ち情報') {
+    return `【出力形式】
+
+[ 案A：プロだから知ってる豆知識 ]
+※店主が仕事の中で自然に身につけた知識を、友達に話すように。教科書的な解説は禁止。
+ - 「これ意外と知られてないんだけど」「仕事してて気づいたんだけど」のトーンで
+ - 写真に写っているものから、一般の人が知らない裏話や豆知識を引き出す
+（本文）
+
+（想起の一言）
+（来店の一文——情報ではなく店主のつぶやきで）
+${tagLine}
+
+[ 案B：こだわりの裏側 ]
+※プロとしてのこだわりを見せるが、自慢にならないこと。「つい気になっちゃう」という性分として描く。
+ - NG: 「当店は素材にこだわっています」（宣伝）
+ - OK: 「どうしてもここの仕上がりが気になって、結局3回やり直した」（性分）
+ - 写真のディテールから、店主が普段こだわっている部分を掘り出す
+（本文）
+
+（想起の一言）
+（来店の一文——情報ではなく店主のつぶやきで）
+${tagLine}
+
+[ 案C：意外な楽しみ方 ]
+※お客さん目線で「こうすると実はもっと楽しめる」を、店主が教えてあげる口調で。
+ - 「これ、実はこう使うともっといいんだよね」「常連さんに教えてもらったんだけど」
+ - 押しつけがましくなく、「知ってたら得する」ぐらいの温度で
+（本文）
+
+（想起の一言）
+（来店の一文——情報ではなく店主のつぶやきで）
+${tagLine}`;
+  }
+
+  // ── 日常感モード（デフォルト: スキップ・自由テキスト・日常感ボタン） ──
+  return `【出力形式】
+
+[ 案A：記憶に残る日常 ]
+（本文）
+
+（想起の一言）
+（来店の一文——情報ではなく店主のつぶやきで）
+${tagLine}
+
+[ 案B：さりげない誘い ]
+※Bの「誘い」は読み手に向けた誘いではない。店主が自分勝手に楽しんでいる姿を描くこと。読み手は「誘われる」より「楽しそうな人を覗き見る」方がお店に行きたくなる。
+ - NG: 「こういう瞬間を一緒に味わえたらいいのにな」（読み手に期待を向けている）
+ - OK: 「バターが溶けるのを眺めていたら、つい自分もコーヒーを淹れたくなっちゃった」（店主が勝手に楽しんでいる）
+（本文）
+
+（想起の一言）
+（来店の一文——情報ではなく店主のつぶやきで）
+${tagLine}
+
+[ 案C：店主のひとりごと ]
+（本文）
+
+（想起の一言）
+（来店の一文——情報ではなく店主のつぶやきで）
+${tagLine}`;
+}
+
 /**
  * 画像から投稿を生成するプロンプト
  */
@@ -394,15 +506,26 @@ export function buildImagePostPrompt(store, lengthOverride = null, blendedInsigh
     ? `\n【この写真の観察結果】\n${imageDescription}\n`
     : '';
 
+  // ヒント（ユーザーの一言 or ボタン選択）セクション
+  const hint = options.hint || null;
+  const isInfluencer = store.category === 'インフルエンサー';
+  const isButtonHint = hint && (POST_TYPE_BUTTONS.includes(hint) || hint === '日常感');
+  let hintSection = '';
+  if (hint && !isButtonHint) {
+    // ボタン選択ではなく自由テキストの場合のみヒントセクションを追加
+    const hintLabel = isInfluencer
+      ? '【補足情報（投稿に自然に反映してよい）】'
+      : '【店主からの一言（この言葉を投稿の核にすること）】';
+    hintSection = `\n${hintLabel}\n${hint}\n`;
+  }
+
   const characterSection = buildCharacterSection(store);
 
-  const influencer = store.category === 'インフルエンサー';
-
   // ── インフルエンサー専用プロンプト ──────────────────────────
-  if (influencer) {
+  if (isInfluencer) {
     return buildInfluencerImagePrompt({
       personalization, characterSection, imageDescriptionSection,
-      collectiveIntelligenceSection, industryPatternSection,
+      hintSection, collectiveIntelligenceSection, industryPatternSection,
       hashtagInstruction, lengthInfo, options,
     });
   }
@@ -483,11 +606,16 @@ ${toneData.good_examples.join('\n\n')}
 
 【NGな例】
 ${toneData.bad_examples.join('\n\n')}
-${templateInfo}${characterSection}${imageDescriptionSection}${collectiveIntelligenceSection}${industryPatternSection}${hashtagInstruction}
+${templateInfo}${characterSection}${imageDescriptionSection}${hintSection}${collectiveIntelligenceSection}${industryPatternSection}${hashtagInstruction}
 
 ## 4. 出力構成（厳守）
 以下の写真情報と補足情報をもとにInstagram投稿文を3案作成してください。
 余計な挨拶や解説は不要です。以下の形式のみで出力してください。
+${isButtonHint
+  ? `\n【投稿タイプ: ${hint}】\n下記の出力形式に従い、このタイプに合った3案を作成してください。写真から読み取れる要素を各案で異なる切り口で使うこと。`
+  : hint
+    ? `\n【投稿の方向性】\n店主の一言「${hint}」を3案すべての核にしてください。写真から読み取れる要素のうち、この一言に関連するものを中心に組み立ててください。ただし3案はそれぞれ異なる切り口で書くこと。`
+    : '\n【投稿の方向性】\n写真から読み取れる要素を3つ選び、各案ごとに異なる要素を核にして書いてください。3案が似た内容にならないこと。'}
 
 【各案の構成】
 1. 本文（店主の口調で自然に。${lengthInfo.range}）
@@ -504,34 +632,7 @@ ${templateInfo}${characterSection}${imageDescriptionSection}${collectiveIntellig
 - 来店の一文は押し売りにならないこと（「ぜひ」「おすすめ」禁止）
 ${collectiveIntelligenceSection ? '- 【最優先】集合知データ（📊セクション）の文字数・絵文字数の指示を必ず守る（「参考」ではなく「厳守」）' : ''}
 
-【出力形式】
-
-[ 案A：記憶に残る日常 ]
-（本文）
-
-（想起の一言）
-（来店の一文——情報ではなく店主のつぶやきで）
-${hashtagInstruction ? '上記のハッシュタグルールに従うこと。' : ''}
-#タグ1 #タグ2 #タグ3 #タグ4 #タグ5
-
-[ 案B：さりげない誘い ]
-※Bの「誘い」は読み手に向けた誘いではない。店主が自分勝手に楽しんでいる姿を描くこと。読み手は「誘われる」より「楽しそうな人を覗き見る」方がお店に行きたくなる。
- - NG: 「こういう瞬間を一緒に味わえたらいいのにな」（読み手に期待を向けている）
- - OK: 「バターが溶けるのを眺めていたら、つい自分もコーヒーを淹れたくなっちゃった」（店主が勝手に楽しんでいる）
-（本文）
-
-（想起の一言）
-（来店の一文——情報ではなく店主のつぶやきで）
-${hashtagInstruction ? '上記のハッシュタグルールに従うこと。' : ''}
-#タグ1 #タグ2 #タグ3 #タグ4 #タグ5
-
-[ 案C：店主のひとりごと ]
-（本文）
-
-（想起の一言）
-（来店の一文——情報ではなく店主のつぶやきで）
-${hashtagInstruction ? '上記のハッシュタグルールに従うこと。' : ''}
-#タグ1 #タグ2 #タグ3 #タグ4 #タグ5
+${buildOutputFormat(hint, hashtagInstruction)}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━
 📸 次の撮影に
@@ -555,7 +656,7 @@ ${options.isPremium ? `
  */
 function buildInfluencerImagePrompt({
   personalization, characterSection, imageDescriptionSection,
-  collectiveIntelligenceSection, industryPatternSection,
+  hintSection = '', collectiveIntelligenceSection, industryPatternSection,
   hashtagInstruction, lengthInfo, options,
 }) {
   return `${personalization}
@@ -594,11 +695,12 @@ function buildInfluencerImagePrompt({
 
 写真から読み取った情報をもとに
 独り言＋問いかけの2行で完結させてください。
-${characterSection}${imageDescriptionSection}${collectiveIntelligenceSection}${industryPatternSection}${hashtagInstruction}
+${characterSection}${imageDescriptionSection}${hintSection}${collectiveIntelligenceSection}${industryPatternSection}${hashtagInstruction}
 
 ## 出力構成（厳守）
 写真情報をもとにInstagram投稿文を3案作成。
 余計な挨拶や解説は不要。以下の形式のみ。
+${options.hint ? `\n【投稿の方向性】\n一言「${options.hint}」を3案すべての核に。写真の要素のうちこの一言に関連するものを中心に。ただし3案は異なる切り口で。` : '\n【投稿の方向性】\n写真から読み取れる要素を3つ選び、各案ごとに異なる要素を核にして書く。3案が似た内容にならないこと。'}
 
 【各案の構成】
 1. 本文（${lengthInfo.range}・短く自然に）

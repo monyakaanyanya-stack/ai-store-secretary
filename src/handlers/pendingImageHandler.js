@@ -1,6 +1,7 @@
 import { replyText, replyWithQuickReply } from '../services/lineService.js';
 import { askClaude } from '../services/claudeService.js';
 import { getStore, savePostHistory, clearPendingImageContext } from '../services/supabaseService.js';
+import { supabase } from '../services/supabaseService.js';
 import { buildImagePostPrompt } from '../utils/promptBuilder.js';
 import { saveEngagementMetrics } from '../services/collectiveIntelligence.js';
 import { getRevisionExample } from '../utils/categoryExamples.js';
@@ -9,13 +10,46 @@ import { checkGenerationLimit, isFeatureEnabled } from '../services/subscription
 // pending_image_context の有効期限（30分）
 const PENDING_EXPIRE_MS = 30 * 60 * 1000;
 
+// 分析完了待機の設定
+const ANALYSIS_POLL_INTERVAL_MS = 500;
+const ANALYSIS_POLL_MAX_ATTEMPTS = 20; // 500ms × 20 = 最大10秒
+
 /**
  * pending_image_context が有効かどうか確認
+ * analysisStatus: 'pending' | 'complete' | 'error' を考慮
  */
 function isValidContext(ctx) {
-  if (!ctx || !ctx.messageId || !ctx.imageDescription || !ctx.storeId) return false;
+  if (!ctx || !ctx.messageId || !ctx.storeId) return false;
   const age = Date.now() - new Date(ctx.createdAt).getTime();
-  return age < PENDING_EXPIRE_MS;
+  if (age >= PENDING_EXPIRE_MS) return false;
+  // 新フォーマット: analysisStatus があれば有効（pending/complete/error）
+  if (ctx.analysisStatus) return true;
+  // 旧フォーマット: imageDescription があれば有効
+  return !!ctx.imageDescription;
+}
+
+/**
+ * バックグラウンド分析の完了を待機
+ * @returns {Object|null} 完了した context、またはエラー/タイムアウト時は null
+ */
+async function waitForAnalysis(userId) {
+  for (let i = 0; i < ANALYSIS_POLL_MAX_ATTEMPTS; i++) {
+    await new Promise(r => setTimeout(r, ANALYSIS_POLL_INTERVAL_MS));
+
+    const { data: freshUser } = await supabase
+      .from('users')
+      .select('pending_image_context')
+      .eq('id', userId)
+      .single();
+
+    const ctx = freshUser?.pending_image_context;
+    if (!ctx) return null;
+
+    if (ctx.analysisStatus === 'complete') return ctx;
+    if (ctx.analysisStatus === 'error') return null;
+    // まだ 'pending' → 次のループ
+  }
+  return null; // タイムアウト
 }
 
 /**
@@ -27,12 +61,34 @@ function isValidContext(ctx) {
  * @returns {boolean} 処理したかどうか
  */
 export async function handlePendingImageResponse(user, text, replyToken) {
-  const ctx = user.pending_image_context;
+  let ctx = user.pending_image_context;
 
   if (!isValidContext(ctx)) {
     // 期限切れ or 不正なコンテキスト → クリアしてユーザーに通知
     await clearPendingImageContext(user.id);
     await replyText(replyToken, 'ちょっと時間が空いちゃったので、もう一度画像を送ってもらえますか？');
+    return true;
+  }
+
+  // ── バックグラウンド分析の完了待機 ──
+  if (ctx.analysisStatus === 'pending') {
+    console.log('[PendingImage] バックグラウンド分析待機中...');
+    const completedCtx = await waitForAnalysis(user.id);
+
+    if (!completedCtx) {
+      // タイムアウト or エラー
+      await clearPendingImageContext(user.id);
+      await replyText(replyToken, '画像の分析に時間がかかっています。もう一度画像を送ってみてください。');
+      return true;
+    }
+    ctx = completedCtx;
+    console.log('[PendingImage] バックグラウンド分析完了を確認');
+  }
+
+  // analysisStatus === 'error' のケース
+  if (ctx.analysisStatus === 'error' || !ctx.imageDescription) {
+    await clearPendingImageContext(user.id);
+    await replyText(replyToken, '画像がうまく読み取れませんでした。もう一度画像を送ってみてください');
     return true;
   }
 
@@ -61,16 +117,8 @@ export async function handlePendingImageResponse(user, text, replyToken) {
       return await replyText(replyToken, '店舗が見つかりません。「店舗一覧」で確認してみてください');
     }
 
-    // ヒントがある場合は imageDescription に追記してプロンプトに反映
     // ※ 画像は初回送信時に Claude Vision で分析済み（ctx.imageDescription に保存）
     //    再取得は不要。LINE のメッセージサーバーから画像が削除されても問題なし。
-    const isInfluencer = store.category === 'インフルエンサー';
-    const hintLabel = isInfluencer
-      ? '【補足情報（投稿に自然に反映してよい）】'
-      : '【店主からの補足情報（想起・来店どちらのトリガーにも自然に反映してよい）】';
-    const enrichedDescription = hint
-      ? `${ctx.imageDescription}\n\n${hintLabel}${hint}`
-      : ctx.imageDescription;
 
     const isPremium = await isFeatureEnabled(user.id, 'enhancedPhotoAdvice');
     const prompt = buildImagePostPrompt(
@@ -78,8 +126,8 @@ export async function handlePendingImageResponse(user, text, replyToken) {
       null,
       ctx.blendedInsights ?? null,
       ctx.personalization ?? '',
-      enrichedDescription,
-      { isPremium },
+      ctx.imageDescription,
+      { isPremium, hint },
     );
 
     const rawContent = await askClaude(prompt);

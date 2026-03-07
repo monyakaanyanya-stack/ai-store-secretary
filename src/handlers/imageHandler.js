@@ -1,9 +1,8 @@
 import { replyText, replyWithQuickReply, getImageAsBase64 } from '../services/lineService.js';
 import { describeImage } from '../services/claudeService.js';
 import { getStore, savePendingImageContext, uploadImageToStorage } from '../services/supabaseService.js';
-import { buildImagePostPrompt, appendTemplateFooter } from '../utils/promptBuilder.js';
 import { getBlendedInsights, saveEngagementMetrics } from '../services/collectiveIntelligence.js';
-import { getPersonalizationPromptAddition, getPersonalizationLevel } from '../services/personalizationEngine.js';
+import { getPersonalizationPromptAddition } from '../services/personalizationEngine.js';
 import { getAdvancedPersonalizationPrompt } from '../services/advancedPersonalization.js';
 import { getSeasonalMemoryPromptAddition } from '../services/seasonalMemoryService.js';
 import { extractInsightsFromScreenshot } from '../services/insightsOCRService.js';
@@ -12,10 +11,112 @@ import { detectContentCategory } from '../utils/contentCategoryDetector.js';
 import { checkGenerationLimit, isFeatureEnabled } from '../services/subscriptionService.js';
 
 /**
- * 画像メッセージ処理: 画像取得 → 画像分析 → 投稿生成 → 返信 → 履歴保存
+ * バックグラウンドで画像分析+補助データ取得を行い、結果をDBに保存
+ * ボタン表示後に非同期で実行される
+ */
+async function analyzeImageInBackground(userId, store, imageBase64, imageUrl, messageId) {
+  try {
+    console.log(`[Image] バックグラウンド分析開始: store=${store.name}`);
+    const startMs = Date.now();
+
+    const safeResolve = (promise, defaultVal, label) =>
+      promise.catch(err => {
+        console.warn(`[Image] ${label} 取得失敗（続行）:`, err.message);
+        return defaultVal;
+      });
+
+    // プラン別機能チェック + describeImage + パーソナライゼーション（全並列）
+    const [
+      canAdvanced,
+      canSeasonal,
+      imageDescription,
+      basicPersonalization,
+    ] = await Promise.all([
+      isFeatureEnabled(userId, 'advancedPersonalization'),
+      isFeatureEnabled(userId, 'seasonalMemory'),
+      describeImage(imageBase64),
+      safeResolve(getPersonalizationPromptAddition(store.id), '', 'personalization'),
+    ]);
+
+    // canAdvanced/canSeasonal の結果で追加取得
+    const [advancedPersonalization, seasonalMemory] = await Promise.all([
+      canAdvanced
+        ? safeResolve(getAdvancedPersonalizationPrompt(store.id), '', 'advancedPersonalization')
+        : '',
+      canSeasonal
+        ? safeResolve(getSeasonalMemoryPromptAddition(store.id), '', 'seasonalMemory')
+        : '',
+    ]);
+
+    if (!imageDescription) {
+      console.error('[Image] バックグラウンド分析: imageDescription が空');
+      await savePendingImageContext(userId, {
+        messageId,
+        imageDescription: null,
+        storeId: store.id,
+        analysisStatus: 'error',
+        imageUrl,
+        createdAt: new Date().toISOString(),
+      });
+      return;
+    }
+
+    // 被写体カテゴリー検出 → 集合知取得
+    const contentCategory = detectContentCategory(imageDescription);
+    if (contentCategory && contentCategory !== store.category) {
+      console.log(`[Image] 被写体カテゴリー検出: store=${store.category} → content=${contentCategory}`);
+    }
+    const blendedInsights = await safeResolve(
+      store.category
+        ? getBlendedInsights(store.id, store.category, contentCategory)
+        : Promise.resolve(null),
+      null, 'blendedInsights'
+    );
+
+    const personalization = (basicPersonalization || '') + (advancedPersonalization || '') + (seasonalMemory || '');
+
+    // 分析完了 → DB更新
+    await savePendingImageContext(userId, {
+      messageId,
+      imageDescription,
+      storeId: store.id,
+      blendedInsights: blendedInsights ?? null,
+      personalization,
+      imageUrl,
+      hasLearning: (advancedPersonalization || '') !== '',
+      analysisStatus: 'complete',
+      createdAt: new Date().toISOString(),
+    });
+
+    const elapsed = ((Date.now() - startMs) / 1000).toFixed(1);
+    console.log(`[Image] バックグラウンド分析完了: store=${store.name} (${elapsed}s)`);
+  } catch (err) {
+    console.error(`[Image] バックグラウンド分析エラー (store=${store.name}):`, err.message);
+    try {
+      await savePendingImageContext(userId, {
+        messageId,
+        imageDescription: null,
+        storeId: store.id,
+        analysisStatus: 'error',
+        imageUrl,
+        createdAt: new Date().toISOString(),
+      });
+    } catch {
+      // DB保存も失敗した場合は諦める
+    }
+  }
+}
+
+/**
+ * 画像メッセージ処理
+ *
+ * 最適化フロー:
+ *   画像取得 → [Upload + インサイト判定 + 生成チェック 並列]
+ *   → ボタン即表示 → 裏で describeImage + パーソナライゼーション
+ *
+ * ユーザーがボタンを選ぶ間に画像分析が完了するため、体感3-5秒短縮
  */
 export async function handleImageMessage(user, messageId, replyToken) {
-  // 店舗が未設定の場合
   if (!user.current_store_id) {
     return await replyText(replyToken,
       'まだ店舗が登録されていないみたいです。「登録」で始められます！'
@@ -23,7 +124,6 @@ export async function handleImageMessage(user, messageId, replyToken) {
   }
 
   try {
-    // 店舗情報を取得
     const store = await getStore(user.current_store_id);
     if (!store) {
       return await replyText(replyToken, '店舗が見つかりません。「店舗一覧」で確認してみてください');
@@ -33,30 +133,29 @@ export async function handleImageMessage(user, messageId, replyToken) {
     console.log(`[Image] 画像取得中: messageId=${messageId}`);
     const imageBase64 = await getImageAsBase64(messageId);
 
-    // Supabase Storage にアップロード（Instagram投稿用の公開URL取得）
-    let imageUrl = null;
-    try {
-      const fileName = `${user.id}/${Date.now()}.jpg`;
-      imageUrl = await uploadImageToStorage(imageBase64, fileName);
-      console.log(`[Image] Storage アップロード完了: ${imageUrl?.slice(0, 80)}...`);
-    } catch (uploadErr) {
-      console.warn('[Image] Storage アップロード失敗（続行）:', uploadErr.message);
-    }
+    // ── Phase 1: Upload + インサイト判定 + 生成チェック（並列）──
+    // 3つとも独立した処理なので同時実行
+    const [imageUrl, insights, genLimit] = await Promise.all([
+      uploadImageToStorage(imageBase64, `${user.id}/${Date.now()}.jpg`)
+        .then(url => {
+          console.log(`[Image] Storage アップロード完了: ${url?.slice(0, 80)}...`);
+          return url;
+        })
+        .catch(err => {
+          console.warn('[Image] Storage アップロード失敗（続行）:', err.message);
+          return null;
+        }),
+      extractInsightsFromScreenshot(imageBase64),
+      checkGenerationLimit(user.id),
+    ]);
 
-    // ──────────────────────────────────────────────
-    // インサイトスクショ判定
-    // 朝のリマインダーに「スクショを送ってください」と案内しているため、
-    // 投稿生成の前に Instagram インサイト画像かどうかを先にチェックする
-    // ──────────────────────────────────────────────
-    const insights = await extractInsightsFromScreenshot(imageBase64);
+    // ── インサイトスクショ判定 ──
     if (insights.isInsights) {
       console.log(`[Image] インサイトスクショ検出: store=${store.name}, likes=${insights.likes}, saves=${insights.saves}`);
 
-      // 少なくとも1指標が読み取れていれば自動報告
       if (insights.likes !== null || insights.saves !== null || insights.comments !== null) {
-        // 最新の投稿を取得
-        const { data: latestPost } = await (await import('../services/supabaseService.js'))
-          .supabase
+        const { supabase } = await import('../services/supabaseService.js');
+        const { data: latestPost } = await supabase
           .from('post_history')
           .select('id, content')
           .eq('store_id', store.id)
@@ -81,86 +180,28 @@ export async function handleImageMessage(user, messageId, replyToken) {
         return; // 報告完了 → 投稿生成フローには進まない
       }
 
-      // 数値が1つも読み取れなかった場合は通常フローへ（商品写真として処理）
       console.warn('[Image] インサイト判定: 数値読み取り失敗 → 投稿生成フローへ');
     }
 
-    // ──────────────────────────────────────────────
-    // 生成回数チェック（SUBSCRIPTION_ENABLED=true 時のみ有効）
-    // ──────────────────────────────────────────────
-    const genLimit = await checkGenerationLimit(user.id);
+    // ── 生成回数チェック ──
     if (!genLimit.allowed) {
       return await replyText(replyToken,
         `今月の生成上限（${genLimit.limit}回）に達しました。\n\n📊 今月の生成: ${genLimit.used} / ${genLimit.limit}回\n📋 プラン: ${genLimit.planName}\n\nプランをアップグレードすると上限が増えます。`
       );
     }
 
-    // 補助データを個別にキャッチ（失敗してもデフォルト値で続行）
-    const safeResolve = (promise, defaultVal, label) =>
-      promise.catch(err => {
-        console.warn(`[Image] ${label} 取得失敗（続行）:`, err.message);
-        return defaultVal;
-      });
-
-    // プラン別機能チェック（並列）
-    const [canAdvanced, canSeasonal] = await Promise.all([
-      isFeatureEnabled(user.id, 'advancedPersonalization'),
-      isFeatureEnabled(user.id, 'seasonalMemory'),
-    ]);
-
-    // Phase 1: describeImage（必須）とパーソナライゼーションデータを並列取得
-    // describeImage は throw するので失敗時は catch ブロックへ
-    console.log(`[Image] Phase1: 画像分析・パーソナライゼーション並列取得中: store=${store.name}`);
-    const [
-      imageDescription,
-      basicPersonalization,
-      advancedPersonalization,
-      seasonalMemory,
-    ] = await Promise.all([
-      describeImage(imageBase64),
-      safeResolve(getPersonalizationPromptAddition(store.id), '', 'personalization'),
-      canAdvanced
-        ? safeResolve(getAdvancedPersonalizationPrompt(store.id), '', 'advancedPersonalization')
-        : '',
-      canSeasonal
-        ? safeResolve(getSeasonalMemoryPromptAddition(store.id), '', 'seasonalMemory')
-        : '',
-    ]);
-    console.log(`[Image] 画像分析結果: ${imageDescription?.slice(0, 100)}...`);
-
-    // Phase 2: 被写体カテゴリー検出（同期）→ 集合知取得
-    // imageDescription が確定してからでないと contentCategory を渡せないため直列
-    const contentCategory = detectContentCategory(imageDescription);
-    if (contentCategory && contentCategory !== store.category) {
-      console.log(`[Image] 被写体カテゴリー検出: store=${store.category} → content=${contentCategory}`);
-    }
-    const blendedInsights = await safeResolve(
-      store.category
-        ? getBlendedInsights(store.id, store.category, contentCategory)
-        : Promise.resolve(null),
-      null, 'blendedInsights'
-    );
-
-    const personalization = (basicPersonalization || '') + (advancedPersonalization || '') + (seasonalMemory || '');
-
-    // S9修正: imageDescription が万が一 null/undefined の場合のガード
-    if (!imageDescription) {
-      return await replyText(replyToken, '画像がうまく読み取れませんでした。別の画像で試してみてください');
-    }
-
-    // ── 一言ヒント機能: 画像分析後に1つだけ質問して待機 ──
-    // pending_image_context に状態を保存し、テキスト返信を待つ
+    // ── Phase 2: ボタン即表示 + バックグラウンド分析 ──
+    // 「分析中」状態で pending context を保存
     await savePendingImageContext(user.id, {
       messageId,
-      imageDescription,
+      imageDescription: null,
       storeId: store.id,
-      blendedInsights: blendedInsights ?? null,
-      personalization,
+      analysisStatus: 'pending',
       imageUrl,
-      hasLearning: (advancedPersonalization || '') !== '',
       createdAt: new Date().toISOString(),
     });
 
+    // ボタンを即表示（ユーザーはここで考え始める）
     await replyWithQuickReply(
       replyToken,
       `いい写真ですね！今日あったこと、思ったこと、一言もらえるとグッと「あなたらしい」投稿になります💡
@@ -175,6 +216,11 @@ export async function handleImageMessage(user, messageId, replyToken) {
         { type: 'action', action: { type: 'message', label: 'スキップ', text: 'スキップ' } },
       ]
     );
+
+    // バックグラウンドで画像分析開始（awaitしない = ユーザーの操作と並列実行）
+    analyzeImageInBackground(user.id, store, imageBase64, imageUrl, messageId)
+      .catch(err => console.error('[Image] バックグラウンド分析未捕捉エラー:', err));
+
   } catch (err) {
     console.error('[Image] 画像投稿生成エラー:', err);
     await replyText(replyToken, 'うまくいきませんでした...もう一度試してみてください');
