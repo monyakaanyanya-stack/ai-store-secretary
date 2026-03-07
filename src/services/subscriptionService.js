@@ -190,7 +190,12 @@ export async function syncStripeSubscription(stripeSubscription, lineUserId) {
   // Stripe の price ID からプランを判定
   const priceId = stripeSubscription.items?.data?.[0]?.price?.id;
   const { PLANS } = await import('../config/planConfig.js');
-  const matchedPlan = Object.entries(PLANS).find(([, v]) => v.stripePriceId === priceId)?.[0] || 'free';
+  const matchedEntry = Object.entries(PLANS).find(([, v]) => v.stripePriceId === priceId);
+  if (!matchedEntry) {
+    console.error(`[Subscription] Stripe sync: 不明な Price ID です (${priceId?.slice(0, 12)}...)。ユーザーのプランは変更しません。`);
+    return;
+  }
+  const matchedPlan = matchedEntry[0];
 
   const { error } = await supabase
     .from('subscriptions')

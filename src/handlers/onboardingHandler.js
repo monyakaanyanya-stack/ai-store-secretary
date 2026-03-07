@@ -6,6 +6,8 @@ import {
   getCategoriesByGroup,
   getCategoryByNumber,
 } from '../config/categoryGroups.js';
+import { getUserSubscription } from '../services/subscriptionService.js';
+import { getPlanConfig } from '../config/planConfig.js';
 
 /** グループ選択用 Quick Reply アイテムを生成 */
 function buildGroupQuickReply() {
@@ -33,6 +35,24 @@ function buildBackOnlyQuickReply() {
   return [
     { type: 'action', action: { type: 'message', label: '🔙 戻る', text: '戻る' } },
   ];
+}
+
+/**
+ * 店舗数上限チェック
+ * @returns {Promise<{allowed: boolean, current: number, max: number}>}
+ */
+async function checkStoreLimit(userId) {
+  const subscription = await getUserSubscription(userId);
+  const planConfig = getPlanConfig(subscription.plan);
+  const maxStores = planConfig.maxStores;
+
+  const { count, error } = await supabase
+    .from('stores')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId);
+
+  const current = error ? 0 : (count || 0);
+  return { allowed: current < maxStores, current, max: maxStores, planName: planConfig.name };
 }
 
 /**
@@ -396,6 +416,13 @@ async function handleStoreInfoInput(user, state, input, replyToken) {
   }
 
   try {
+    // 店舗数上限チェック
+    const storeLimit = await checkStoreLimit(user.id);
+    if (!storeLimit.allowed) {
+      await replyText(replyToken, `店舗数の上限（${storeLimit.max}店舗）に達しています。\n\n現在のプラン: ${storeLimit.planName}（${storeLimit.current}/${storeLimit.max}店舗）\n\n「アップグレード」でプラン変更できます。`);
+      return true;
+    }
+
     // 店舗を作成
     const store = await createStore(user.id, {
       name: storeName,
@@ -457,6 +484,13 @@ async function handleInfluencerGenreInput(user, state, input, replyToken) {
 
   try {
     const genre = input.trim();
+
+    // 店舗数上限チェック
+    const storeLimit = await checkStoreLimit(user.id);
+    if (!storeLimit.allowed) {
+      await replyText(replyToken, `登録数の上限（${storeLimit.max}件）に達しています。\n\n現在のプラン: ${storeLimit.planName}（${storeLimit.current}/${storeLimit.max}件）\n\n「アップグレード」でプラン変更できます。`);
+      return true;
+    }
 
     const store = await createStore(user.id, {
       name: genre,

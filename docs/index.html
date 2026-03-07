@@ -448,6 +448,7 @@
     }
     .step-card h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 8px; }
     .step-card p { font-size: 0.82rem; color: var(--text-muted); line-height: 1.8; font-weight: 400; }
+    .steps-grid-3 { grid-template-columns: repeat(3, 1fr); }
     .step-arrow { display: none; }
     .steps-time {
       margin-top: 32px;
@@ -1000,6 +1001,7 @@
     /* ─── Responsive ─────────────────────────── */
     @media (max-width: 900px) {
       .steps-grid { grid-template-columns: repeat(2, 1fr); gap: 20px; }
+      .steps-grid-3 { grid-template-columns: repeat(2, 1fr); }
       .demo-phones { grid-template-columns: 1fr; gap: 56px; }
       .phone-frame { max-width: 100%; }
       .benefits-grid { grid-template-columns: 1fr; max-width: 400px; margin-left: auto; margin-right: auto; }
@@ -1010,25 +1012,51 @@
 
     @media (max-width: 768px) {
       .section { padding: 72px 24px; }
-      .hero { padding: 120px 24px 40px; }
+      .hero { padding: 100px 20px 36px; }
+      .hero h1 { font-size: clamp(1.6rem, 7vw, 2.4rem); }
+      .hero-tagline { font-size: 1rem; letter-spacing: 0.04em; }
+      .price-compare { font-size: 0.92rem; padding: 0 20px 16px; }
+      .price-strip-arrow { margin: 0 8px; font-size: 1.1rem; }
+      .price-strip-after { font-size: 1rem; }
       .problem-grid { grid-template-columns: 1fr; }
       .proof-grid { grid-template-columns: 1fr; gap: 24px; }
       .target-grid { grid-template-columns: repeat(2, 1fr); }
       .output-grid { grid-template-columns: 1fr !important; gap: 32px !important; }
       .output-row { flex-direction: column !important; gap: 6px !important; }
       .output-row span { min-width: unset !important; }
-      .feature-item { flex-direction: column; gap: 12px !important; }
+      .feature-item { flex-direction: column; gap: 12px !important; padding: 28px 16px; }
+      .feature-num { min-width: auto; }
       .compare-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -24px; padding: 0 24px; }
       .compare-table { min-width: 540px; }
       .plan-grid { grid-template-columns: 1fr; max-width: 400px; margin-left: auto; margin-right: auto; }
       .cycle-grid { grid-template-columns: 1fr; max-width: 400px; }
       .footer-inner { flex-direction: column; gap: 16px; text-align: center; }
       body::before, body::after { opacity: 0.2; }
+      .step-card { padding: 28px 16px; }
+      .step-card h3 { font-size: 0.88rem; }
+      .step-card p { font-size: 0.78rem; }
+      .steps-note { padding: 20px 16px; }
+      .btn { padding: 15px 36px; font-size: 0.9rem; }
+      .btn-large { padding: 17px 44px; font-size: 1rem; }
+      .title { font-size: clamp(1.5rem, 5vw, 2.2rem); }
+      .solution-bridge h2 { font-size: clamp(1.3rem, 5vw, 2rem); }
     }
 
     @media (max-width: 480px) {
       .steps-grid { grid-template-columns: 1fr; }
-      .container { padding: 0 20px; }
+      .steps-grid-3 { grid-template-columns: 1fr; }
+      .container { padding: 0 16px; }
+      .section { padding: 56px 16px; }
+      .hero { padding: 88px 16px 32px; }
+      .hero h1 { font-size: 1.5rem; line-height: 1.3; }
+      .hero-sub { font-size: 0.9rem; margin: 0 auto 32px; }
+      .price-compare { font-size: 0.85rem; padding: 0 16px 12px; white-space: nowrap; }
+      .price-strip-arrow { margin: 0 6px; }
+      .cta-sub { font-size: 0.75rem; }
+      .problem-card { padding: 28px 20px; }
+      .step-card { padding: 24px 14px; }
+      .demo-step-label { font-size: 0.72rem !important; }
+      .phone-frame { border-radius: 12px; }
     }
   </style>
 </head>
@@ -1094,7 +1122,7 @@
       <p class="label">How it works</p>
       <h2 class="title">使い方は3ステップ</h2>
 
-      <div class="steps-grid" style="grid-template-columns:repeat(3,1fr);">
+      <div class="steps-grid steps-grid-3">
         <div class="step-card">
           <div class="step-num">1</div>
           <h3>LINEで写真を送る</h3>

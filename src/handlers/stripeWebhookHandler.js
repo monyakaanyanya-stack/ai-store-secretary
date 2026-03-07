@@ -192,9 +192,11 @@ async function notifyPlanActivated(lineUserId, stripeSubscription) {
 /** プランダウングレード通知 */
 async function notifyPlanDowngrade(lineUserId) {
   try {
+    const { PLANS } = await import('../config/planConfig.js');
+    const freeLimit = PLANS.free.monthlyGenerations;
     await pushMessage(lineUserId, [{
       type: 'text',
-      text: `ご利用ありがとうございました。\n\nプランがフリープランに戻りました。\n引き続き月30回までの投稿生成をご利用いただけます。\n\n再開の際は「アップグレード」と送ってください。`,
+      text: `ご利用ありがとうございました。\n\nプランがフリープランに戻りました。\n引き続き月${freeLimit}回までの投稿生成をご利用いただけます。\n\n再開の際は「アップグレード」と送ってください。`,
     }]);
   } catch (err) {
     console.error('[StripeWebhook] ダウングレード通知エラー:', err.message);
