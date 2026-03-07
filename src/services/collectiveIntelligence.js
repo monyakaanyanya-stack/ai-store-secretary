@@ -308,6 +308,9 @@ export async function saveEngagementMetrics(storeId, category, postData, metrics
   // 未報告レコードは集合知・勝ちパターンの学習対象から除外される
   const isReported = (safeLikes > 0 || safeSaves > 0);
 
+  // 投稿時刻データを1回のDB呼び出しで一括取得（旧: resolvePostTime を2回呼んでいた）
+  const postTimeData = await resolvePostTimeFull(postData.post_id);
+
   // データ準備
   const metricsData = {
     store_id: storeId,
@@ -327,9 +330,10 @@ export async function saveEngagementMetrics(storeId, category, postData, metrics
     save_intensity: safeSaveIntensity,
     reaction_index: safeReactionIndex,
     post_structure: analyzePostStructure(postData.content), // 投稿骨格を解析して保存
-    post_time: await resolvePostTime(postData.post_id, 'time'),   // 投稿作成時刻（不明なら NULL）
-    day_of_week: await resolvePostTime(postData.post_id, 'day'),  // 投稿曜日（不明なら NULL）
-    reported_at: new Date().toISOString(),                        // メトリクス報告時刻（常に現在時刻）
+    post_time: postTimeData?.time || null,                          // 投稿作成時刻 "HH:MM:SS"（不明なら NULL）
+    day_of_week: postTimeData?.day ?? null,                         // 投稿曜日 0-6（不明なら NULL）
+    posted_at: postTimeData?.timestamp || null,                     // 完全タイムスタンプ（SNSコンサルAI基盤）
+    reported_at: new Date().toISOString(),                          // メトリクス報告時刻（常に現在時刻）
     status: isReported ? '報告済' : '未報告',
   };
 
@@ -512,15 +516,13 @@ export async function detectPopularOtherCategories(threshold = 5) {
 }
 
 /**
- * 投稿の実際の作成時刻を取得する（post_time / day_of_week 収集用）
- * 報告時刻ではなく投稿作成時刻を使うことで bestPostingHours 分析を正確にする
+ * 投稿の時刻情報を一括取得（DB 1回で time / day / timestamp を全部返す）
+ * 旧 resolvePostTime() を統合し、DB呼び出しを2回→1回に削減
  *
  * @param {string|null} postId - post_history の ID
- * @param {'time'|'day'} type - 返す値の種類
- * @returns {Promise<string|number|null>} - "HH:MM:SS"（time）/ 0-6（day）/ null（不明）
+ * @returns {Promise<{time: string, day: number, timestamp: string}|null>}
  */
-async function resolvePostTime(postId, type) {
-  // post_id がない場合は NULL（報告時刻を誤って入れない）
+async function resolvePostTimeFull(postId) {
   if (!postId) return null;
 
   const { data } = await supabase
@@ -535,12 +537,98 @@ async function resolvePostTime(postId, type) {
   const jstOffset = 9 * 60 * 60 * 1000;
   const jstDate = new Date(new Date(data.created_at).getTime() + jstOffset);
 
-  if (type === 'day') {
-    return jstDate.getUTCDay(); // 0=日曜...6=土曜
-  }
-  // type === 'time': "HH:MM:SS" 形式で返す
   const h = String(jstDate.getUTCHours()).padStart(2, '0');
   const m = String(jstDate.getUTCMinutes()).padStart(2, '0');
   const s = String(jstDate.getUTCSeconds()).padStart(2, '0');
-  return `${h}:${m}:${s}`;
+
+  return {
+    time: `${h}:${m}:${s}`,
+    day: jstDate.getUTCDay(),        // 0=日曜...6=土曜
+    timestamp: data.created_at,      // 元の TIMESTAMPTZ をそのまま
+  };
+}
+
+/**
+ * カテゴリー別の最適投稿時間を分析（曜日×時間帯の組み合わせ）
+ * SNS Consultant AI 基盤: 業種ごとの投稿タイミング最適化
+ *
+ * @param {string} category - カテゴリー
+ * @param {number} limit - 取得件数
+ * @returns {Promise<Object>} - { bestSlots, hourlyRanked, sampleSize }
+ */
+export async function getCategoryPostingTimeOptimization(category, limit = 500) {
+  if (!category) return getDefaultTimeOptimization();
+
+  const normalizedCategory = normalizeCategory(category) || category;
+
+  const { data, error } = await supabase
+    .from('engagement_metrics')
+    .select('post_time, day_of_week, save_intensity')
+    .eq('category', normalizedCategory)
+    .eq('status', '報告済')
+    .not('post_time', 'is', null)
+    .limit(limit);
+
+  if (error || !data || data.length < 5) {
+    return getDefaultTimeOptimization();
+  }
+
+  // 曜日×時間帯のスロット分析
+  const slots = {};
+  data.forEach(post => {
+    const hour = parseInt(String(post.post_time).split(':')[0], 10);
+    const day = post.day_of_week;
+    if (!Number.isFinite(hour) || hour < 0 || hour > 23) return;
+    if (day == null || day < 0 || day > 6) return;
+
+    const si = Number.isFinite(post.save_intensity) ? post.save_intensity : 0;
+    const key = `${day}-${hour}`;
+    if (!slots[key]) slots[key] = { day, hour, totalSI: 0, count: 0 };
+    slots[key].totalSI += si;
+    slots[key].count++;
+  });
+
+  // スコア = 平均保存強度 × √件数（bestPostingHours と同じ計算式）
+  const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+  const scored = Object.values(slots)
+    .filter(s => s.count >= 2)
+    .map(s => ({
+      label: `${dayNames[s.day]}曜 ${s.hour}時`,
+      day: s.day,
+      hour: s.hour,
+      avgSaveIntensity: parseFloat((s.totalSI / s.count).toFixed(3)),
+      score: (s.totalSI / s.count) * Math.sqrt(s.count),
+      count: s.count,
+    }))
+    .sort((a, b) => b.score - a.score);
+
+  // 時間帯別サマリー（曜日をまたいだ集約）
+  const hourlyMap = {};
+  data.forEach(post => {
+    const hour = parseInt(String(post.post_time).split(':')[0], 10);
+    if (!Number.isFinite(hour) || hour < 0 || hour > 23) return;
+    const si = Number.isFinite(post.save_intensity) ? post.save_intensity : 0;
+    if (!hourlyMap[hour]) hourlyMap[hour] = { totalSI: 0, count: 0 };
+    hourlyMap[hour].totalSI += si;
+    hourlyMap[hour].count++;
+  });
+
+  const hourlyRanked = Object.entries(hourlyMap)
+    .map(([hour, stats]) => ({
+      hour: parseInt(hour),
+      avgSI: parseFloat((stats.totalSI / stats.count).toFixed(3)),
+      count: stats.count,
+    }))
+    .sort((a, b) => b.avgSI - a.avgSI)
+    .slice(0, 5);
+
+  return {
+    bestSlots: scored.slice(0, 5),
+    hourlyRanked,
+    sampleSize: data.length,
+  };
+}
+
+function getDefaultTimeOptimization() {
+  return { bestSlots: [], hourlyRanked: [], sampleSize: 0 };
 }

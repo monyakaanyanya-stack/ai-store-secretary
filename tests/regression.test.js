@@ -2172,3 +2172,77 @@ describe('Scenario 40: 強化版撮影アドバイス', async () => {
       'isPremium をプロンプトビルダーに渡している');
   });
 });
+
+// ==================== Scenario 41: SNS Consultant AI 基盤 ====================
+describe('Scenario 41: SNS Consultant AI 基盤', async () => {
+  const fs = await import('node:fs');
+
+  it('migration_posted_at.sql が存在する', () => {
+    assert.ok(
+      fs.existsSync(new URL('../database/migration_posted_at.sql', import.meta.url)),
+      'migration_posted_at.sql が作成されているべき'
+    );
+  });
+
+  it('migration_posted_at.sql が posted_at TIMESTAMPTZ カラムを追加する', () => {
+    const content = fs.readFileSync(
+      new URL('../database/migration_posted_at.sql', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('posted_at'), 'posted_at カラムが含まれる');
+    assert.ok(content.includes('TIMESTAMPTZ'), 'TIMESTAMPTZ 型である');
+    assert.ok(content.includes('IF NOT EXISTS'), 'べき等性がある');
+  });
+
+  it('migration_posted_at.sql にカテゴリー複合インデックスがある', () => {
+    const content = fs.readFileSync(
+      new URL('../database/migration_posted_at.sql', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('idx_engagement_metrics_category_posted_at'),
+      'カテゴリー×投稿日時の複合インデックスがある');
+  });
+
+  it('collectiveIntelligence に resolvePostTimeFull がある（DB 1回で統合）', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/collectiveIntelligence.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('resolvePostTimeFull'),
+      'resolvePostTimeFull 統合関数が存在する');
+    assert.ok(content.includes('timestamp: data.created_at'),
+      'timestamp プロパティを返す');
+  });
+
+  it('saveEngagementMetrics が posted_at を保存する', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/collectiveIntelligence.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('posted_at: postTimeData?.timestamp'),
+      'posted_at フィールドが metricsData に含まれる');
+  });
+
+  it('getCategoryPostingTimeOptimization がエクスポートされている', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/collectiveIntelligence.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(
+      content.includes('export async function getCategoryPostingTimeOptimization'),
+      'getCategoryPostingTimeOptimization がエクスポートされている'
+    );
+  });
+
+  it('プライバシーポリシーに匿名データ活用の記述がある', () => {
+    const content = fs.readFileSync(
+      new URL('../docs/privacy-policy.html', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('匿名化・集計'), '匿名化・集計の記述がある');
+    assert.ok(content.includes('レコメンデーション'), 'レコメンデーション提供の記述がある');
+    assert.ok(content.includes('2026年3月'), '更新日が2026年3月になっている');
+  });
+
+  it('プライバシーポリシーに削除後の集計データ保持条項がある', () => {
+    const content = fs.readFileSync(
+      new URL('../docs/privacy-policy.html', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('削除された場合でも'),
+      'データ削除後も匿名統計データが残る旨の記載がある');
+  });
+});

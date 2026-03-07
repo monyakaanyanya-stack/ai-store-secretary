@@ -74,7 +74,7 @@ export async function handleUpgradePrompt(user, replyToken) {
 
         return `━━━━━━━━━━━━━━━
 【${p.name}】
-月額 ¥${p.price.toLocaleString()}（税込）
+月額 ¥${p.price.toLocaleString()}（税別）
 
   ${features}
 
