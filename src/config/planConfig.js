@@ -21,7 +21,7 @@
 export const PLANS = {
   free: {
     name: 'フリープラン',
-    monthlyGenerations: 10,
+    monthlyGenerations: 20,
     maxStores: 1,
     features: {
       collectiveIntelligence: true,
@@ -42,8 +42,8 @@ export const PLANS = {
 
   standard: {
     name: 'スタンダードプラン',
-    monthlyGenerations: 25,
-    maxStores: 3,
+    monthlyGenerations: 60,
+    maxStores: 1,
     features: {
       collectiveIntelligence: true,
       seasonalMemory: true,
@@ -63,8 +63,8 @@ export const PLANS = {
 
   premium: {
     name: 'プレミアムプラン',
-    monthlyGenerations: 60,
-    maxStores: Infinity,
+    monthlyGenerations: 200,
+    maxStores: 5,
     features: {
       collectiveIntelligence: true,
       seasonalMemory: true,

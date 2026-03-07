@@ -1563,16 +1563,16 @@ describe('Scenario 32: プラン制限・機能ゲーティング', async () => 
     assert.equal(Object.keys(PLANS).length, 3, 'プランは3つだけ');
   });
 
-  it('月間生成回数: free=10, standard=25, premium=60', () => {
-    assert.equal(PLANS.free.monthlyGenerations, 10);
-    assert.equal(PLANS.standard.monthlyGenerations, 25);
-    assert.equal(PLANS.premium.monthlyGenerations, 60);
+  it('月間生成回数: free=20, standard=60, premium=200', () => {
+    assert.equal(PLANS.free.monthlyGenerations, 20);
+    assert.equal(PLANS.standard.monthlyGenerations, 60);
+    assert.equal(PLANS.premium.monthlyGenerations, 200);
   });
 
-  it('店舗数上限: free=1, standard=3, premium=無制限', () => {
+  it('店舗数上限: free=1, standard=1, premium=5', () => {
     assert.equal(PLANS.free.maxStores, 1);
-    assert.equal(PLANS.standard.maxStores, 3);
-    assert.equal(PLANS.premium.maxStores, Infinity);
+    assert.equal(PLANS.standard.maxStores, 1);
+    assert.equal(PLANS.premium.maxStores, 5);
   });
 
   // --- 全プラン共通機能 ---
@@ -1637,7 +1637,7 @@ describe('Scenario 32: プラン制限・機能ゲーティング', async () => 
   it('不明なプラン名は free にフォールバック', () => {
     const config = getPlanConfig('unknown');
     assert.equal(config.name, 'フリープラン');
-    assert.equal(config.monthlyGenerations, 10);
+    assert.equal(config.monthlyGenerations, 20);
   });
 
   it('null/undefined は free にフォールバック', () => {
@@ -1828,15 +1828,15 @@ describe('Scenario 35: サブスクリプション planConfig', async () => {
   });
 
   it('各プランに正しい月間生成数が設定されている', () => {
-    assert.equal(PLANS.free.monthlyGenerations, 10, 'free: 10回');
-    assert.equal(PLANS.standard.monthlyGenerations, 25, 'standard: 25回');
-    assert.equal(PLANS.premium.monthlyGenerations, 60, 'premium: 60回');
+    assert.equal(PLANS.free.monthlyGenerations, 20, 'free: 20回');
+    assert.equal(PLANS.standard.monthlyGenerations, 60, 'standard: 60回');
+    assert.equal(PLANS.premium.monthlyGenerations, 200, 'premium: 200回');
   });
 
   it('各プランに正しい最大店舗数が設定されている', () => {
     assert.equal(PLANS.free.maxStores, 1, 'free: 1店舗');
-    assert.equal(PLANS.standard.maxStores, 3, 'standard: 3店舗');
-    assert.equal(PLANS.premium.maxStores, Infinity, 'premium: 無制限');
+    assert.equal(PLANS.standard.maxStores, 1, 'standard: 1店舗');
+    assert.equal(PLANS.premium.maxStores, 5, 'premium: 5店舗');
   });
 
   it('free プランでは処方箋・自動学習・人格学習が無効', () => {
