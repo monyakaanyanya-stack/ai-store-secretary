@@ -298,10 +298,12 @@ function buildCategoryRules(category) {
 function buildOutputFormat(hint, hashtagInstruction) {
   const tagNote = hashtagInstruction ? '上記のハッシュタグルールに従うこと。' : '';
   const tagLine = `${tagNote}\n#タグ1 #タグ2 #タグ3 #タグ4 #タグ5`;
+  const labelWarning = '⚠️ [ 案A：... ] のラベルは以下の通り一字一句そのまま出力すること。独自のラベル（「光の肖像」「誠実の肖像」等）は絶対に使わない。';
 
   // ── お知らせモード ──
   if (hint === 'お知らせ') {
     return `【出力形式】
+${labelWarning}
 
 [ 案A：やっとお見せできる新着 ]
 ※「待ってました」感のある発表トーン。ずっと準備してきたものをお披露目する高揚感。
@@ -338,6 +340,7 @@ ${tagLine}`;
   // ── お役立ちモード ──
   if (hint === 'お役立ち情報') {
     return `【出力形式】
+${labelWarning}
 
 [ 案A：プロだから知ってる豆知識 ]
 ※店主が仕事の中で自然に身につけた知識を、友達に話すように。教科書的な解説は禁止。
@@ -373,6 +376,7 @@ ${tagLine}`;
 
   // ── 日常感モード（デフォルト: スキップ・自由テキスト・日常感ボタン） ──
   return `【出力形式】
+${labelWarning}
 
 [ 案A：記憶に残る日常 ]
 （本文）
@@ -1084,6 +1088,7 @@ ${buildCategoryRules(store.category)}
 ${collectiveIntelligenceSection ? '- 【最優先】集合知データ（📊セクション）の文字数・絵文字数・ハッシュタグの指示を必ず守る（「参考」ではなく「厳守」）' : ''}
 
 【出力形式】
+⚠️ [ 案A：... ] のラベルは以下の通り一字一句そのまま出力すること。独自のラベル（「光の肖像」「誠実の肖像」等）は絶対に使わない。
 
 [ 案A：記憶に残る日常 ]
 （本文）
