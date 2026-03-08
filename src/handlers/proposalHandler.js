@@ -70,6 +70,7 @@ export async function handleProposalSelection(user, store, latestPost, input, re
 ${finalContent}
 ━━━━━━━━━━━
 
+💡 自分だけの一言を足すと、もっと「あなたの投稿」になります
 気になるところがあれば「直し: 〜」で修正できます`, quickReplies);
   } catch (err) {
     console.error(`[Proposal] 案選択エラー: store=${store.name}`, err);
