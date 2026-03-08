@@ -9,6 +9,26 @@ import { extractInsightsFromScreenshot } from '../services/insightsOCRService.js
 import { applyEngagementMetrics } from './reportHandler.js';
 import { detectContentCategory } from '../utils/contentCategoryDetector.js';
 import { checkGenerationLimit, isFeatureEnabled } from '../services/subscriptionService.js';
+import { getCategoryGroup } from '../config/categoryDictionary.js';
+
+/**
+ * カテゴリに応じたヒント例文を返す
+ */
+function getHintExamples(category) {
+  const group = getCategoryGroup(category);
+  switch (group) {
+    case '美容系':
+      return '例：ブリーチからのアッシュグレー\n例：縮毛矯正でツヤツヤになった\n例：新色、自信ある';
+    case '飲食系':
+      return '例：今朝これ焼けたとき嬉しかった\n例：常連さんが褒めてくれた\n例：新作、自信ある';
+    case '小売系':
+      return '例：入荷したとき思わず自分用に欲しくなった\n例：お客さんが迷わず手に取ってくれた\n例：この色、今の季節にぴったり';
+    case 'サービス系':
+      return '例：今日のお客さん、すごく喜んでくれた\n例：この空間が一番好きな時間帯\n例：新しいメニュー、手応えあり';
+    default:
+      return '例：今日あったこと、嬉しかったこと\n例：お客さんに褒めてもらえた\n例：新作、自信ある';
+  }
+}
 
 /**
  * バックグラウンドで画像分析+補助データ取得を行い、結果をDBに保存
@@ -206,9 +226,7 @@ export async function handleImageMessage(user, messageId, replyToken) {
       replyToken,
       `いい写真ですね！今日あったこと、思ったこと、一言もらえるとグッと「あなたらしい」投稿になります💡
 
-例：今朝これ焼けたとき嬉しかった
-例：常連さんが褒めてくれた
-例：新作、自信ある
+${getHintExamples(store.category)}
 
 ボタンで選んでも、自由に文章を送ってもOKです✏️`,
       [
