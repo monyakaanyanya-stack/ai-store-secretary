@@ -1,5 +1,6 @@
 import { supabase } from './supabaseService.js';
 import { pushMessage } from './lineService.js';
+import { getUserSubscription } from './subscriptionService.js';
 
 /**
  * デイリーリマインダー: 昨日（JST）投稿を生成したユーザーにのみ報告を促す
@@ -87,6 +88,7 @@ export async function sendDailyReminders() {
     let sentCount = 0;
     let skipCount = 0;
     let igSkipCount = 0;
+    let freeSkipCount = 0;
     const sentLineUserIds = new Set(); // 重複防止用
 
     for (const user of users) {
@@ -98,6 +100,18 @@ export async function sendDailyReminders() {
       // Instagram連携済みの店舗を使っている場合はスキップ
       if (user.current_store_id && instagramLinkedStoreIds.has(user.current_store_id)) {
         igSkipCount++;
+        continue;
+      }
+
+      // Freeプランユーザーはスキップ（Push通数削減）
+      try {
+        const sub = await getUserSubscription(user.id);
+        if (sub.plan === 'free') {
+          freeSkipCount++;
+          continue;
+        }
+      } catch (subErr) {
+        console.warn(`[DailyReminder] サブスク確認失敗（スキップ）: ${user.line_user_id.slice(0, 4)}****`);
         continue;
       }
 
@@ -113,7 +127,7 @@ export async function sendDailyReminders() {
       }
     }
 
-    console.log(`[DailyReminder] リマインダー送信完了: 送信=${sentCount}, スキップ=${skipCount}, IG連携スキップ=${igSkipCount}`);
+    console.log(`[DailyReminder] リマインダー送信完了: 送信=${sentCount}, スキップ=${skipCount}, IG連携スキップ=${igSkipCount}, Freeスキップ=${freeSkipCount}`);
   } catch (err) {
     console.error('[DailyReminder] リマインダー送信エラー:', err.message);
   }
@@ -128,9 +142,9 @@ async function sendReminderToUser(lineUserId) {
     text: `おはようございます☀️
 
 昨日の投稿、Instagramに載せましたか？
-数値を教えてもらえると、AIが学習して次の提案の精度が上がります📈
+学習の為に反応を教えてもらえると、私の次の提案の精度が上がります📈
 
-【方法①】インサイトのスクショを送る（おすすめ）
+【方法①】インサイト（投稿ページを開いてインサイトを見る）のスクショを送る
  → そのまま送るだけで自動で読み取ります📸
 
 【方法②】テキストで報告

@@ -2,7 +2,7 @@ import cron from 'node-cron';
 import { sendDailyReminders } from './dailyReminderService.js';
 import { collectDailySummary } from './dailySummaryService.js';
 import { notifyDailySummary, notifyCategoryPromotion } from './errorNotification.js';
-import { sendMonthlyFollowerRequests } from './monthlyFollowerService.js';
+
 import { detectPopularOtherCategories } from './collectiveIntelligence.js';
 import { sendWeeklyPlansToAllPremium } from './weeklyPlanService.js';
 
@@ -56,14 +56,6 @@ export function startScheduler() {
     timezone: 'UTC'
   });
 
-  // 毎月1日の朝10時（日本時間）にフォロワー数収集
-  // JST 10:00 = UTC 1:00
-  cron.schedule('0 1 1 * *', () => {
-    runWithLock('月次フォロワー数収集', sendMonthlyFollowerRequests);
-  }, {
-    timezone: 'UTC'
-  });
-
   // 毎週月曜 朝9時（日本時間）に other カテゴリー昇格チェック
   // JST 9:00 = UTC 0:00
   cron.schedule('0 0 * * 1', () => {
@@ -91,7 +83,6 @@ export function startScheduler() {
   console.log('[Scheduler] スケジューラー起動完了');
   console.log('  - デイリーリマインダー: 毎日 UTC 1:00 (JST 10:00)');
   console.log('  - デイリーサマリー: 毎日 UTC 14:59 (JST 23:59)');
-  console.log('  - 月次フォロワー数収集: 毎月1日 UTC 1:00 (JST 10:00)');
   console.log('  - カテゴリー昇格チェック: 毎週月曜 UTC 0:00 (JST 9:00)');
   console.log('  - 週間コンテンツ計画: 毎週日曜 UTC 23:00 (JST 月曜 8:00)');
 }
