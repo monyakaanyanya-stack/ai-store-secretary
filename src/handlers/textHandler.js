@@ -116,6 +116,22 @@ export async function handleTextMessage(user, text, replyToken) {
     const cmd = user.pending_command;
     await clearPendingCommand(user.id);
     if (cmd === 'revision') {
+      // 3案が未選択の場合はまず案を選ぶよう促す
+      if (user.current_store_id) {
+        const storeForCheck = await getStore(user.current_store_id);
+        if (storeForCheck) {
+          const { data: checkPost } = await supabase
+            .from('post_history')
+            .select('content')
+            .eq('store_id', storeForCheck.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+          if (checkPost?.content && /\[\s*案A[：:]/.test(checkPost.content)) {
+            return await replyText(replyToken, '先にA / B / C のいずれかを選んでから修正指示を送ってください✉️');
+          }
+        }
+      }
       return await handleFeedback(user, trimmed, replyToken);
     }
     if (cmd === 'style_learning') {
