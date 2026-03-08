@@ -5,11 +5,10 @@ import { handleTextMessage } from './src/handlers/textHandler.js';
 import { handleImageMessage } from './src/handlers/imageHandler.js';
 import { getOrCreateUser } from './src/services/supabaseService.js';
 import { startScheduler } from './src/services/scheduler.js';
-import { sendWelcomeMessage } from './src/handlers/welcomeHandler.js';
 import { checkRateLimit, maskUserId } from './src/utils/security.js';
 import { replyText, pushMessage } from './src/services/lineService.js';
 import { handleStripeWebhook } from './src/handlers/stripeWebhookHandler.js';
-import { handleOAuthCallback } from './src/services/instagramService.js';
+import { handleOAuthCallback, syncInstagramPosts } from './src/services/instagramService.js';
 
 // ==================== C8: 起動時の環境変数検証 ====================
 const REQUIRED_ENV_VARS = [
@@ -75,10 +74,20 @@ app.get('/auth/instagram/callback', async (req, res) => {
   try {
     const result = await handleOAuthCallback(code, state);
 
+    // 自動データ同期
+    let syncCount = 0;
     try {
+      syncCount = await syncInstagramPosts(result.storeId);
+      console.log(`[Instagram OAuth] 自動同期完了: ${syncCount}件`);
+    } catch (syncErr) {
+      console.error('[Instagram OAuth] 自動同期失敗:', syncErr.message);
+    }
+
+    try {
+      const syncText = syncCount > 0 ? `\n\n${syncCount}件の投稿データを同期しました。` : '';
       await pushMessage(result.lineUserId, [{
         type: 'text',
-        text: `✅ Instagram連携完了！\n\n@${result.username}\nフォロワー: ${result.followersCount?.toLocaleString() || '取得中'}人\n\nデータを同期するには:\n/instagram sync\n\nと送信してください。`,
+        text: `✅ Instagram連携完了！\n\n@${result.username}\nフォロワー: ${result.followersCount?.toLocaleString() || '取得中'}人${syncText}\n\nお疲れ様でした、これで登録作業は終了です！\n\n住所やハッシュタグを毎回つけたい場合は【テンプレート登録】と送ってください\n困ったときは【ヘルプ】または【問い合わせ】を送ってください`,
       }]);
     } catch (pushErr) {
       console.error('[Instagram OAuth] LINE通知失敗:', pushErr.message);
@@ -150,10 +159,9 @@ async function processEvent(event) {
 
   const lineUserId = event.source.userId;
 
-  // フォローイベント（友だち追加）
+  // フォローイベント（友だち追加） - あいさつメッセージはLINE公式管理画面で設定
   if (event.type === 'follow') {
     console.log(`[Event] follow event: user=${maskUserId(lineUserId)}`);
-    await sendWelcomeMessage(lineUserId);
     return;
   }
 

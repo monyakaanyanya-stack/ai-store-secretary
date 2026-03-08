@@ -290,7 +290,7 @@ async function handleCustomCategoryInput(user, state, input, replyToken) {
 
 次は「店名,こだわり,口調」を教えてください
 
-例: 幸福堂,天然酵母の手作りパン,フレンドリー
+例: Ai店,天然酵母の手作りパン,フレンドリー
 
 口調はこんな感じで👇
 ・フレンドリー（明るい・親しみやすい）
@@ -376,14 +376,12 @@ async function handleCategoryDetailSelection(user, state, input, replyToken) {
 
 次は「店名,こだわり,口調」を教えてください
 
-例: 幸福堂,天然酵母の手作りパン,フレンドリー
+例: Ai店,天然酵母の手作りパン,フレンドリー
 
 口調はこんな感じで👇
 ・フレンドリー（明るい・親しみやすい）
 ・カジュアル（タメ口・親しみやすい）
-・丁寧（ビジネス的・プロフェッショナル）
-・元気（ハイテンション）
-・落ち着いた（穏やか）`;
+・丁寧（ビジネス的・プロフェッショナル）`;
 
   await replyWithQuickReply(replyToken, message, buildBackOnlyQuickReply());
 
@@ -400,7 +398,7 @@ async function handleStoreInfoInput(user, state, input, replyToken) {
   if (parts.length !== 3) {
     return await replyWithQuickReply(
       replyToken,
-      '「店名,こだわり,口調」の3つをカンマで区切って送ってください！\n\n例: 幸福堂,天然酵母の手作りパン,フレンドリー',
+      '「店名,こだわり,口調」の3つをカンマで区切って送ってください！\n\n例: Ai店,天然酵母の手作りパン,フレンドリー',
       buildBackOnlyQuickReply()
     );
   }
@@ -452,10 +450,12 @@ async function handleStoreInfoInput(user, state, input, replyToken) {
 こだわり: ${strength}
 口調: ${tone}
 
-さっそく投稿を作ってみましょう！
-画像かテキストを送るだけでOKです
+次にInstagram連携を行います。
+連携すると自動投稿と投稿結果の自動分析が使えるようになります。
 
-住所やハッシュタグを毎回つけたい場合は「テンプレート登録」と送ってください`;
+連携する場合は【インスタ連携】と送ってください。
+
+※連携しなくても利用できますが、投稿データの集計は手動になります。`;
 
     await replyText(replyToken, successMessage);
 
@@ -609,9 +609,8 @@ export async function handleCommandList(user, replyToken) {
 ・リマインダー停止 / リマインダー再開
 
 📱 Instagram
-・/instagram connect トークン → 連携
-・/instagram post → 直近の投稿を投稿
-・/instagram status → 連携状態確認
+・インスタ連携 → Instagram連携
+・インスタ解除 → Instagram連携解除
 
 💎 プラン
 ・プラン → 現在のプラン確認

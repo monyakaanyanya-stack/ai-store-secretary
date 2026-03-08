@@ -732,6 +732,7 @@ export async function handleOAuthCallback(code, state) {
     success: true,
     username: accountInfo.username || account.instagram_user_id,
     lineUserId,
+    storeId,
     followersCount: accountInfo.followers_count,
   };
 }

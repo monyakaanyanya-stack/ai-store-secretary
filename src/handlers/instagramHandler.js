@@ -58,12 +58,8 @@ export async function handleInstagramCommand(user, args, replyToken) {
   await replyText(replyToken, `❓ コマンドが見つかりません。
 
 使い方:
-/instagram → 連携状態確認
-/instagram connect [トークン] → 連携
-/instagram sync → データ同期
-/instagram stats → 統計表示
-/instagram post → 最新投稿をInstagramに投稿
-/instagram disconnect → 連携解除`);
+・インスタ連携 → Instagram連携
+・インスタ解除 → Instagram連携解除`);
   return true;
 }
 
@@ -119,7 +115,21 @@ async function handleInstagramSync(user, replyToken) {
     // H1修正: replyTokenは1回しか使えないため、中間メッセージを削除し結果のみ返す
     const synced = await syncInstagramPosts(user.current_store_id, 25);
 
-    await replyText(replyToken, `✅ 同期完了！\n\n新規取得: ${synced}件\n\n統計を確認するには:\n/instagram stats`);
+    // 同期後に統計も自動表示
+    const stats = await getInstagramStats(user.current_store_id);
+
+    let statsText = '';
+    if (stats) {
+      const hashtagSection = stats.topHashtags.length > 0
+        ? `\n\n【高ERハッシュタグ】\n${stats.topHashtags.join(', ')}`
+        : '';
+      const topPostPreview = stats.topPost
+        ? `\n\n【最高ER投稿】\n"${(stats.topPost.caption || '').slice(0, 60)}${(stats.topPost.caption || '').length > 60 ? '...' : ''}"\nER: ${stats.topPost.engagement_rate}%`
+        : '';
+      statsText = `\n\n📊 統計（直近${stats.totalPosts}件）\n平均いいね: ${stats.avgLikes}\n平均リーチ: ${stats.avgReach.toLocaleString()}\n平均ER: ${stats.avgER}%${hashtagSection}${topPostPreview}`;
+    }
+
+    await replyText(replyToken, `✅ 同期完了！\n\n新規取得: ${synced}件${statsText}`);
   } catch (err) {
     console.error('[Instagram] 同期エラー:', err);
     await replyText(replyToken, '❌ 同期に失敗しました。トークンの有効期限を確認してください。');
@@ -129,10 +139,20 @@ async function handleInstagramSync(user, replyToken) {
 
 async function handleInstagramStats(user, replyToken) {
   try {
-    const stats = await getInstagramStats(user.current_store_id);
+    let stats = await getInstagramStats(user.current_store_id);
+
+    // データがなければ自動syncを試行
+    if (!stats) {
+      try {
+        await syncInstagramPosts(user.current_store_id, 25);
+        stats = await getInstagramStats(user.current_store_id);
+      } catch (syncErr) {
+        console.error('[Instagram] stats自動同期失敗:', syncErr.message);
+      }
+    }
 
     if (!stats) {
-      await replyText(replyToken, '📊 まだデータがありません。\n\n/instagram sync でデータを取得してください。');
+      await replyText(replyToken, '📊 まだデータがありません。Instagram連携を確認してください。');
       return true;
     }
 

@@ -958,16 +958,7 @@ describe('Scenario 27: 第4次監査 LOW修正（L1-L9）', async () => {
       'Should check array length before pushing');
   });
 
-  it('M11: welcomeHandler がmaskUserIdを使用', async () => {
-    const fs = await import('node:fs');
-    const content = fs.readFileSync(
-      new URL('../src/handlers/welcomeHandler.js', import.meta.url), 'utf-8'
-    );
-    assert.ok(content.includes("import { maskUserId }"),
-      'Should import maskUserId');
-    assert.ok(content.includes('maskUserId(lineUserId)'),
-      'Should use maskUserId() instead of manual slicing');
-  });
+  // M11: welcomeHandler テスト削除 - ウェルカムメッセージはLINE公式管理画面のあいさつメッセージに移行
 
   it('M9: monthlyFollowerService がエラー詳細をユーザーに漏洩しない', async () => {
     const fs = await import('node:fs');

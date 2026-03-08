@@ -322,6 +322,7 @@ export function formatWeeklyPlanMessage(plan) {
   }
 
   message += `\n━━━━━━━━━━━━━━━`;
+  message += `\n\nまた確認したいときは【今週の計画】とお伝えください`;
   return message;
 }
 
