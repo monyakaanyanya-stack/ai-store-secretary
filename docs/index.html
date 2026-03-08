@@ -663,46 +663,6 @@
     .benefit-card h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 8px; }
     .benefit-card p { font-size: 0.85rem; color: var(--text-muted); line-height: 1.8; }
 
-    /* ─── Engine cards ───────────────────────── */
-    .engine-card {
-      padding: 36px 28px;
-      background: var(--surface-strong);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      text-align: center;
-      box-shadow: var(--shadow);
-      transition: all var(--transition);
-      position: relative;
-      overflow: hidden;
-    }
-    .engine-card::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 3px;
-      background: linear-gradient(90deg, var(--accent), var(--warm-gold));
-      opacity: 0;
-      transition: opacity var(--transition);
-    }
-    .engine-card:hover {
-      transform: translateY(-6px);
-      box-shadow: var(--shadow-hover);
-      border-color: rgba(184,112,74,.12);
-    }
-    .engine-card:hover::before { opacity: 1; }
-    .engine-icon {
-      font-size: 1.6rem;
-      margin-bottom: 16px;
-      width: 56px; height: 56px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      background: linear-gradient(135deg, var(--accent-soft), var(--green-soft));
-      border-radius: 16px;
-    }
-    .engine-card h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; }
-    .engine-card p { font-size: 0.82rem; color: var(--text-muted); line-height: 1.8; }
-
     /* ─── Target cards ───────────────────────── */
     .target-grid {
       display: grid;
@@ -1058,7 +1018,7 @@
   <section class="solution-bridge fade-in">
     <div class="container">
       <h2>SNS代行を、<br><em>AIが引き受けます</em></h2>
-      <p class="desc">文章作成・投稿管理・データ分析。<br>あなた専属のSNS担当が、月額2,980円で働きます。</p>
+      <p class="desc">文章作成・投稿管理・データ分析。<br>あなた専属のSNS担当が、月額2,980円から。</p>
     </div>
   </section>
 
@@ -1085,7 +1045,7 @@
         <div class="step-card">
           <div class="step-num">2</div>
           <h3>AIが3つの投稿案を作る</h3>
-          <p>日常 / お知らせ / 誘い</p>
+          <p style="font-size:0.78rem;">記憶に残る日常 / さりげない誘い / 店主のひとりごと</p>
         </div>
         <div class="step-card">
           <div class="step-num">3</div>
@@ -1116,7 +1076,7 @@
             <span class="demo-step-num">Step 1</span>
             <h3>写真を送る</h3>
             <p>一言添えるとさらにあなたらしく</p>
-            <p style="margin-top:12px;font-size:0.82rem;color:var(--accent);font-weight:600;">AIが3つの投稿案を作ります：日常 / お知らせ / 誘い<br><span style="font-weight:400;color:var(--text-muted);">そのままコピーして使えます</span></p>
+            <p style="margin-top:12px;font-size:0.82rem;color:var(--accent);font-weight:600;">AIが3つの投稿案を作ります：お知らせ / 日常感 / お役立ち<br><span style="font-weight:400;color:var(--text-muted);">そのままコピーして使えます</span></p>
           </div>
         </div>
 
@@ -1128,7 +1088,7 @@
           <div class="demo-caption">
             <span class="demo-step-num">Step 2</span>
             <h3>3案が届く</h3>
-            <p>日常 / 誘い / ひとりごと の3タイプ</p>
+            <p style="font-size:0.78rem;">記憶に残る日常 / さりげない誘い / 店主のひとりごと</p>
           </div>
         </div>
 
@@ -1339,11 +1299,11 @@
     </div>
   </section>
 
-  <!-- ═══ Benefits ═══════════════════════════ -->
+  <!-- ═══ Benefits + AI Engines 統合 ═══════════════════════════ -->
   <section class="section section-center fade-in">
     <div class="container">
       <p class="label">Why it works</p>
-      <h2 class="title">なぜ「続く」のか</h2>
+      <h2 class="title">なぜ「続く」のか。なぜ「育つ」のか。</h2>
 
       <div class="benefits-grid">
         <div class="benefit-card">
@@ -1361,35 +1321,22 @@
           <h3>続くから数字が変わる</h3>
           <p>ハードルが下がると投稿頻度が上がる。<br>頻度が上がると、閲覧もリーチも伸びる。</p>
         </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ═══ AI Engines ═══════════════════════════ -->
-  <section class="section section-center fade-in">
-    <div class="container">
-      <p class="label">AI That Grows</p>
-      <h2 class="title">使うほど、あなたのお店の書き方になる</h2>
-      <p class="desc">代行担当は引き継ぎで振り出し。汎用AIは毎回リセット。<br>AI店舗秘書は辞めない・忘れない。使うほど、あなたのお店らしくなります。</p>
-
-      <div class="benefits-grid" style="margin-top:56px;">
-        <div class="engine-card">
-          <div class="engine-icon">🧠</div>
+        <div class="benefit-card">
+          <div class="benefit-icon">🪞</div>
           <h3>お店の書き方を覚える</h3>
-          <p>修正や好みをAIが記憶。使うほど、あなたのお店の雰囲気に合った投稿を作れるようになります。</p>
+          <p>修正や好みをAIが記憶。<br>使うほど、あなたのお店らしくなる。</p>
         </div>
-        <div class="engine-card">
-          <div class="engine-icon">📊</div>
+        <div class="benefit-card">
+          <div class="benefit-icon">📊</div>
           <h3>同じ業種の成功を活かす</h3>
-          <p>同じ業種で反応が良かった投稿の特徴を分析し、あなたの投稿にも取り入れます。</p>
+          <p>同じ業種で反応が良かった投稿の特徴を<br>あなたの投稿にも取り入れます。</p>
         </div>
-        <div class="engine-card">
-          <div class="engine-icon">📈</div>
+        <div class="benefit-card">
+          <div class="benefit-icon">📈</div>
           <h3>反応から自動改善</h3>
-          <p>いいね・保存の数から、反応が良かった投稿の特徴をAIが分析。次の投稿に自動で活かします。</p>
+          <p>いいね・保存の数から傾向をAIが分析。<br>次の投稿に自動で活かします。</p>
         </div>
       </div>
-
     </div>
   </section>
 
@@ -1491,46 +1438,6 @@
       <p class="label">Pricing</p>
       <h2 class="title">SNS代行の<em style="font-style:normal;color:var(--accent);">1/20以下</em>の価格で</h2>
       <p class="desc">代行業者に頼む機能を、月額2,980円から。</p>
-
-      <!-- 比較テーブル -->
-      <div style="max-width:640px;margin:48px auto 0;">
-        <table style="width:100%;border-collapse:collapse;font-size:0.9rem;text-align:center;">
-          <thead>
-            <tr>
-              <th style="padding:14px 12px;border-bottom:2px solid var(--border);text-align:left;"></th>
-              <th style="padding:14px 12px;border-bottom:2px solid var(--border);color:var(--text-muted);">SNS代行</th>
-              <th style="padding:14px 12px;border-bottom:2px solid var(--accent);color:var(--accent);font-weight:700;">AI店舗秘書</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td style="padding:12px;text-align:left;border-bottom:1px solid var(--border);">月額</td>
-              <td style="padding:12px;border-bottom:1px solid var(--border);color:var(--text-muted);">5〜30万円</td>
-              <td style="padding:12px;border-bottom:1px solid var(--border);font-weight:700;color:var(--accent);">2,980円〜</td>
-            </tr>
-            <tr>
-              <td style="padding:12px;text-align:left;border-bottom:1px solid var(--border);">投稿作成</td>
-              <td style="padding:12px;border-bottom:1px solid var(--border);color:var(--text-muted);">月10〜20本</td>
-              <td style="padding:12px;border-bottom:1px solid var(--border);font-weight:700;color:var(--accent);">月60本〜</td>
-            </tr>
-            <tr>
-              <td style="padding:12px;text-align:left;border-bottom:1px solid var(--border);">お店の理解</td>
-              <td style="padding:12px;border-bottom:1px solid var(--border);color:var(--text-muted);">担当者次第</td>
-              <td style="padding:12px;border-bottom:1px solid var(--border);font-weight:700;">自動学習で蓄積</td>
-            </tr>
-            <tr>
-              <td style="padding:12px;text-align:left;border-bottom:1px solid var(--border);">所要時間</td>
-              <td style="padding:12px;border-bottom:1px solid var(--border);color:var(--text-muted);">打ち合わせ必要</td>
-              <td style="padding:12px;border-bottom:1px solid var(--border);font-weight:700;">30秒</td>
-            </tr>
-            <tr>
-              <td style="padding:12px;text-align:left;">データ分析</td>
-              <td style="padding:12px;color:var(--text-muted);">レポート月1回</td>
-              <td style="padding:12px;font-weight:700;">毎回自動分析</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
 
       <!-- 3プランカード -->
       <div class="plan-grid">
