@@ -3,62 +3,19 @@ import { pushMessage } from './lineService.js';
 import { getUserSubscription } from './subscriptionService.js';
 
 /**
- * デイリーリマインダー: 昨日（JST）投稿を生成したユーザーにのみ報告を促す
- *
- * 修正前の問題: 全ユーザーに「24時間以上生成してない人」基準で送っていた
- * 修正後: 「昨日(JST)に投稿を生成した人」だけに送る
+ * デイリーリマインダー: 有料ユーザー全員に報告を促す
+ * - Freeプランはスキップ（Push通数削減）
+ * - リマインダー停止済みユーザーはスキップ
+ * - Instagram連携済みユーザーはスキップ
  */
 export async function sendDailyReminders() {
   console.log('[DailyReminder] リマインダー送信開始');
 
   try {
-    // JST「昨日」の日付範囲を計算
-    // Railway は UTC 動作のため、JST = UTC+9 として変換
-    const JST_OFFSET = 9 * 60 * 60 * 1000;
-    const nowUtc = new Date();
-    const nowJst = new Date(nowUtc.getTime() + JST_OFFSET);
-
-    // 昨日（JST）の 00:00:00 〜 23:59:59 を UTC に変換
-    const yesterdayJst = new Date(nowJst);
-    yesterdayJst.setDate(yesterdayJst.getDate() - 1);
-
-    const yesterdayStartJst = new Date(yesterdayJst);
-    yesterdayStartJst.setHours(0, 0, 0, 0);
-
-    const yesterdayEndJst = new Date(yesterdayJst);
-    yesterdayEndJst.setHours(23, 59, 59, 999);
-
-    const yesterdayStartUtc = new Date(yesterdayStartJst.getTime() - JST_OFFSET);
-    const yesterdayEndUtc = new Date(yesterdayEndJst.getTime() - JST_OFFSET);
-
-    console.log(`[DailyReminder] 昨日(JST)範囲: ${yesterdayStartUtc.toISOString()} 〜 ${yesterdayEndUtc.toISOString()}`);
-
-    // 昨日（JST）に投稿を生成したユーザーのIDを取得
-    const { data: yesterdayPosts, error: postError } = await supabase
-      .from('post_history')
-      .select('user_id')
-      .gte('created_at', yesterdayStartUtc.toISOString())
-      .lte('created_at', yesterdayEndUtc.toISOString());
-
-    if (postError) {
-      console.error('[DailyReminder] 投稿履歴取得エラー:', postError.message);
-      return;
-    }
-
-    if (!yesterdayPosts || yesterdayPosts.length === 0) {
-      console.log('[DailyReminder] 昨日投稿を生成したユーザーなし → リマインダー送信なし');
-      return;
-    }
-
-    // ユニークなuser_idを抽出
-    const userIds = [...new Set(yesterdayPosts.map(p => p.user_id))];
-    console.log(`[DailyReminder] 昨日生成ユーザー数: ${userIds.length}件`);
-
     // リマインダー有効なユーザー情報を取得（reminder_enabled が null または true）
     const { data: users, error: userError } = await supabase
       .from('users')
       .select('*')
-      .in('id', userIds)
       .or('reminder_enabled.is.null,reminder_enabled.eq.true');
 
     if (userError) {

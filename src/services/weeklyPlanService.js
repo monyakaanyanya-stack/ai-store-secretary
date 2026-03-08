@@ -89,12 +89,29 @@ async function getCrossIndustryInsight(storeCategory) {
   }
 }
 
+/**
+ * 過去テーマのプロンプトセクションを構築
+ */
+function buildPastThemesSection(pastThemes) {
+  if (!pastThemes || pastThemes.length === 0) return '';
+
+  const lines = pastThemes.map(w =>
+    `- ${w.weekStart}週: ${w.themes.join('、')}`
+  ).join('\n');
+
+  return `
+【過去の計画テーマ（重複を避けること）】
+${lines}
+→ 上記と同じテーマ・切り口は使わず、新しい視点で計画すること
+`;
+}
+
 // ── プロンプト構築 ──────────────────────────────────
 
 /**
  * 週間計画用のClaude APIプロンプトを構築
  */
-function buildWeeklyPlanPrompt(store, blendedInsights, crossIndustryData, personalization) {
+function buildWeeklyPlanPrompt(store, blendedInsights, crossIndustryData, personalization, pastThemes = []) {
   // 自店舗データが十分にある場合は自店舗の最適時間を優先
   // データが溜まるほど、その店舗固有の最適時間に収束する
   const ownHours = blendedInsights?.own?.bestPostingHours;
@@ -158,7 +175,7 @@ ${bestHours.map(h => `${h}:00`).join(', ')}
 ※ データソース: ${ownSampleSize >= 5 ? `自店舗${ownSampleSize}件のエンゲージメント分析` : ownSampleSize > 0 ? `自店舗${ownSampleSize}件+同業種データ（5件以上で自店舗優先に切替）` : '同業種の全体傾向'}
 ${winPatternSection}
 ${crossIndustrySection}
-
+${buildPastThemesSection(pastThemes)}
 【出力ルール】
 以下のJSON形式のみ出力。説明文や前置きは一切不要。
 
@@ -210,13 +227,14 @@ export async function generateWeeklyPlan(store, userId) {
     console.log(`[WeeklyPlan] 生成開始: store=${store.name} (${store.id})`);
 
     // 並列でデータ取得
-    const [blendedInsights, personalization, crossIndustryData] = await Promise.all([
+    const [blendedInsights, personalization, crossIndustryData, pastThemes] = await Promise.all([
       getBlendedInsights(store.id, store.category).catch(() => null),
       getAdvancedPersonalizationPrompt(store.id).catch(() => ''),
       getCrossIndustryInsight(store.category),
+      getPastWeeklyThemes(store.id, 3).catch(() => []),
     ]);
 
-    const prompt = buildWeeklyPlanPrompt(store, blendedInsights, crossIndustryData, personalization);
+    const prompt = buildWeeklyPlanPrompt(store, blendedInsights, crossIndustryData, personalization, pastThemes);
 
     const response = await askClaude(prompt, {
       max_tokens: 2048,
@@ -271,6 +289,25 @@ async function saveWeeklyPlan(storeId, userId, weekStart, planContent) {
   if (error) {
     throw new Error(`週間計画保存エラー: ${error.message}`);
   }
+}
+
+/**
+ * 過去N週分のテーマ一覧を取得（重複回避用）
+ */
+async function getPastWeeklyThemes(storeId, weeks = 3) {
+  const { data } = await supabase
+    .from('weekly_content_plans')
+    .select('week_start, plan_content')
+    .eq('store_id', storeId)
+    .order('week_start', { ascending: false })
+    .limit(weeks);
+
+  if (!data || data.length === 0) return [];
+
+  return data.map(row => ({
+    weekStart: row.week_start,
+    themes: (row.plan_content?.days || []).map(d => d.theme).filter(Boolean),
+  }));
 }
 
 // ── 計画取得・表示 ──────────────────────────────────
