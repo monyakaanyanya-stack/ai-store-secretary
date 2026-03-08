@@ -1080,26 +1080,26 @@ describe('Scenario 28: Ver.4.0 Dual Trigger Model', async () => {
       'Revision prompt should include forbidden words');
   });
 
-  it('影の秘書コンセプト: 署名性・湿度・情報の言葉が含まれる', async () => {
+  it('影の秘書コンセプト: 書き方の型・1行目ルール・禁止ワードが含まれる', async () => {
     const { buildImagePostPrompt, buildTextPostPrompt } = await import('../src/utils/promptBuilder.js');
     const store = { name: 'テスト店', tone: 'カジュアル', config: {} };
     const imagePrompt = buildImagePostPrompt(store, null, null, '', 'テスト画像');
     const textPrompt = buildTextPostPrompt(store, 'テスト', null, null, '');
 
-    // 署名性ルール
-    assert.ok(imagePrompt.includes('署名性'),
-      'Image prompt should include signature rule');
-    assert.ok(textPrompt.includes('署名性'),
-      'Text prompt should include signature rule');
-    // 湿度ルール
-    assert.ok(imagePrompt.includes('湿度'),
-      'Image prompt should include humidity rule');
-    assert.ok(textPrompt.includes('湿度'),
-      'Text prompt should include humidity rule');
-    // 情報の言葉禁止
-    assert.ok(imagePrompt.includes('情報の言葉'),
-      'Image prompt should include information words ban');
-    assert.ok(textPrompt.includes('情報の言葉'),
+    // 1行目のルール
+    assert.ok(imagePrompt.includes('1行目のルール'),
+      'Image prompt should include first line rule');
+    assert.ok(textPrompt.includes('1行目のルール'),
+      'Text prompt should include first line rule');
+    // 本文の書き方
+    assert.ok(imagePrompt.includes('本文の書き方'),
+      'Image prompt should include writing pattern');
+    assert.ok(textPrompt.includes('本文の書き方'),
+      'Text prompt should include writing pattern');
+    // 禁止ワード
+    assert.ok(imagePrompt.includes('禁止ワード'),
+      'Image prompt should include banned words');
+    assert.ok(textPrompt.includes('禁止ワード'),
       'Text prompt should include information words ban');
   });
 
