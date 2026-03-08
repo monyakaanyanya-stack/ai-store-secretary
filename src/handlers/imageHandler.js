@@ -208,7 +208,9 @@ export async function handleImageMessage(user, messageId, replyToken) {
 
 例：今朝これ焼けたとき嬉しかった
 例：常連さんが褒めてくれた
-例：新作、自信ある`,
+例：新作、自信ある
+
+ボタンで選んでも、自由に文章を送ってもOKです✏️`,
       [
         { type: 'action', action: { type: 'message', label: 'お知らせ', text: 'お知らせ' } },
         { type: 'action', action: { type: 'message', label: '日常感', text: '日常感' } },
