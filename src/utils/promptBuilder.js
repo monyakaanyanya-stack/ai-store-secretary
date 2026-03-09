@@ -596,7 +596,7 @@ export function buildImagePostPrompt(store, lengthOverride = null, blendedInsigh
   }
 
   // ハッシュタグ指示（優先順位: テンプレ固定タグ → 関連タグ → 集合知タグ）
-  const categoryHint = store.category ? `業種「${store.category}」` : '';
+  const categoryHint = (store.category && store.category !== '開発者テスト') ? `業種「${store.category}」` : '';
   const templateHashtags = templates.hashtags || [];
   let hashtagInstruction = '';
 
@@ -1037,7 +1037,7 @@ export function buildTextPostPrompt(store, userText, lengthOverride = null, blen
   let fallbackHashtags = '';
 
   if (!collectiveIntelligenceSection) {
-    const categoryHint = store.category ? `業種は「${store.category}」。` : '';
+    const categoryHint = (store.category && store.category !== '開発者テスト') ? `業種は「${store.category}」。` : '';
     if (templateHashtags.length > 0) {
       fallbackHashtags = `\n【ハッシュタグ（必須）】\n以下の固定タグを必ず先頭に含める:\n${templateHashtags.join(' ')}\nその後に${categoryHint}この投稿内容に合うタグを追加して合計5-8個にする。#instagood #japan などの汎用タグは使わない。`;
     } else {
