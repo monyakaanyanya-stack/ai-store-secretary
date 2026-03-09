@@ -3,7 +3,7 @@ import { notifyClaudeError } from './errorNotification.js';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const MODEL = 'claude-sonnet-4-20250514';
-const MODEL_HAIKU = 'claude-3-5-haiku-20241022';
+const MODEL_HAIKU = 'claude-haiku-4-5-20251001';
 
 /**
  * テキストのみのリクエスト
