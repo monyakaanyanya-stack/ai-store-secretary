@@ -1,12 +1,12 @@
 import { replyText, replyWithQuickReply, getImageAsBase64 } from '../services/lineService.js';
 import { describeImage } from '../services/claudeService.js';
-import { getStore, savePendingImageContext, uploadImageToStorage } from '../services/supabaseService.js';
+import { getStore, savePendingImageContext, uploadImageToStorage, setPendingCommand } from '../services/supabaseService.js';
 import { getBlendedInsights, saveEngagementMetrics } from '../services/collectiveIntelligence.js';
 import { getPersonalizationPromptAddition } from '../services/personalizationEngine.js';
 import { getAdvancedPersonalizationPrompt } from '../services/advancedPersonalization.js';
 import { getSeasonalMemoryPromptAddition } from '../services/seasonalMemoryService.js';
 import { extractInsightsFromScreenshot } from '../services/insightsOCRService.js';
-import { applyEngagementMetrics } from './reportHandler.js';
+import { applyEngagementMetrics, getRecentPostHistory } from './reportHandler.js';
 import { detectContentCategory } from '../utils/contentCategoryDetector.js';
 import { checkGenerationLimit, isFeatureEnabled } from '../services/subscriptionService.js';
 import { getCategoryGroup } from '../config/categoryDictionary.js';
@@ -174,16 +174,9 @@ export async function handleImageMessage(user, messageId, replyToken) {
       console.log(`[Image] インサイトスクショ検出: store=${store.name}, likes=${insights.likes}, saves=${insights.saves}`);
 
       if (insights.likes !== null || insights.saves !== null || insights.comments !== null) {
-        const { supabase } = await import('../services/supabaseService.js');
-        const { data: latestPost } = await supabase
-          .from('post_history')
-          .select('id, content')
-          .eq('store_id', store.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
+        const recentPosts = await getRecentPostHistory(user.id, store.id, 3);
 
-        if (!latestPost) {
+        if (recentPosts.length === 0) {
           return await replyText(replyToken,
             'スクショは読めたんですが、まだ投稿がないみたいです。先に投稿を作ってから送ってください！'
           );
@@ -196,8 +189,39 @@ export async function handleImageMessage(user, messageId, replyToken) {
           reach:    insights.reach,
         };
 
-        await applyEngagementMetrics(user, store, metrics, latestPost, replyToken);
-        return; // 報告完了 → 投稿生成フローには進まない
+        // 投稿が1件だけなら従来通り自動紐づけ
+        if (recentPosts.length === 1) {
+          await applyEngagementMetrics(user, store, metrics, recentPosts[0], replyToken);
+          return;
+        }
+
+        // 複数件ある場合 → OCR結果を一時保存し、投稿選択を求める
+        await savePendingImageContext(user.id, {
+          insightsData: metrics,
+          recentPosts: recentPosts.map(p => ({ id: p.id, content: p.content })),
+          storeId: store.id,
+          analysisStatus: 'awaiting_post_selection',
+          createdAt: new Date().toISOString(),
+        });
+        await setPendingCommand(user.id, 'awaiting_post_selection');
+
+        // 投稿リストをクイックリプライで表示
+        const postListText = recentPosts.map((p, i) => {
+          const preview = (p.content || '').replace(/\n/g, ' ').slice(0, 25);
+          return `${i + 1}. ${preview}…`;
+        }).join('\n');
+
+        const quickReplies = recentPosts.map((_, i) => ({
+          type: 'action',
+          action: { type: 'message', label: `${i + 1}`, text: `${i + 1}` },
+        }));
+
+        await replyWithQuickReply(
+          replyToken,
+          `📊 インサイトを読み取りました！\nいいね: ${metrics.likes} / 保存: ${metrics.saves} / コメント: ${metrics.comments}${metrics.reach ? ` / リーチ: ${metrics.reach}` : ''}\n\nどの投稿の報告ですか？\n\n${postListText}`,
+          quickReplies
+        );
+        return;
       }
 
       console.warn('[Image] インサイト判定: 数値読み取り失敗 → 投稿生成フローへ');

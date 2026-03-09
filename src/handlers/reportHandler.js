@@ -446,7 +446,7 @@ async function getMonthlyReportCount(userId, storeId) {
 /**
  * 最近の投稿履歴を取得（複数件）
  */
-async function getRecentPostHistory(userId, storeId, limit = 5) {
+export async function getRecentPostHistory(userId, storeId, limit = 5) {
   // L2修正: static importを使用
 
   const { data, error } = await supabase

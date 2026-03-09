@@ -11,10 +11,11 @@ import {
   updateStoreTemplates,
   setPendingCommand,
   clearPendingCommand,
+  clearPendingImageContext,
   getLatestPost,
 } from '../services/supabaseService.js';
 import { handleFeedback, handleStyleLearning } from './feedbackHandler.js';
-import { handleEngagementReport, handlePostSelection } from './reportHandler.js';
+import { handleEngagementReport, handlePostSelection, applyEngagementMetrics } from './reportHandler.js';
 import { handleOnboardingStart, handleOnboardingResponse, handleHelpMenu, handleHelpCategory, handleCommandList } from './onboardingHandler.js';
 import { handleDataStats } from './dataStatsHandler.js';
 import { handleAdminMenu, handleAdminTestData, handleAdminClearData, handleAdminClearTestData, handleAdminReportMode, handleAdminReportSave, handleAdminCategoryRequests, handleAdminSub } from './adminHandler.js';
@@ -136,6 +137,29 @@ export async function handleTextMessage(user, text, replyToken) {
     }
     if (cmd === 'style_learning') {
       return await handleStyleLearning(user, trimmed, replyToken);
+    }
+    if (cmd === 'awaiting_post_selection') {
+      // インサイトスクショ後の投稿選択
+      const ctx = user.pending_image_context;
+      if (!ctx || !ctx.insightsData || !ctx.recentPosts) {
+        await clearPendingImageContext(user.id);
+        return await replyText(replyToken, 'セッションが切れました。もう一度スクショを送ってください');
+      }
+      const idx = parseInt(trimmed, 10);
+      if (isNaN(idx) || idx < 1 || idx > ctx.recentPosts.length) {
+        // 無効な選択 → 再度選択を促す（pending_commandを再設定）
+        await setPendingCommand(user.id, 'awaiting_post_selection');
+        return await replyText(replyToken,
+          `1〜${ctx.recentPosts.length} の番号で選んでください`
+        );
+      }
+      const selectedPost = ctx.recentPosts[idx - 1];
+      await clearPendingImageContext(user.id);
+      const store = await getStore(ctx.storeId);
+      if (!store) {
+        return await replyText(replyToken, '店舗が見つかりません');
+      }
+      return await applyEngagementMetrics(user, store, ctx.insightsData, selectedPost, replyToken);
     }
   }
 
