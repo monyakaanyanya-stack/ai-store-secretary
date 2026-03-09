@@ -1,9 +1,17 @@
 import { replyText } from '../services/lineService.js';
-import { supabase } from '../services/supabaseService.js';
+import { supabase, createStore, updateCurrentStore } from '../services/supabaseService.js';
 import { getStore } from '../services/supabaseService.js';
 import { saveEngagementMetrics } from '../services/collectiveIntelligence.js';
 import { normalizeInput, safeParseInt } from '../utils/inputNormalizer.js';
 import { maskUserId } from '../utils/security.js';
+
+/** 開発者テスト店舗のカテゴリー名（集合知除外・写真から自動検出） */
+export const DEV_TEST_CATEGORY = '開発者テスト';
+
+/** 店舗が開発者テスト店舗かどうか判定 */
+export function isDevTestStore(store) {
+  return store?.category === DEV_TEST_CATEGORY;
+}
 
 // S18修正: 管理者の破壊的操作を監査ログに記録
 function auditLog(adminUserId, action, details = '') {
@@ -477,12 +485,57 @@ export async function handleAdminMenu(user, replyToken) {
 /admin sub
 → プラン確認・手動変更（テスト用）
 
+【開発者テスト店舗作成】
+/admin dev-store
+→ 写真から業種を自動判定するテスト用店舗を作成（集合知に影響しない）
+
 【データ確認】
 データ確認
 → 通常コマンドで確認`;
 
   await replyText(replyToken, message);
   return true;
+}
+
+/**
+ * 管理者用: 開発者テスト店舗作成
+ * コマンド: /admin dev-store
+ * - カテゴリー「開発者テスト」で店舗を即作成
+ * - 写真送信時は被写体から自動でカテゴリーを検出して使用
+ * - 集合知には保存しない
+ */
+export async function handleAdminDevStore(user, replyToken) {
+  if (!isAdmin(user.line_user_id)) {
+    return false;
+  }
+
+  try {
+    const store = await createStore(user.id, {
+      name: '開発テスト',
+      category: DEV_TEST_CATEGORY,
+      tone: 'casual',
+      strength: '全業種テスト用',
+    });
+
+    await updateCurrentStore(user.id, store.id);
+
+    auditLog(user.line_user_id, 'dev-store-create', `storeId=${store.id}`);
+
+    await replyText(replyToken, `🔧 開発者テスト店舗を作成しました
+
+店舗名: 開発テスト
+カテゴリー: ${DEV_TEST_CATEGORY}
+
+📸 写真を送ると業種を自動判定して投稿を生成します
+📊 集合知データには保存されません
+🔄 通常店舗に戻すには「店舗切り替え」`);
+
+    return true;
+  } catch (err) {
+    console.error('[Admin] dev-store作成エラー:', err);
+    await replyText(replyToken, '⚠️ 開発者テスト店舗の作成に失敗しました');
+    return true;
+  }
 }
 
 /**

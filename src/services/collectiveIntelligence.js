@@ -290,6 +290,12 @@ function getDefaultInsights() {
  * @returns {Object} - { success: boolean, validation: Object }
  */
 export async function saveEngagementMetrics(storeId, category, postData, metrics = {}) {
+  // 開発者テスト店舗のデータは集合知に保存しない
+  if (category === '開発者テスト') {
+    console.log('[CollectiveIntelligence] 開発者テスト店舗 → 集合知保存スキップ');
+    return { success: true, validation: { isValid: true, skipped: true } };
+  }
+
   // ラベルを正規化（表記ゆれ吸収: "cafe"→"カフェ", "カフェ "→"カフェ"）
   const normalizedCategory = normalizeCategory(category) || category;
   const categoryGroup = getCategoryGroup(normalizedCategory) ?? 'other';

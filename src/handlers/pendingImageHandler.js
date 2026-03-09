@@ -6,6 +6,7 @@ import { buildImagePostPrompt } from '../utils/promptBuilder.js';
 import { saveEngagementMetrics } from '../services/collectiveIntelligence.js';
 import { getRevisionExample } from '../utils/categoryExamples.js';
 import { checkGenerationLimit, isFeatureEnabled } from '../services/subscriptionService.js';
+import { isDevTestStore } from './adminHandler.js';
 
 // pending_image_context の有効期限（30分）
 const PENDING_EXPIRE_MS = 30 * 60 * 1000;
@@ -121,8 +122,14 @@ export async function handlePendingImageResponse(user, text, replyToken) {
     //    再取得は不要。LINE のメッセージサーバーから画像が削除されても問題なし。
 
     const isPremium = await isFeatureEnabled(user.id, 'enhancedPhotoAdvice');
+
+    // 開発者テスト店舗: 検出カテゴリーで store を一時的にオーバーライド
+    const storeForPrompt = isDevTestStore(store) && ctx.effectiveCategory
+      ? { ...store, category: ctx.effectiveCategory }
+      : store;
+
     const prompt = buildImagePostPrompt(
-      store,
+      storeForPrompt,
       null,
       ctx.blendedInsights ?? null,
       ctx.personalization ?? '',
@@ -133,7 +140,8 @@ export async function handlePendingImageResponse(user, text, replyToken) {
     const rawContent = await askClaude(prompt);
     const savedPost = await savePostHistory(user.id, store.id, rawContent, null, ctx.imageUrl || null);
 
-    if (store.category) {
+    // 開発者テスト店舗は集合知に保存しない
+    if (store.category && !isDevTestStore(store)) {
       try {
         await saveEngagementMetrics(store.id, store.category, {
           post_id: savedPost.id,

@@ -18,7 +18,7 @@ import { handleFeedback, handleStyleLearning } from './feedbackHandler.js';
 import { handleEngagementReport, handlePostSelection, applyEngagementMetrics } from './reportHandler.js';
 import { handleOnboardingStart, handleOnboardingResponse, handleHelpMenu, handleHelpCategory, handleCommandList } from './onboardingHandler.js';
 import { handleDataStats } from './dataStatsHandler.js';
-import { handleAdminMenu, handleAdminTestData, handleAdminClearData, handleAdminClearTestData, handleAdminReportMode, handleAdminReportSave, handleAdminCategoryRequests, handleAdminSub } from './adminHandler.js';
+import { handleAdminMenu, handleAdminTestData, handleAdminClearData, handleAdminClearTestData, handleAdminReportMode, handleAdminReportSave, handleAdminCategoryRequests, handleAdminSub, handleAdminDevStore } from './adminHandler.js';
 import { handleInstagramCommand } from './instagramHandler.js';
 import { handlePendingImageResponse } from './pendingImageHandler.js';
 import { handleFollowerCountResponse, getPendingFollowerRequest } from '../services/monthlyFollowerService.js';
@@ -88,6 +88,9 @@ export async function handleTextMessage(user, text, replyToken) {
     } else if (args.startsWith('sub')) {
       const subArgs = args.replace(/^sub\s*/, '');
       const handled = await handleAdminSub(user, subArgs, replyToken);
+      if (handled) return;
+    } else if (args === 'dev-store') {
+      const handled = await handleAdminDevStore(user, replyToken);
       if (handled) return;
     }
     // /admin で始まるメッセージは管理者以外には無視（後続ハンドラーに流さない）

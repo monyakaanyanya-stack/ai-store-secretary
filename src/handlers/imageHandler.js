@@ -10,6 +10,7 @@ import { applyEngagementMetrics, getRecentPostHistory } from './reportHandler.js
 import { detectContentCategory } from '../utils/contentCategoryDetector.js';
 import { checkGenerationLimit, isFeatureEnabled } from '../services/subscriptionService.js';
 import { getCategoryGroup } from '../config/categoryDictionary.js';
+import { isDevTestStore } from './adminHandler.js';
 
 /**
  * カテゴリに応じたヒント例文を返す
@@ -83,12 +84,18 @@ async function analyzeImageInBackground(userId, store, imageBase64, imageUrl, me
 
     // 被写体カテゴリー検出 → 集合知取得
     const contentCategory = detectContentCategory(imageDescription);
-    if (contentCategory && contentCategory !== store.category) {
+    // 開発者テスト店舗: 検出カテゴリーを store.category の代わりに使用
+    const effectiveCategory = isDevTestStore(store)
+      ? (contentCategory || store.category)
+      : store.category;
+    if (isDevTestStore(store) && contentCategory) {
+      console.log(`[Image] 開発者テスト: 自動検出カテゴリー → ${contentCategory}`);
+    } else if (contentCategory && contentCategory !== store.category) {
       console.log(`[Image] 被写体カテゴリー検出: store=${store.category} → content=${contentCategory}`);
     }
     const blendedInsights = await safeResolve(
-      store.category
-        ? getBlendedInsights(store.id, store.category, contentCategory)
+      effectiveCategory
+        ? getBlendedInsights(store.id, effectiveCategory, contentCategory)
         : Promise.resolve(null),
       null, 'blendedInsights'
     );
@@ -104,6 +111,7 @@ async function analyzeImageInBackground(userId, store, imageBase64, imageUrl, me
       personalization,
       imageUrl,
       hasLearning: (advancedPersonalization || '') !== '',
+      effectiveCategory: effectiveCategory || null,
       analysisStatus: 'complete',
       createdAt: new Date().toISOString(),
     });

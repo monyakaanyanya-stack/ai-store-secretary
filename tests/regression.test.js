@@ -2501,3 +2501,84 @@ describe('Scenario 44: 夜間エンゲージメント自動同期', async () => 
     );
   });
 });
+
+// ============================================================
+// Scenario 45: 開発者テスト店舗（自動カテゴリー検出・集合知除外）
+// ============================================================
+describe('Scenario 45: 開発者テスト店舗', async () => {
+  const fs = await import('node:fs');
+
+  it('adminHandler に DEV_TEST_CATEGORY と isDevTestStore がエクスポートされている', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/adminHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes("export const DEV_TEST_CATEGORY = '開発者テスト'"),
+      'DEV_TEST_CATEGORY 定数がエクスポートされている');
+    assert.ok(content.includes('export function isDevTestStore'),
+      'isDevTestStore 関数がエクスポートされている');
+  });
+
+  it('isDevTestStore が DEV_TEST_CATEGORY と比較している', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/adminHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('DEV_TEST_CATEGORY'),
+      'isDevTestStore 内で DEV_TEST_CATEGORY を参照している');
+  });
+
+  it('adminHandler に handleAdminDevStore がエクスポートされている', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/adminHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('export async function handleAdminDevStore'),
+      'handleAdminDevStore がエクスポートされている');
+    assert.ok(content.includes('createStore'), '店舗作成を呼び出している');
+  });
+
+  it('textHandler に /admin dev-store ルーティングがある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/textHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes("'dev-store'"), 'dev-store ルーティングがあるべき');
+    assert.ok(content.includes('handleAdminDevStore'), 'handleAdminDevStore を呼び出している');
+  });
+
+  it('imageHandler に isDevTestStore チェックがある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('isDevTestStore'), 'isDevTestStore を使用している');
+    assert.ok(content.includes('effectiveCategory'), 'effectiveCategory 変数がある');
+  });
+
+  it('imageHandler が effectiveCategory を pending context に保存している', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('effectiveCategory:'), 'effectiveCategory を context に保存している');
+  });
+
+  it('pendingImageHandler に isDevTestStore チェックがある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/pendingImageHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('isDevTestStore'), 'isDevTestStore を使用している');
+    assert.ok(content.includes('storeForPrompt'), 'storeForPrompt でカテゴリーオーバーライドしている');
+  });
+
+  it('pendingImageHandler が開発者テスト時に集合知保存をスキップする', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/pendingImageHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('!isDevTestStore(store)'),
+      '集合知保存条件に isDevTestStore チェックがある');
+  });
+
+  it('collectiveIntelligence が開発者テストカテゴリーを除外する', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/collectiveIntelligence.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes("category === '開発者テスト'"),
+      'saveEngagementMetrics に開発者テスト除外ガードがある');
+  });
+});
