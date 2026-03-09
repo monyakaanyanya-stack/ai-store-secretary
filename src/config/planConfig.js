@@ -15,6 +15,7 @@
  *   instagramPost             - Instagram投稿（API経由）→ Standard以上
  *   weeklyContentPlan         - 週間コンテンツ計画（月曜自動送信）→ Premium
  *   enhancedPhotoAdvice       - 強化版撮影アドバイス（明日撮るべきもの+理由）→ Premium
+ *   dailyPhotoNudge            - 毎日17時の撮影提案ナッジ → Standard以上
  *   dataCollection            - エンゲージメントデータ裏収集（集合知貢献）→ 全プラン
  */
 
@@ -34,6 +35,7 @@ export const PLANS = {
       instagramPost: false,
       weeklyContentPlan: false,
       enhancedPhotoAdvice: false,
+      dailyPhotoNudge: false,
       dataCollection: true,
     },
     price: 0,
@@ -55,6 +57,7 @@ export const PLANS = {
       instagramPost: true,
       weeklyContentPlan: false,
       enhancedPhotoAdvice: false,
+      dailyPhotoNudge: true,
       dataCollection: true,
     },
     price: 2980,
@@ -76,6 +79,7 @@ export const PLANS = {
       instagramPost: true,
       weeklyContentPlan: true,
       enhancedPhotoAdvice: true,
+      dailyPhotoNudge: true,
       dataCollection: true,
     },
     price: 5980,

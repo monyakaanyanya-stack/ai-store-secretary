@@ -269,6 +269,7 @@ export async function buildPlanSummaryMessage(userId) {
     `Instagram投稿:       ${planConfig.features.instagramPost            ? '✅' : '❌'}`,
     `週間コンテンツ計画:   ${planConfig.features.weeklyContentPlan        ? '✅' : '❌'}`,
     `強化版撮影アドバイス: ${planConfig.features.enhancedPhotoAdvice      ? '✅' : '❌'}`,
+    `撮影提案ナッジ:       ${planConfig.features.dailyPhotoNudge          ? '✅' : '❌'}`,
   ].join('\n');
 
   let periodLine = '';

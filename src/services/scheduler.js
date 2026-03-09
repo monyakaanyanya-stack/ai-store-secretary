@@ -5,6 +5,8 @@ import { notifyDailySummary, notifyCategoryPromotion } from './errorNotification
 
 import { detectPopularOtherCategories } from './collectiveIntelligence.js';
 import { sendWeeklyPlansToAllPremium } from './weeklyPlanService.js';
+import { sendDailyPhotoNudges } from './dailyNudgeService.js';
+import { runNightlyEngagementSync } from './nightlyEngagementService.js';
 
 // H18修正: cron ジョブの重複実行防止ロック
 const jobLocks = new Map();
@@ -72,9 +74,25 @@ export function startScheduler() {
     timezone: 'UTC'
   });
 
-  // 毎週月曜 朝8時（日本時間）にPremiumユーザーに週間計画を送信
-  // JST 8:00 月曜 = UTC 23:00 日曜
-  cron.schedule('0 23 * * 0', () => {
+  // 毎日17時（日本時間）に撮影提案ナッジ送信
+  // JST 17:00 = UTC 8:00
+  cron.schedule('0 8 * * *', () => {
+    runWithLock('デイリー撮影ナッジ', sendDailyPhotoNudges);
+  }, {
+    timezone: 'UTC'
+  });
+
+  // 毎日深夜2時（日本時間）にInstagramエンゲージメント自動同期
+  // JST 2:00 = UTC 17:00
+  cron.schedule('0 17 * * *', () => {
+    runWithLock('夜間エンゲージメント同期', runNightlyEngagementSync);
+  }, {
+    timezone: 'UTC'
+  });
+
+  // 毎週月曜 朝9:30（日本時間）にPremiumユーザーに週間計画を送信
+  // JST 9:30 月曜 = UTC 0:30 月曜
+  cron.schedule('30 0 * * 1', () => {
     runWithLock('週間コンテンツ計画', sendWeeklyPlansToAllPremium);
   }, {
     timezone: 'UTC'
@@ -82,7 +100,9 @@ export function startScheduler() {
 
   console.log('[Scheduler] スケジューラー起動完了');
   console.log('  - デイリーリマインダー: 毎日 UTC 1:00 (JST 10:00)');
+  console.log('  - デイリー撮影ナッジ: 毎日 UTC 8:00 (JST 17:00)');
   console.log('  - デイリーサマリー: 毎日 UTC 14:59 (JST 23:59)');
   console.log('  - カテゴリー昇格チェック: 毎週月曜 UTC 0:00 (JST 9:00)');
-  console.log('  - 週間コンテンツ計画: 毎週日曜 UTC 23:00 (JST 月曜 8:00)');
+  console.log('  - 夜間エンゲージメント同期: 毎日 UTC 17:00 (JST 2:00)');
+  console.log('  - 週間コンテンツ計画: 毎週月曜 UTC 0:30 (JST 9:30)');
 }

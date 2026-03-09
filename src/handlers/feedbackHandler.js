@@ -4,7 +4,7 @@ import {
   getStore,
   getLatestPost,
   saveLearningData,
-  updatePostContent,
+  savePostHistory,
 } from '../services/supabaseService.js';
 import { buildRevisionPrompt } from '../utils/promptBuilder.js';
 import { applyFeedbackToProfile, getOrCreateLearningProfile } from '../services/personalizationEngine.js';
@@ -56,9 +56,9 @@ export async function handleFeedback(user, feedback, replyToken) {
     const prompt = buildRevisionPrompt(store, latestPost.content, feedback, advancedPersonalization);
     const revisedContent = await askClaude(prompt);
 
-    // 修正版で既存の投稿履歴を更新（新レコードを作らない）
-    // → エンゲージメント報告時にlatestPostが修正版に誤紐付けされるのを防止
-    await updatePostContent(latestPost.id, revisedContent);
+    // 修正版を新しい投稿履歴として保存（生成回数としてカウント）
+    // → 修正前の版も履歴に残り、修正版が latestPost になる
+    await savePostHistory(user.id, store.id, revisedContent, null, latestPost.image_url || null);
 
     console.log(`[Feedback] 修正完了: store=${store.name}`);
 

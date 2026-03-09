@@ -275,15 +275,15 @@ describe('Scenario 10: モジュールimport整合性', async () => {
       'deleteStore should include engagement_metrics cleanup');
   });
 
-  it('feedbackHandler が updatePostContent を使用', async () => {
+  it('feedbackHandler が savePostHistory を使用（直しも生成回数カウント）', async () => {
     const fs = await import('node:fs');
     const content = fs.readFileSync(
       new URL('../src/handlers/feedbackHandler.js', import.meta.url), 'utf-8'
     );
-    assert.ok(content.includes('updatePostContent'),
-      'feedbackHandler should import updatePostContent');
-    assert.ok(!content.includes('savePostHistory'),
-      'feedbackHandler should NOT use savePostHistory (replaced by updatePostContent)');
+    assert.ok(content.includes('savePostHistory'),
+      'feedbackHandler should import savePostHistory for revision counting');
+    assert.ok(!content.includes('updatePostContent'),
+      'feedbackHandler should NOT use updatePostContent (revisions are new records now)');
   });
 
   it('textHandler の処理順序: handlePostSelection が pending_follower_request より先', async () => {
@@ -2306,5 +2306,198 @@ describe('Scenario 42: Instagram OAuth 自動連携', async () => {
     assert.ok(content.includes('encrypt(payload)'), 'state生成時に encrypt を使用');
     assert.ok(content.includes('decrypt(decodeURIComponent'), 'state検証時に decrypt を使用');
     assert.ok(content.includes('maxAgeMs'), '有効期限チェックがある');
+  });
+});
+
+// ==================== Scenario 43: デイリー撮影ナッジ ====================
+describe('Scenario 43: デイリー撮影ナッジ', async () => {
+  const fs = await import('node:fs');
+
+  it('dailyNudgeService.js が存在する', () => {
+    assert.ok(
+      fs.existsSync('src/services/dailyNudgeService.js'),
+      'dailyNudgeService.js が作成されているべき'
+    );
+  });
+
+  it('nudgeTemplates.js が存在する', () => {
+    assert.ok(
+      fs.existsSync('src/config/nudgeTemplates.js'),
+      'nudgeTemplates.js が作成されているべき'
+    );
+  });
+
+  it('dailyNudgeService に sendDailyPhotoNudges がエクスポートされている', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/dailyNudgeService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('export async function sendDailyPhotoNudges'),
+      'sendDailyPhotoNudges がエクスポートされている');
+  });
+
+  it('hasPostedToday チェックがある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/dailyNudgeService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('hasPostedToday'), '今日投稿済みチェック関数がある');
+    assert.ok(content.includes('post_history'), 'post_history テーブルを参照している');
+  });
+
+  it('Premium向けのClaude API生成がある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/dailyNudgeService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('askClaude'), 'Claude API を呼び出している');
+    assert.ok(content.includes('premium'), 'Premium判定ロジックがある');
+  });
+
+  it('Standard向けのテンプレートベース生成がある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/dailyNudgeService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('pickTemplateNudge'),
+      'テンプレートベースの提案ロジックがある');
+  });
+
+  it('nudgeTemplates に全6グループのテンプレートがある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/config/nudgeTemplates.js', import.meta.url), 'utf-8'
+    );
+    for (const group of ['beauty', 'food', 'retail', 'service', 'professional', 'creative']) {
+      assert.ok(content.includes(`${group}:`), `${group} グループのテンプレートがある`);
+    }
+  });
+
+  it('nudgeTemplates の各テンプレートに必要なフィールドがある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/config/nudgeTemplates.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('subject'), 'subject フィールドがある');
+    assert.ok(content.includes('cameraTip'), 'cameraTip フィールドがある');
+    assert.ok(content.includes('description'), 'description フィールドがある');
+    assert.ok(content.includes('season'), 'season フィールドがある');
+  });
+
+  it('planConfig に dailyPhotoNudge フラグがある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/config/planConfig.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('dailyPhotoNudge'), 'dailyPhotoNudge フラグが存在する');
+  });
+
+  it('Free プランでは dailyPhotoNudge が false、Standard/Premium は true', async () => {
+    const { PLANS } = await import('../src/config/planConfig.js');
+    assert.equal(PLANS.free.features.dailyPhotoNudge, false, 'Free は false');
+    assert.equal(PLANS.standard.features.dailyPhotoNudge, true, 'Standard は true');
+    assert.equal(PLANS.premium.features.dailyPhotoNudge, true, 'Premium は true');
+  });
+
+  it('scheduler.js にデイリー撮影ナッジの cron ジョブがある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/scheduler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('sendDailyPhotoNudges'), 'sendDailyPhotoNudges を呼んでいる');
+    assert.ok(content.includes('デイリー撮影ナッジ'), 'ジョブ名が設定されている');
+  });
+
+  it('Freeプランユーザーをスキップするロジックがある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/dailyNudgeService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes("plan === 'free'"),
+      'Free プランスキップロジックがある');
+  });
+
+  it('subscriptionService の buildPlanSummaryMessage に dailyPhotoNudge がある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/subscriptionService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('dailyPhotoNudge'), 'dailyPhotoNudge を表示している');
+  });
+});
+
+// ==================== Scenario 44: 夜間エンゲージメント自動同期 ====================
+describe('Scenario 44: 夜間エンゲージメント自動同期', async () => {
+  const fs = await import('node:fs');
+
+  it('nightlyEngagementService.js が存在する', () => {
+    assert.ok(
+      fs.existsSync('src/services/nightlyEngagementService.js'),
+      'nightlyEngagementService.js が作成されているべき'
+    );
+  });
+
+  it('runNightlyEngagementSync がエクスポートされている', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/nightlyEngagementService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('export async function runNightlyEngagementSync'),
+      'runNightlyEngagementSync がエクスポートされている');
+  });
+
+  it('Instagram APIからメトリクスを取得する関数がある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/nightlyEngagementService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('fetchLatestMetrics'), 'fetchLatestMetrics 関数がある');
+    assert.ok(content.includes('/media'), 'Instagram media エンドポイントを呼んでいる');
+    assert.ok(content.includes('/insights'), 'Instagram insights エンドポイントを呼んでいる');
+  });
+
+  it('post_history とのマッチング機能がある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/nightlyEngagementService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('matchWithPostHistory'), 'matchWithPostHistory 関数がある');
+    assert.ok(content.includes('post_history'), 'post_history テーブルを参照している');
+  });
+
+  it('学習パイプラインのサイレント実行がある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/nightlyEngagementService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('applyMetricsSilently'), 'applyMetricsSilently 関数がある');
+    assert.ok(content.includes('saveEngagementMetrics'), '集合知保存を呼んでいる');
+    assert.ok(content.includes('applyEngagementToProfile'), '個人学習を呼んでいる');
+    assert.ok(content.includes('analyzeEngagementWithClaude'), 'Claude自動分析を呼んでいる');
+  });
+
+  it('learning_synced フラグで重複防止している', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/nightlyEngagementService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('learning_synced'), 'learning_synced フラグを使用している');
+  });
+
+  it('instagram_posts のメトリクス更新機能がある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/nightlyEngagementService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('updateInstagramPostMetrics'), 'updateInstagramPostMetrics 関数がある');
+  });
+
+  it('scheduler.js に夜間エンゲージメント同期の cron ジョブがある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/scheduler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('runNightlyEngagementSync'), 'runNightlyEngagementSync を呼んでいる');
+    assert.ok(content.includes('夜間エンゲージメント同期'), 'ジョブ名が設定されている');
+  });
+
+  it('instagramService から graphApiRequestBase がエクスポートされている', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/instagramService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('export async function graphApiRequestBase'),
+      'graphApiRequestBase がエクスポートされている');
+    assert.ok(content.includes('export const INSTAGRAM_API_BASE'),
+      'INSTAGRAM_API_BASE がエクスポートされている');
+  });
+
+  it('migration_learning_synced.sql が存在する', () => {
+    assert.ok(
+      fs.existsSync('database/migration_learning_synced.sql'),
+      'migration_learning_synced.sql が作成されているべき'
+    );
   });
 });

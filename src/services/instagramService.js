@@ -2,15 +2,15 @@ import { supabase } from './supabaseService.js';
 import { encrypt, decrypt } from '../utils/security.js';
 
 // Facebook Graph API（ビジネスアカウント経由のInstagram）
-const GRAPH_API_BASE = 'https://graph.facebook.com/v21.0';
+export const GRAPH_API_BASE = 'https://graph.facebook.com/v21.0';
 // Instagram Business Login API
-const INSTAGRAM_API_BASE = 'https://graph.instagram.com/v21.0';
+export const INSTAGRAM_API_BASE = 'https://graph.instagram.com/v21.0';
 
 /**
  * Graph API リクエスト共通関数
  * @param {string} baseUrl - API ベース URL
  */
-async function graphApiRequestBase(baseUrl, path, accessToken, params = {}) {
+export async function graphApiRequestBase(baseUrl, path, accessToken, params = {}) {
   const url = new URL(`${baseUrl}${path}`);
   url.searchParams.set('access_token', accessToken);
   for (const [k, v] of Object.entries(params)) {
