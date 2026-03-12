@@ -2792,7 +2792,7 @@ describe('Scenario 47: 魅力発見AI', async () => {
     assert.ok(content.includes('Observation'), 'describeImage should include Observation section');
     assert.ok(content.includes('Detection'), 'describeImage should include Detection section');
     assert.ok(content.includes('視覚的事実のみ'), 'Observation should enforce visual facts only');
-    assert.ok(content.includes('<具体物>が<シンプルな効果>'), 'Detection should enforce structure rule');
+    assert.ok(content.includes('15字以内が理想'), 'Detection should enforce short format rule');
     assert.ok(content.includes('[① _]'), 'describeImage should include numbered format');
     assert.ok(content.includes('[② _]'), 'describeImage should include numbered format');
     assert.ok(content.includes('[③ _]'), 'describeImage should include numbered format');
@@ -2828,8 +2828,8 @@ describe('Scenario 47: 魅力発見AI', async () => {
     const content = fs.readFileSync(
       new URL('../src/utils/promptBuilder.js', import.meta.url), 'utf-8'
     );
-    assert.ok(content.includes('Detection（写真から発見した魅力）'), 'should use Detection label for viewpoint hints');
-    assert.ok(content.includes('店主が気づいた形で自然に独り言に入れる'), 'should instruct Detection as store owner monologue');
+    assert.ok(content.includes('Detection（発見）'), 'should use Detection label for viewpoint hints');
+    assert.ok(content.includes('店主が作業中にふと気づいたこと'), 'should instruct Detection as store owner monologue');
   });
 
   it('フォールバック: 視点パース失敗時に汎用ヒントボタンをPushする', () => {
