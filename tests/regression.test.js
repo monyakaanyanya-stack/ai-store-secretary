@@ -2744,7 +2744,7 @@ describe('Scenario 47: 魅力発見AI', async () => {
       new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
     );
     // handleImageMessage内: replyTextで即応答（ボタンなし）
-    assert.ok(content.includes('魅力を探しています'), 'should show charm discovery message');
+    assert.ok(content.includes('魅力を分析しています'), 'should show charm discovery message');
     // バックグラウンド完了後にPush通知でボタンを送る
     assert.ok(content.includes('pushMessage'), 'should use pushMessage for viewpoint buttons');
   });
