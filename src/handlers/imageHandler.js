@@ -1,4 +1,4 @@
-import { replyText, replyWithQuickReply, getImageAsBase64 } from '../services/lineService.js';
+import { replyText, replyWithQuickReply, getImageAsBase64, pushMessage } from '../services/lineService.js';
 import { describeImage } from '../services/claudeService.js';
 import { getStore, savePendingImageContext, uploadImageToStorage, setPendingCommand } from '../services/supabaseService.js';
 import { getBlendedInsights, saveEngagementMetrics } from '../services/collectiveIntelligence.js';
@@ -32,10 +32,37 @@ function getHintExamples(category) {
 }
 
 /**
- * バックグラウンドで画像分析+補助データ取得を行い、結果をDBに保存
- * ボタン表示後に非同期で実行される
+ * describeImage出力から投稿視点（[視点A/B/C]）をパースし、5項目観察と分離する
+ * @param {string} imageDescription - describeImageの出力テキスト
+ * @returns {{ cleanDescription: string, viewpoints: string[] }}
  */
-async function analyzeImageInBackground(userId, store, imageBase64, imageUrl, messageId) {
+export function parseCharmViewpoints(imageDescription) {
+  if (!imageDescription) return { cleanDescription: '', viewpoints: [] };
+
+  const viewpointRegex = /\[視点([ABC])\]\s*(.+)/g;
+  const viewpoints = [];
+  let match;
+  while ((match = viewpointRegex.exec(imageDescription)) !== null) {
+    viewpoints.push(match[2].trim());
+  }
+
+  // 視点セクション（6. 投稿の切り口〜末尾）を除去して5項目のみ残す
+  const cleanDescription = imageDescription
+    .replace(/\n*6\.\s*投稿の切り口[\s\S]*$/m, '')
+    .replace(/\[視点[ABC]\]\s*.+\n?/g, '')
+    .trim();
+
+  return {
+    cleanDescription: cleanDescription || imageDescription,
+    viewpoints: viewpoints.length === 3 ? viewpoints : [],
+  };
+}
+
+/**
+ * バックグラウンドで画像分析+補助データ取得を行い、結果をDBに保存
+ * 分析完了後、Push通知で投稿視点ボタンを送信
+ */
+async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, imageUrl, messageId) {
   try {
     console.log(`[Image] バックグラウンド分析開始: store=${store.name}`);
     const startMs = Date.now();
@@ -79,11 +106,21 @@ async function analyzeImageInBackground(userId, store, imageBase64, imageUrl, me
         imageUrl,
         createdAt: new Date().toISOString(),
       });
+      // フォールバック: 汎用ヒントボタンをPush
+      await sendFallbackHintPush(lineUserId, store.category);
       return;
     }
 
-    // 被写体カテゴリー検出 → 集合知取得
-    const contentCategory = detectContentCategory(imageDescription);
+    // 投稿視点をパース（5項目観察と分離）
+    const { cleanDescription, viewpoints } = parseCharmViewpoints(imageDescription);
+    if (viewpoints.length === 3) {
+      console.log(`[Image] 投稿視点抽出成功: ${viewpoints.map((v, i) => `${['A','B','C'][i]}="${v}"`).join(', ')}`);
+    } else {
+      console.log('[Image] 投稿視点パース失敗 → フォールバックヒントボタン');
+    }
+
+    // 被写体カテゴリー検出 → 集合知取得（cleanDescriptionで検出）
+    const contentCategory = detectContentCategory(cleanDescription);
     // 開発者テスト店舗: 検出カテゴリーを store.category の代わりに使用
     const effectiveCategory = isDevTestStore(store)
       ? (contentCategory || store.category)
@@ -102,10 +139,11 @@ async function analyzeImageInBackground(userId, store, imageBase64, imageUrl, me
 
     const personalization = (basicPersonalization || '') + (advancedPersonalization || '') + (seasonalMemory || '');
 
-    // 分析完了 → DB更新
+    // 分析完了 → DB更新（cleanDescriptionで保存 = 5項目のみ）
     await savePendingImageContext(userId, {
       messageId,
-      imageDescription,
+      imageDescription: cleanDescription,
+      charmViewpoints: viewpoints,
       storeId: store.id,
       blendedInsights: blendedInsights ?? null,
       personalization,
@@ -118,6 +156,24 @@ async function analyzeImageInBackground(userId, store, imageBase64, imageUrl, me
 
     const elapsed = ((Date.now() - startMs) / 1000).toFixed(1);
     console.log(`[Image] バックグラウンド分析完了: store=${store.name} (${elapsed}s)`);
+
+    // Push通知で投稿視点ボタン or フォールバックヒントを送信
+    if (viewpoints.length === 3) {
+      await pushMessage(lineUserId, [{
+        type: 'text',
+        text: `この写真から3つの投稿の切り口が見つかりました💡\n\nA. ${viewpoints[0]}\nB. ${viewpoints[1]}\nC. ${viewpoints[2]}\n\nどれかを選ぶか、自分の言葉で一言どうぞ✏️`,
+        quickReply: {
+          items: [
+            { type: 'action', action: { type: 'message', label: truncateLabel(viewpoints[0]), text: viewpoints[0] } },
+            { type: 'action', action: { type: 'message', label: truncateLabel(viewpoints[1]), text: viewpoints[1] } },
+            { type: 'action', action: { type: 'message', label: truncateLabel(viewpoints[2]), text: viewpoints[2] } },
+            { type: 'action', action: { type: 'message', label: 'スキップ', text: 'スキップ' } },
+          ],
+        },
+      }]);
+    } else {
+      await sendFallbackHintPush(lineUserId, store.category);
+    }
   } catch (err) {
     console.error(`[Image] バックグラウンド分析エラー (store=${store.name}):`, err.message);
     try {
@@ -129,9 +185,41 @@ async function analyzeImageInBackground(userId, store, imageBase64, imageUrl, me
         imageUrl,
         createdAt: new Date().toISOString(),
       });
+      // エラー時もPushでフォールバックボタンを送る（ユーザーがボタンなしで放置されない）
+      await sendFallbackHintPush(lineUserId, store.category);
     } catch {
       // DB保存も失敗した場合は諦める
     }
+  }
+}
+
+/**
+ * LINE Quick Reply label の20文字制限に合わせてトランケーション
+ */
+function truncateLabel(text) {
+  if (!text || text.length <= 20) return text;
+  return text.slice(0, 18) + '…';
+}
+
+/**
+ * フォールバック: 汎用ヒントボタンをPush通知で送信
+ */
+async function sendFallbackHintPush(lineUserId, category) {
+  try {
+    await pushMessage(lineUserId, [{
+      type: 'text',
+      text: `分析できました！一言もらえるとグッと「あなたらしい」投稿になります💡\n\n${getHintExamples(category)}\n\nボタンで選んでも、自由に文章を送ってもOKです✏️`,
+      quickReply: {
+        items: [
+          { type: 'action', action: { type: 'message', label: 'お知らせ', text: 'お知らせ' } },
+          { type: 'action', action: { type: 'message', label: '日常感', text: '日常感' } },
+          { type: 'action', action: { type: 'message', label: 'お役立ち', text: 'お役立ち情報' } },
+          { type: 'action', action: { type: 'message', label: 'スキップ', text: 'スキップ' } },
+        ],
+      },
+    }]);
+  } catch (pushErr) {
+    console.error('[Image] フォールバックPush送信失敗:', pushErr.message);
   }
 }
 
@@ -247,7 +335,7 @@ export async function handleImageMessage(user, messageId, replyToken) {
       );
     }
 
-    // ── Phase 2: ボタン即表示 + バックグラウンド分析 ──
+    // ── Phase 2: 即応答 + バックグラウンドで魅力発見 ──
     // 「分析中」状態で pending context を保存
     await savePendingImageContext(user.id, {
       messageId,
@@ -258,24 +346,11 @@ export async function handleImageMessage(user, messageId, replyToken) {
       createdAt: new Date().toISOString(),
     });
 
-    // ボタンを即表示（ユーザーはここで考え始める）
-    await replyWithQuickReply(
-      replyToken,
-      `いい写真ですね！今日あったこと、思ったこと、一言もらえるとグッと「あなたらしい」投稿になります💡
+    // 即応答（ボタンはバックグラウンド分析完了後にPush通知で送る）
+    await replyText(replyToken, 'いい写真ですね！あなたのお店の魅力を探しています...📸');
 
-${getHintExamples(store.category)}
-
-ボタンで選んでも、自由に文章を送ってもOKです✏️`,
-      [
-        { type: 'action', action: { type: 'message', label: 'お知らせ', text: 'お知らせ' } },
-        { type: 'action', action: { type: 'message', label: '日常感', text: '日常感' } },
-        { type: 'action', action: { type: 'message', label: 'お役立ち', text: 'お役立ち情報' } },
-        { type: 'action', action: { type: 'message', label: 'スキップ', text: 'スキップ' } },
-      ]
-    );
-
-    // バックグラウンドで画像分析開始（awaitしない = ユーザーの操作と並列実行）
-    analyzeImageInBackground(user.id, store, imageBase64, imageUrl, messageId)
+    // バックグラウンドで画像分析 + 魅力発見開始（awaitしない = ユーザーの操作と並列実行）
+    analyzeImageInBackground(user.id, user.line_user_id, store, imageBase64, imageUrl, messageId)
       .catch(err => console.error('[Image] バックグラウンド分析未捕捉エラー:', err));
 
   } catch (err) {

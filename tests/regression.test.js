@@ -2649,3 +2649,128 @@ describe('Scenario 46: persona自動更新', async () => {
       'should have strategy patterns to exclude');
   });
 });
+
+// ==================== Scenario 47: 魅力発見AI（Phase 18） ====================
+describe('Scenario 47: 魅力発見AI', async () => {
+  const fs = await import('node:fs');
+  // parseCharmViewpoints のロジックを直接テスト（importするとsupabase依存が走るため再実装）
+  function parseCharmViewpoints(imageDescription) {
+    if (!imageDescription) return { cleanDescription: '', viewpoints: [] };
+    const viewpointRegex = /\[視点([ABC])\]\s*(.+)/g;
+    const viewpoints = [];
+    let match;
+    while ((match = viewpointRegex.exec(imageDescription)) !== null) {
+      viewpoints.push(match[2].trim());
+    }
+    const cleanDescription = imageDescription
+      .replace(/\n*6\.\s*投稿の切り口[\s\S]*$/m, '')
+      .replace(/\[視点[ABC]\]\s*.+\n?/g, '')
+      .trim();
+    return {
+      cleanDescription: cleanDescription || imageDescription,
+      viewpoints: viewpoints.length === 3 ? viewpoints : [],
+    };
+  }
+
+  it('parseCharmViewpoints: 正常な3視点をパースできる', () => {
+    const input = `1. 焼きたてのパンが写っている
+2. 暖かい色味で柔らかい印象
+3. 小麦の香りがしそう
+4. 朝の時間帯
+5. 焼き立ての匂いに引かれそう
+
+6. 投稿の切り口（3つ）
+[視点A] 朝一番に焼けたときの湯気と店内の匂い
+[視点B] 常連さんが必ず頼むその理由
+[視点C] この焼き色が出るまで温度を3回変えた`;
+
+    const result = parseCharmViewpoints(input);
+    assert.equal(result.viewpoints.length, 3);
+    assert.equal(result.viewpoints[0], '朝一番に焼けたときの湯気と店内の匂い');
+    assert.equal(result.viewpoints[1], '常連さんが必ず頼むその理由');
+    assert.equal(result.viewpoints[2], 'この焼き色が出るまで温度を3回変えた');
+  });
+
+  it('parseCharmViewpoints: cleanDescriptionに視点セクションが含まれない', () => {
+    const input = `1. 焼きたてのパン
+2. 暖かい色味
+
+6. 投稿の切り口（3つ）
+[視点A] 朝の湯気
+[視点B] 常連の理由
+[視点C] 焼き色のこだわり`;
+
+    const result = parseCharmViewpoints(input);
+    assert.ok(!result.cleanDescription.includes('[視点A]'), 'cleanDescription should not contain viewpoint markers');
+    assert.ok(!result.cleanDescription.includes('投稿の切り口'), 'cleanDescription should not contain section header');
+    assert.ok(result.cleanDescription.includes('焼きたてのパン'), 'cleanDescription should keep original 5 items');
+  });
+
+  it('parseCharmViewpoints: 視点が2つしかない場合は空配列を返す', () => {
+    const input = `1. 写真の説明
+[視点A] テスト視点A
+[視点B] テスト視点B`;
+
+    const result = parseCharmViewpoints(input);
+    assert.equal(result.viewpoints.length, 0, 'should return empty array when less than 3 viewpoints');
+  });
+
+  it('parseCharmViewpoints: null/undefined入力で安全', () => {
+    assert.deepEqual(parseCharmViewpoints(null), { cleanDescription: '', viewpoints: [] });
+    assert.deepEqual(parseCharmViewpoints(undefined), { cleanDescription: '', viewpoints: [] });
+    assert.deepEqual(parseCharmViewpoints(''), { cleanDescription: '', viewpoints: [] });
+  });
+
+  it('imageHandler.jsのparseCharmViewpointsがexportされている', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('export function parseCharmViewpoints'),
+      'parseCharmViewpoints should be exported');
+  });
+
+  it('describeImageプロンプトに投稿視点の項目6が含まれる', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/claudeService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('投稿の切り口'), 'describeImage should include viewpoint section');
+    assert.ok(content.includes('[視点A]'), 'describeImage should include viewpoint format markers');
+    assert.ok(content.includes('[視点B]'), 'describeImage should include viewpoint format markers');
+    assert.ok(content.includes('[視点C]'), 'describeImage should include viewpoint format markers');
+  });
+
+  it('handleImageMessageの即応答にヒントボタンが含まれない', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
+    );
+    // handleImageMessage内: replyTextで即応答（ボタンなし）
+    assert.ok(content.includes('魅力を探しています'), 'should show charm discovery message');
+    // バックグラウンド完了後にPush通知でボタンを送る
+    assert.ok(content.includes('pushMessage'), 'should use pushMessage for viewpoint buttons');
+  });
+
+  it('ラベル20文字制限のトランケーション（truncateLabel）が存在する', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('truncateLabel'), 'should have truncateLabel function');
+    assert.ok(content.includes('.slice(0, 18)'), 'should truncate to 18 chars + ellipsis');
+  });
+
+  it('Push通知で投稿視点ボタンA/B/Cとスキップを送信する', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('3つの投稿の切り口が見つかりました'), 'should include discovery message in Push');
+    assert.ok(content.includes('charmViewpoints'), 'should save viewpoints to pending_image_context');
+  });
+
+  it('フォールバック: 視点パース失敗時に汎用ヒントボタンをPushする', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('sendFallbackHintPush'), 'should have fallback hint push function');
+    // フォールバックにもお知らせ/日常感/お役立ち/スキップが含まれる
+    assert.ok(content.includes('お知らせ'), 'fallback should include hint buttons');
+  });
+});
