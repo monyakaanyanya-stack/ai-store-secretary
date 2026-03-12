@@ -135,7 +135,7 @@ export async function handlePendingImageResponse(user, text, replyToken) {
       ctx.blendedInsights ?? null,
       ctx.personalization ?? '',
       ctx.imageDescription,
-      { isPremium, hint },
+      { isPremium, hint, hintType: hint && ctx.charmViewpoints?.includes(hint) ? 'viewpoint' : 'manual' },
     );
 
     const rawContent = await askClaude(prompt);

@@ -1003,7 +1003,7 @@ describe('Scenario 28: Ver.4.0 Dual Trigger Model', async () => {
     );
     assert.ok(!content.includes('equipmentLevel'),
       'equipmentLevel references should be removed from pendingImageHandler');
-    assert.ok(content.includes('options.hint') || content.includes('{ isPremium, hint }'),
+    assert.ok(content.includes('options.hint') || content.includes('isPremium, hint'),
       'Hint should be passed via options, not mixed into imageDescription');
   });
 
@@ -1537,7 +1537,7 @@ describe('Scenario 31: 画像「一言ヒント」機能', async () => {
 
   it('ヒントがoptions.hintとして別渡しされる', () => {
     const content = fs.readFileSync('src/handlers/pendingImageHandler.js', 'utf8');
-    assert.ok(content.includes('{ isPremium, hint }'), 'ヒントをoptions経由で渡す');
+    assert.ok(content.includes('isPremium, hint'), 'ヒントをoptions経由で渡す');
     assert.ok(!content.includes('enrichedDescription'), '旧enrichedDescription方式は廃止');
   });
 });
