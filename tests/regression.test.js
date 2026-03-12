@@ -2792,7 +2792,7 @@ describe('Scenario 47: 魅力発見AI', async () => {
     assert.ok(content.includes('Observation'), 'describeImage should include Observation section');
     assert.ok(content.includes('Detection'), 'describeImage should include Detection section');
     assert.ok(content.includes('視覚的事実のみ'), 'Observation should enforce visual facts only');
-    assert.ok(content.includes('<具体物> + <視覚効果>'), 'Detection should enforce structure rule');
+    assert.ok(content.includes('<具体物>が<シンプルな効果>'), 'Detection should enforce structure rule');
     assert.ok(content.includes('[① _]'), 'describeImage should include numbered format');
     assert.ok(content.includes('[② _]'), 'describeImage should include numbered format');
     assert.ok(content.includes('[③ _]'), 'describeImage should include numbered format');
