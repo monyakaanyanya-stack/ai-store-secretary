@@ -10,7 +10,7 @@ import { applyEngagementMetrics, getRecentPostHistory } from './reportHandler.js
 import { detectContentCategory } from '../utils/contentCategoryDetector.js';
 import { checkGenerationLimit, isFeatureEnabled } from '../services/subscriptionService.js';
 import { isDevTestStore } from './adminHandler.js';
-import { buildImagePostPrompt } from '../utils/promptBuilder.js';
+import { buildImagePostPrompt, buildStrategicAdvice } from '../utils/promptBuilder.js';
 import { getRevisionExample } from '../utils/categoryExamples.js';
 
 
@@ -227,6 +227,16 @@ A・B・C を選んだあと「直し: ${revisionExample}」で微調整もで�
         ],
       },
     }]);
+
+    // 戦略アドバイス（投稿タイミング等）をTipsとして送信
+    try {
+      const advice = buildStrategicAdvice(blendedInsights, store);
+      if (advice?.postingTimeTip) {
+        await pushMessage(lineUserId, [{ type: 'text', text: `💡 ${advice.postingTimeTip}` }]);
+      }
+    } catch {
+      // 戦略Tips送信失敗は無視
+    }
   } catch (err) {
     console.error(`[Image] バックグラウンド分析+生成エラー (store=${store.name}):`, err.message);
     try {

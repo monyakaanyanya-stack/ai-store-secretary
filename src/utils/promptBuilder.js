@@ -528,90 +528,22 @@ export function buildImagePostPrompt(store, lengthOverride = null, blendedInsigh
   // templateInfoはAIに渡さない（生成後に末尾固定追記するため）
   const templateInfo = '';
 
-  // 集合知データの構築（同業種の成功パターンを反映）
+  // 集合知ハッシュタグの取得（文字数・勝ちパターン等は戦略アドバイスに転用済み）
   let collectiveIntelligenceSection = '';
-  let industryPatternSection = ''; // 業種傾向（参考）セクション（署名性保護のため分離）
+  let industryPatternSection = '';
   let dbTags = [];
 
   if (blendedInsights) {
-    const { category, group, own } = blendedInsights;
-    const insights = [];
-
-    // C20修正: topHashtags が Array であることを確認してからスライス
+    const { category, group } = blendedInsights;
     if (category && category.sampleSize > 0 && Array.isArray(category.topHashtags)) {
       dbTags.push(...category.topHashtags.slice(0, 3));
     }
     if (group && group.sampleSize > 0 && Array.isArray(group.topHashtags)) {
       dbTags.push(...group.topHashtags.slice(0, 2));
     }
-    // DBデータがない場合は辞書の静的タグにフォールバック
     if (dbTags.length === 0 && store.category) {
       const staticTags = getHashtagsForCategory(store.category);
       dbTags.push(...staticTags.slice(0, 5));
-    }
-
-    // M5: 保存強度が高い投稿の文字数（メイン指標）— ?? で 0 を正しく扱う
-    const topPostsLength = category?.topPostsAvgLength ?? group?.topPostsAvgLength;
-    const topSaveIntensity = category?.topPostsAvgSaveIntensity ?? group?.topPostsAvgSaveIntensity;
-    if (topPostsLength) {
-      const intensityNote = topSaveIntensity != null
-        ? `（保存強度 ${topSaveIntensity.toFixed(2)} の投稿群）`
-        : '';
-      insights.push(`【文字数（必須）】\n保存されやすい投稿${intensityNote}の平均文字数: ${topPostsLength}文字\n※ この文字数を目安に作成してください`);
-    }
-
-    const avgEmojiCount = category?.avgEmojiCount ?? group?.avgEmojiCount;
-    if (avgEmojiCount !== undefined && avgEmojiCount !== null) {
-      insights.push(`【絵文字（必須）】\n同業種の平均絵文字数: ${Math.round(avgEmojiCount)}個\n※ この数を目安に使用してください`);
-    }
-
-    // 投稿時間帯: 自店舗データがあれば優先（エンゲージメント成績で収束）
-    const ownHours = own?.bestPostingHours;
-    const ownSampleSize = own?.sampleSize || 0;
-    const bestHours = (ownSampleSize >= 5 && ownHours?.length > 0)
-      ? ownHours
-      : category?.bestPostingHours || group?.bestPostingHours;
-    if (bestHours && bestHours.length > 0) {
-      const source = (ownSampleSize >= 5 && ownHours?.length > 0) ? 'この店舗の実績' : '同業種の傾向';
-      insights.push(`【参考】最適投稿時間帯（${source}）: ${bestHours.join('時, ')}時`);
-    }
-
-    // 勝ちパターン: 出所で扱いを分ける（署名性保護）
-    // - 自店舗データ → 必須セクション内に「積極参考」として残す（このお店のファンに効くパターン）
-    // - 業種データのみ → 別の「傾向参考」セクションへ（業種平均は均質化リスクあるため強制しない）
-    const ownWinningPattern = own?.winningPattern;
-    const industryWinningPattern = ownWinningPattern ? null : (category?.winningPattern || group?.winningPattern);
-
-    if (ownWinningPattern) {
-      const hookJp = buildHookTypeJapanese(ownWinningPattern.dominantHookType);
-      const ctaJp = buildCTAPositionJapanese(ownWinningPattern.dominantCTAPosition);
-      const lineBreakNote = ownWinningPattern.avgLineBreakDensity >= 0.06
-        ? '多め（縦長・読みやすい構造）'
-        : ownWinningPattern.avgLineBreakDensity >= 0.03
-        ? '標準的'
-        : '少なめ（まとまった段落）';
-      const charBucketJp = buildCharBucketJapanese(ownWinningPattern.dominantCharBucket);
-      const confidenceLabel = buildConfidenceLabel(ownWinningPattern.confidenceLevel);
-      insights.push(`【🎯 あなたの店で保存されやすかった型${confidenceLabel}（${ownWinningPattern.sampleSize}件・あなた固有のデータ）】\n・1行目: ${hookJp}（${ownWinningPattern.dominantHookRatio}%）\n・文字数帯: ${charBucketJp}\n・CTA位置: ${ctaJp}\n・改行: ${lineBreakNote}\n→ このお店のフォロワーに刺さりやすいパターン。積極的に参考にしてよい`);
-    }
-
-    if (industryWinningPattern) {
-      const hookJp = buildHookTypeJapanese(industryWinningPattern.dominantHookType);
-      const ctaJp = buildCTAPositionJapanese(industryWinningPattern.dominantCTAPosition);
-      const lineBreakNote = industryWinningPattern.avgLineBreakDensity >= 0.06
-        ? '多め（縦長・読みやすい構造）'
-        : industryWinningPattern.avgLineBreakDensity >= 0.03
-        ? '標準的'
-        : '少なめ（まとまった段落）';
-      const charBucketJp = buildCharBucketJapanese(industryWinningPattern.dominantCharBucket);
-      const sourceName = category?.winningPattern
-        ? `同業種（${blendedInsights.categoryGroup || ''}）`
-        : 'グループ';
-      industryPatternSection = `\n━━━━━━━━━━━━━━━━━━━━━━━━\n📈 ${sourceName}の傾向（参考・この店の個性を優先してよい）\n━━━━━━━━━━━━━━━━━━━━━━━━\n以下は業種全体の平均傾向です。この写真・この店の文脈と合わなければ無視してよい：\n・書き出し: ${hookJp}が多い（${industryWinningPattern.dominantHookRatio}%）\n・文字数帯: ${charBucketJp}\n・CTA: ${ctaJp}\n・改行: ${lineBreakNote}\n━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-    }
-
-    if (insights.length > 0) {
-      collectiveIntelligenceSection = `\n━━━━━━━━━━━━━━━━━━━━━━━━\n📊 集合知データ【参考】（同業種${category?.sampleSize || 0}件・保存強度ベース）\n※ 以下はデータから導いた傾向。この写真・店の文脈に合う範囲で参考にする\n━━━━━━━━━━━━━━━━━━━━━━━━\n${insights.join('\n\n')}\n━━━━━━━━━━━━━━━━━━━━━━━━\n`;
     }
   }
 
@@ -671,6 +603,10 @@ export function buildImagePostPrompt(store, lengthOverride = null, blendedInsigh
       hashtagInstruction, lengthInfo, options, category: store.category,
     });
   }
+
+  // 戦略アドバイス（Photo Advice セクション用）
+  const strategicAdvice = buildStrategicAdvice(blendedInsights, store);
+  const photoStyleHint = strategicAdvice?.photoStyleTip ? `\nデータ参考: ${strategicAdvice.photoStyleTip}` : '';
 
   // ── 店舗用プロンプト（従来通り）──────────────────────────
   const roleSection = `## 1. あなたの役割（最重要）
@@ -752,14 +688,14 @@ ${buildCategoryRules(store.category)}
 - 想起の一言も独り言の延長で書く。五感を入れてもいいが無理に入れない。「〜の香りと〜の甘さが混ざって」のようなAI定型文は禁止
 - 来店の一文は店主のつぶやき口調で「今行く理由」を軽く入れる。営業時間や価格をそのまま書かない
 - 来店の一文は押し売りにならないこと（「ぜひ」「おすすめ」禁止）
-${collectiveIntelligenceSection ? '- 集合知データ（📊セクション）の文字数・絵文字数は目安として参考にする' : ''}`}
+`}
 
 ${buildOutputFormat(hint, hashtagInstruction, postLength)}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━
 📸 次の撮影アイデア
 この写真の良い点を1文で肯定し、次に撮るべきものを1つ具体的に提案する。
-その撮影が「なぜ反応が取れそうか」を1文で添える。合計3行以内・短く。
+その撮影が「なぜ反応が取れそうか」を1文で添える。合計3行以内・短く。${photoStyleHint}
 例:
 📸 次の撮影アイデア
 明日、コーヒーを淹れる湯気を横から撮ってみてください。
@@ -767,7 +703,7 @@ ${buildOutputFormat(hint, hashtagInstruction, postLength)}
 ${options.isPremium ? `
 🎯 明日撮るべきもの
 「明日これを撮ってください」と具体的に1つだけ指定する。
-被写体・タイミングを明確に書き、「なぜ反応が取れそうか」を1文で説明する。合計2行以内。` : ''}
+被写体・タイミングを明確に書き、「なぜ反応が取れそうか」を1文で説明する。合計2行以内。${photoStyleHint}` : ''}
 ━━━━━━━━━━━━━━━━━━━━━━━━
 
 投稿文のみを出力してください。説明や補足は一切不要です。`;
@@ -833,7 +769,6 @@ ${options.hint ? `\n【投稿の方向性（最重要）】\n一言「${options.
 【ルール】
 - 本文は「${lengthInfo.range}」を絶対制限とする
 - ポエムや綺麗な表現は禁止。雑談レベルの言葉で
-${collectiveIntelligenceSection ? '- 集合知データ（📊セクション）の文字数・絵文字数を厳守' : ''}
 
 【出力形式】
 
@@ -939,7 +874,6 @@ ${userText}
 【ルール】
 - 本文は「${lengthInfo.range}」を絶対制限とする
 - ポエムや綺麗な表現は禁止。雑談レベルの言葉で
-${collectiveIntelligenceSection ? '- 集合知データ（📊セクション）の文字数・絵文字数・ハッシュタグを厳守' : ''}
 
 【出力形式】
 
@@ -1003,67 +937,11 @@ export function buildTextPostPrompt(store, userText, lengthOverride = null, blen
       insights.push(`【ハッシュタグ（必須）】\n以下は同業種で高エンゲージメントのハッシュタグです。3-5個を必ず使用:\n${dbTags.join(', ')}`);
     }
 
-    // M5: 文字数（保存強度が高い投稿ベース）— ?? で 0 を正しく扱う
-    const topPostsLength = category?.topPostsAvgLength ?? group?.topPostsAvgLength;
-    const topSaveIntensity = category?.topPostsAvgSaveIntensity ?? group?.topPostsAvgSaveIntensity;
-    if (topPostsLength) {
-      const intensityNote = topSaveIntensity != null
-        ? `（保存強度 ${topSaveIntensity.toFixed(2)} の投稿群）`
-        : '';
-      insights.push(`【文字数（必須）】\n保存されやすい投稿${intensityNote}の平均文字数: ${topPostsLength}文字\n※ この文字数を目安に作成してください`);
-    }
-
-    // 絵文字（優先度3）
-    const avgEmojiCount = category?.avgEmojiCount ?? group?.avgEmojiCount;
-    if (avgEmojiCount !== undefined && avgEmojiCount !== null) {
-      insights.push(`【絵文字（必須）】\n同業種の平均絵文字数: ${Math.round(avgEmojiCount)}個\n※ この数を目安に使用してください`);
-    }
-
-    // 投稿時間帯: 自店舗データがあれば優先（エンゲージメント成績で収束）
-    const ownHoursText = own?.bestPostingHours;
-    const ownSampleSizeText = own?.sampleSize || 0;
-    const bestHours = (ownSampleSizeText >= 5 && ownHoursText?.length > 0)
-      ? ownHoursText
-      : category?.bestPostingHours || group?.bestPostingHours;
-    if (bestHours && bestHours.length > 0) {
-      const source = (ownSampleSizeText >= 5 && ownHoursText?.length > 0) ? 'この店舗の実績' : '同業種の傾向';
-      insights.push(`【参考】最適投稿時間帯（${source}）: ${bestHours.join('時, ')}時`);
-    }
-
-    // 勝ちパターン: 出所で扱いを分ける（署名性保護）
-    const ownWinningPattern = own?.winningPattern;
-    const industryWinningPattern = ownWinningPattern ? null : (category?.winningPattern || group?.winningPattern);
-
-    if (ownWinningPattern) {
-      const hookJp = buildHookTypeJapanese(ownWinningPattern.dominantHookType);
-      const ctaJp = buildCTAPositionJapanese(ownWinningPattern.dominantCTAPosition);
-      const lineBreakNote = ownWinningPattern.avgLineBreakDensity >= 0.06
-        ? '多め（縦長・読みやすい構造）'
-        : ownWinningPattern.avgLineBreakDensity >= 0.03
-        ? '標準的'
-        : '少なめ（まとまった段落）';
-      const charBucketJp = buildCharBucketJapanese(ownWinningPattern.dominantCharBucket);
-      const confidenceLabel = buildConfidenceLabel(ownWinningPattern.confidenceLevel);
-      insights.push(`【🎯 あなたの店で保存されやすかった型${confidenceLabel}（${ownWinningPattern.sampleSize}件・あなた固有のデータ）】\n・1行目: ${hookJp}（${ownWinningPattern.dominantHookRatio}%）\n・文字数帯: ${charBucketJp}\n・CTA位置: ${ctaJp}\n・改行: ${lineBreakNote}\n→ このお店のフォロワーに刺さりやすいパターン。積極的に参考にしてよい`);
-    }
-
-    if (industryWinningPattern) {
-      const hookJp = buildHookTypeJapanese(industryWinningPattern.dominantHookType);
-      const ctaJp = buildCTAPositionJapanese(industryWinningPattern.dominantCTAPosition);
-      const lineBreakNote = industryWinningPattern.avgLineBreakDensity >= 0.06
-        ? '多め（縦長・読みやすい構造）'
-        : industryWinningPattern.avgLineBreakDensity >= 0.03
-        ? '標準的'
-        : '少なめ（まとまった段落）';
-      const charBucketJp = buildCharBucketJapanese(industryWinningPattern.dominantCharBucket);
-      const sourceName = category?.winningPattern
-        ? `同業種（${blendedInsights.categoryGroup || ''}）`
-        : 'グループ';
-      industryPatternSection = `\n━━━━━━━━━━━━━━━━━━━━━━━━\n📈 ${sourceName}の傾向（参考・この店の個性を優先してよい）\n━━━━━━━━━━━━━━━━━━━━━━━━\n以下は業種全体の平均傾向です。この店の文脈と合わなければ無視してよい：\n・書き出し: ${hookJp}が多い（${industryWinningPattern.dominantHookRatio}%）\n・文字数帯: ${charBucketJp}\n・CTA: ${ctaJp}\n・改行: ${lineBreakNote}\n━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-    }
+    // 集合知データは戦略アドバイス（Daily Nudge / Photo Advice / Tips）に転用
+    // テキスト生成プロンプトにはハッシュタグのみ残す
 
     if (insights.length > 0) {
-      collectiveIntelligenceSection = `\n━━━━━━━━━━━━━━━━━━━━━━━━\n📊 集合知データ【参考】（同業種${category?.sampleSize || 0}件・保存強度ベース）\n※ 以下はデータから導いた傾向。文脈に合う範囲で参考にする\n━━━━━━━━━━━━━━━━━━━━━━━━\n${insights.join('\n\n')}\n━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+      collectiveIntelligenceSection = `\n${insights.join('\n\n')}\n`;
     }
   }
 
@@ -1195,7 +1073,6 @@ ${buildCategoryRules(store.category)}
 - 想起の一言も独り言の延長で書く。五感を入れてもいいが無理に入れない。「〜の香りと〜の甘さが混ざって」のようなAI定型文は禁止
 - 来店の一文は店主のつぶやき口調で「今行く理由」を軽く入れる。営業時間や価格をそのまま書かない
 - 来店の一文は押し売りにならないこと（「ぜひ」「おすすめ」禁止）
-${collectiveIntelligenceSection ? '- 集合知データ（📊セクション）の文字数・絵文字数・ハッシュタグは目安として参考にする' : ''}
 
 【出力形式】
 ⚠️ [ 案A：... ] のラベルは以下の通り一字一句そのまま出力すること。独自のラベル（「光の肖像」「誠実の肖像」等）は絶対に使わない。
@@ -1225,6 +1102,76 @@ ${collectiveIntelligenceSection ? '- 集合知データ（📊セクション）
 #タグ1 #タグ2 #タグ3 #タグ4 #タグ5
 
 投稿文のみを出力してください。説明や補足は一切不要です。`}`;
+}
+
+/**
+ * 集合知データを戦略アドバイスに変換する
+ * テキスト生成プロンプトではなく、ユーザーへの投稿判断アドバイスとして使用
+ *
+ * @param {object|null} blendedInsights - getBlendedInsights() の戻り値
+ * @param {object} store - 店舗情報
+ * @returns {object|null} { postingTimeTip, photoStyleTip, contentTip, dataSource } or null
+ */
+export function buildStrategicAdvice(blendedInsights, store) {
+  if (!blendedInsights) return null;
+
+  const { own, category, group } = blendedInsights;
+
+  // データソース判定（自店舗 → カテゴリー → グループの順で優先）
+  const ownSampleSize = own?.sampleSize || 0;
+  const categorySampleSize = category?.sampleSize || 0;
+  const groupSampleSize = group?.sampleSize || 0;
+
+  if (ownSampleSize === 0 && categorySampleSize === 0 && groupSampleSize === 0) {
+    return null; // データなし → アドバイスなし
+  }
+
+  const dataSource = ownSampleSize >= 5 ? 'own' : categorySampleSize > 0 ? 'category' : 'group';
+
+  // 投稿時間アドバイス
+  let postingTimeTip = null;
+  const bestHours = (ownSampleSize >= 5 && own?.bestPostingHours?.length > 0)
+    ? own.bestPostingHours
+    : category?.bestPostingHours || group?.bestPostingHours;
+  if (bestHours && bestHours.length > 0) {
+    const hourStr = bestHours.slice(0, 2).map(h => `${h}時`).join('・');
+    const sourceLabel = (ownSampleSize >= 5 && own?.bestPostingHours?.length > 0)
+      ? 'あなたのお店のデータでは' : '同業種のデータでは';
+    postingTimeTip = `${sourceLabel}${hourStr}台の投稿が反応良い傾向です`;
+  }
+
+  // 写真スタイルアドバイス（勝ちパターンから）
+  let photoStyleTip = null;
+  const winPattern = own?.winningPattern || category?.winningPattern || group?.winningPattern;
+  if (winPattern) {
+    const hookJp = buildHookTypeJapanese(winPattern.dominantHookType);
+    const charBucketJp = buildCharBucketJapanese(winPattern.dominantCharBucket);
+    if (winPattern.dominantHookType === 'emotion') {
+      photoStyleTip = '感情が伝わる写真（手元・作業中・表情）の保存率が高い傾向です';
+    } else if (winPattern.dominantHookType === 'question') {
+      photoStyleTip = '「問いかけ」に合う写真（比較・ビフォーアフター）が反応を取りやすい傾向です';
+    } else if (winPattern.dominantHookType === 'taigen_dome') {
+      photoStyleTip = 'インパクトのある一枚（断面・アップ・完成形）が保存されやすい傾向です';
+    } else if (winPattern.dominantHookType === 'fact') {
+      photoStyleTip = '事実を伝える写真（過程・素材・道具）の反応が良い傾向です';
+    }
+  }
+
+  // コンテンツアドバイス（書き出しパターンの偏り）
+  let contentTip = null;
+  if (winPattern && winPattern.dominantHookRatio >= 70) {
+    // 70%以上同じパターン → バリエーション提案
+    const hookJp = buildHookTypeJapanese(winPattern.dominantHookType);
+    const alternatives = {
+      emotion: '質問形や体言止めの書き出しも試してみると新鮮かもしれません',
+      question: '感情から始まる書き出しも混ぜるとバリエーションが出ます',
+      taigen_dome: '感情や問いかけの書き出しも反応が取れることがあります',
+      fact: '感情や体言止めの書き出しも試してみると幅が広がります',
+    };
+    contentTip = `${hookJp}の書き出しが${winPattern.dominantHookRatio}%。${alternatives[winPattern.dominantHookType] || ''}`;
+  }
+
+  return { postingTimeTip, photoStyleTip, contentTip, dataSource };
 }
 
 /**

@@ -1104,18 +1104,22 @@ describe('Scenario 28: Ver.4.0 Dual Trigger Model', async () => {
       'Text prompt should include information words ban');
   });
 
-  it('M5: 数値フォールバックに ?? を使用', async () => {
+  it('M5: 集合知データは戦略アドバイスに転用（プロンプト注入ではなくbuildStrategicAdviceで使用）', async () => {
     const fs = await import('node:fs');
     const content = fs.readFileSync(
       new URL('../src/utils/promptBuilder.js', import.meta.url), 'utf-8'
     );
-    // topPostsLength と avgEmojiCount で ?? を使用
-    const nullishMatches = content.match(/topPostsAvgLength \?\?/g);
-    assert.ok(nullishMatches && nullishMatches.length >= 2,
-      'Should use ?? for topPostsAvgLength in both image and text prompts');
-    const emojiMatches = content.match(/avgEmojiCount \?\?/g);
-    assert.ok(emojiMatches && emojiMatches.length >= 2,
-      'Should use ?? for avgEmojiCount in both image and text prompts');
+    // buildStrategicAdvice関数がexportされている
+    assert.ok(content.includes('export function buildStrategicAdvice'),
+      'buildStrategicAdvice should be exported');
+    // プロンプトに文字数・絵文字数の必須指示が含まれない
+    // （buildImagePostPrompt/buildTextPostPromptの中で insights.push('【文字数（必須）】...') がないこと）
+    const charCountDirectives = content.match(/insights\.push\(.*文字数（必須）/g);
+    assert.ok(!charCountDirectives,
+      'Character count directives should not be injected into generation prompts');
+    const emojiDirectives = content.match(/insights\.push\(.*絵文字（必須）/g);
+    assert.ok(!emojiDirectives,
+      'Emoji count directives should not be injected into generation prompts');
   });
 });
 
@@ -2829,5 +2833,109 @@ describe('Scenario 47: 魅力発見AI', async () => {
     // 視点パース失敗時はautoHint=nullで生成が続行される
     assert.ok(content.includes('viewpoints.length > 0'), 'should check viewpoints availability');
     assert.ok(content.includes('pushMessage'), 'should push proposals even without viewpoints');
+  });
+});
+
+// ==================== Scenario 48: 集合知戦略シフト ====================
+describe('Scenario 48: 集合知戦略シフト', async () => {
+  const fs = await import('node:fs');
+
+  it('buildStrategicAdvice がエクスポートされている', () => {
+    const content = fs.readFileSync(
+      new URL('../src/utils/promptBuilder.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('export function buildStrategicAdvice'));
+  });
+
+  it('buildStrategicAdvice が null入力で null を返す', async () => {
+    const { buildStrategicAdvice } = await import('../src/utils/promptBuilder.js');
+    assert.equal(buildStrategicAdvice(null, {}), null);
+  });
+
+  it('buildStrategicAdvice がデータなし（全sampleSize=0）で null を返す', async () => {
+    const { buildStrategicAdvice } = await import('../src/utils/promptBuilder.js');
+    const emptyInsights = {
+      own: { sampleSize: 0 }, category: { sampleSize: 0 }, group: { sampleSize: 0 },
+    };
+    assert.equal(buildStrategicAdvice(emptyInsights, {}), null);
+  });
+
+  it('buildStrategicAdvice がデータありで投稿時間Tipを返す', async () => {
+    const { buildStrategicAdvice } = await import('../src/utils/promptBuilder.js');
+    const insights = {
+      own: { sampleSize: 10, bestPostingHours: [12, 18] },
+      category: { sampleSize: 50 },
+      group: { sampleSize: 100 },
+    };
+    const result = buildStrategicAdvice(insights, { name: 'テスト店' });
+    assert.ok(result);
+    assert.ok(result.postingTimeTip.includes('12時'));
+    assert.equal(result.dataSource, 'own');
+  });
+
+  it('buildStrategicAdvice が勝ちパターンから写真スタイルTipを返す', async () => {
+    const { buildStrategicAdvice } = await import('../src/utils/promptBuilder.js');
+    const insights = {
+      own: { sampleSize: 10, winningPattern: { dominantHookType: 'emotion', dominantHookRatio: 60 } },
+      category: { sampleSize: 50 },
+      group: { sampleSize: 100 },
+    };
+    const result = buildStrategicAdvice(insights, {});
+    assert.ok(result.photoStyleTip);
+    assert.ok(result.photoStyleTip.includes('感情'));
+  });
+
+  it('buildStrategicAdvice が偏りパターン(70%以上)でコンテンツTipを返す', async () => {
+    const { buildStrategicAdvice } = await import('../src/utils/promptBuilder.js');
+    const insights = {
+      own: { sampleSize: 10, winningPattern: { dominantHookType: 'emotion', dominantHookRatio: 75 } },
+      category: { sampleSize: 50 },
+      group: { sampleSize: 100 },
+    };
+    const result = buildStrategicAdvice(insights, {});
+    assert.ok(result.contentTip);
+    assert.ok(result.contentTip.includes('75%'));
+  });
+
+  it('プロンプトに文字数・絵文字数の必須指示が含まれない', () => {
+    const content = fs.readFileSync(
+      new URL('../src/utils/promptBuilder.js', import.meta.url), 'utf-8'
+    );
+    const charDirectives = content.match(/insights\.push\(.*文字数（必須）/g);
+    assert.ok(!charDirectives, 'No character count directives in prompts');
+    const emojiDirectives = content.match(/insights\.push\(.*絵文字（必須）/g);
+    assert.ok(!emojiDirectives, 'No emoji count directives in prompts');
+  });
+
+  it('Photo Advice にデータ参考が注入される', () => {
+    const content = fs.readFileSync(
+      new URL('../src/utils/promptBuilder.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('photoStyleHint'), 'Photo Advice section should include strategic hint variable');
+  });
+
+  it('Daily Nudge が戦略アドバイスをインポートしている', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/dailyNudgeService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes("import { getBlendedInsights }"), 'should import getBlendedInsights');
+    assert.ok(content.includes("import { buildStrategicAdvice }"), 'should import buildStrategicAdvice');
+  });
+
+  it('Daily Nudge の formatNudgeMessage が戦略Tips対応', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/dailyNudgeService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('formatNudgeMessage(nudge, strategicAdvice)'),
+      'should pass strategicAdvice to formatNudgeMessage');
+    assert.ok(content.includes('postingTimeTip'), 'should use postingTimeTip');
+  });
+
+  it('imageHandler が投稿生成後に戦略Tipsを送信する', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('buildStrategicAdvice'), 'should call buildStrategicAdvice');
+    assert.ok(content.includes('postingTimeTip'), 'should check postingTimeTip');
   });
 });

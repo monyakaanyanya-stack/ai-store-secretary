@@ -4,6 +4,8 @@ import { getUserSubscription } from './subscriptionService.js';
 import { askClaude } from './claudeService.js';
 import { findCategoryByLabel } from '../config/categoryDictionary.js';
 import { getTemplatesForGroup } from '../config/nudgeTemplates.js';
+import { getBlendedInsights } from './collectiveIntelligence.js';
+import { buildStrategicAdvice } from '../utils/promptBuilder.js';
 
 /**
  * デイリー撮影ナッジ: 今日まだ投稿を生成していないStandard/Premiumユーザーに
@@ -219,18 +221,28 @@ function pickTemplateNudge(category, season) {
 }
 
 /**
- * ナッジメッセージをフォーマット
+ * ナッジメッセージをフォーマット（戦略Tips付き）
  */
-function formatNudgeMessage(nudge) {
-  return `今日はまだ投稿がありません。\nおすすめ：「${nudge.subject}」\n${nudge.cameraTip}\n${nudge.description}`;
+function formatNudgeMessage(nudge, strategicAdvice = null) {
+  let text = `今日はまだ投稿がありません。\nおすすめ：「${nudge.subject}」\n${nudge.cameraTip}\n${nudge.description}`;
+
+  // 戦略アドバイスがあれば追加
+  const tips = [];
+  if (strategicAdvice?.postingTimeTip) tips.push(strategicAdvice.postingTimeTip);
+  if (strategicAdvice?.photoStyleTip) tips.push(strategicAdvice.photoStyleTip);
+  if (tips.length > 0) {
+    text += `\n\n💡 ${tips.join('\n💡 ')}`;
+  }
+
+  return text;
 }
 
 /**
  * Premium用: Claude APIでパーソナライズされた撮影提案を生成
  * 失敗時はテンプレートにフォールバック
  */
-async function generatePremiumNudge(store, season) {
-  const prompt = buildPremiumNudgePrompt(store, season);
+async function generatePremiumNudge(store, season, strategicAdvice = null) {
+  const prompt = buildPremiumNudgePrompt(store, season, strategicAdvice);
 
   try {
     const response = await askClaude(prompt, { maxTokens: 300 });
@@ -254,9 +266,21 @@ async function generatePremiumNudge(store, season) {
 }
 
 /**
- * Premium用のClaude APIプロンプトを構築
+ * Premium用のClaude APIプロンプトを構築（戦略データ付き）
  */
-function buildPremiumNudgePrompt(store, season) {
+function buildPremiumNudgePrompt(store, season, strategicAdvice = null) {
+  // 戦略データセクション構築
+  let dataHintSection = '';
+  if (strategicAdvice) {
+    const hints = [];
+    if (strategicAdvice.postingTimeTip) hints.push(`- ${strategicAdvice.postingTimeTip}`);
+    if (strategicAdvice.photoStyleTip) hints.push(`- ${strategicAdvice.photoStyleTip}`);
+    if (strategicAdvice.contentTip) hints.push(`- ${strategicAdvice.contentTip}`);
+    if (hints.length > 0) {
+      dataHintSection = `\n\n【データに基づくヒント（参考にして提案すること）】\n${hints.join('\n')}`;
+    }
+  }
+
   return `あなたは${store.name}（${store.category}）の「影の秘書」です。
 今日の夕方に撮れる、Instagramに投稿するための写真のアイデアを1つ提案してください。
 
@@ -264,7 +288,7 @@ function buildPremiumNudgePrompt(store, season) {
 - 店名: ${store.name}
 - 業種: ${store.category}
 - こだわり: ${store.strength || '未設定'}
-- 季節: ${season}
+- 季節: ${season}${dataHintSection}
 
 【出力ルール】
 以下のJSON形式のみ出力。前置き不要。
@@ -289,11 +313,22 @@ async function sendNudgeToUser(lineUserId, store, isPremium) {
   const nowJst = getNowJst();
   const season = getSeasonLabel(nowJst.getMonth() + 1);
 
+  // 戦略アドバイス取得（失敗しても続行）
+  let strategicAdvice = null;
+  try {
+    if (store.category) {
+      const blendedInsights = await getBlendedInsights(store.id, store.category);
+      strategicAdvice = buildStrategicAdvice(blendedInsights, store);
+    }
+  } catch (err) {
+    console.warn('[DailyNudge] 戦略アドバイス取得失敗（続行）:', err.message);
+  }
+
   let nudge = null;
 
-  // Premium: Claude APIで生成を試みる
+  // Premium: Claude APIで生成を試みる（戦略データ付き）
   if (isPremium) {
-    nudge = await generatePremiumNudge(store, season);
+    nudge = await generatePremiumNudge(store, season, strategicAdvice);
   }
 
   // Standard or Premium API失敗時: テンプレートから選択
@@ -301,7 +336,7 @@ async function sendNudgeToUser(lineUserId, store, isPremium) {
     nudge = pickTemplateNudge(store.category, season);
   }
 
-  const text = formatNudgeMessage(nudge);
+  const text = formatNudgeMessage(nudge, strategicAdvice);
   const message = { type: 'text', text };
 
   await pushMessage(lineUserId, [message]);
