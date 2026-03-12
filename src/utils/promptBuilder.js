@@ -663,6 +663,7 @@ export function buildImagePostPrompt(store, lengthOverride = null, blendedInsigh
 2. さりげなく行ってみようかなと思うこと（来店トリガー）
 
 強いセールスは禁止。不自然な比喩は禁止。
+写真に写っていない情報を補わない。「それっぽい文脈」を足さず、この写真からしか生まれない投稿にすること。
 語彙は一般的で自然な日本語にしてください。`;
 
   return `${personalization}
@@ -1081,6 +1082,7 @@ export function buildTextPostPrompt(store, userText, lengthOverride = null, blen
 2. さりげなく行ってみようかなと思うこと（来店トリガー）
 
 強いセールスは禁止。不自然な比喩は禁止。
+写真に写っていない情報を補わない。「それっぽい文脈」を足さず、この写真からしか生まれない投稿にすること。
 語彙は一般的で自然な日本語にしてください。`;
 
   return `${personalization}
