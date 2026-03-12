@@ -2829,7 +2829,8 @@ describe('Scenario 47: 魅力発見AI', async () => {
       new URL('../src/utils/promptBuilder.js', import.meta.url), 'utf-8'
     );
     assert.ok(content.includes('Detection（発見）'), 'should use Detection label for viewpoint hints');
-    assert.ok(content.includes('店主が作業中にふと気づいたこと'), 'should instruct Detection as store owner monologue');
+    assert.ok(content.includes('Detectionを言い換えるな'), 'should instruct not to paraphrase Detection');
+    assert.ok(content.includes('行動の中に溶かせ'), 'should instruct to embed Detection in actions');
   });
 
   it('フォールバック: 視点パース失敗時に汎用ヒントボタンをPushする', () => {
