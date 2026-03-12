@@ -57,9 +57,9 @@ export function parseCharmViewpoints(imageDescription) {
     }
   }
 
-  // 観察セクション（6. 写真の観察 or 6. 投稿の切り口〜末尾）を除去して5項目のみ残す
+  // Observation・Detectionセクション（6. 【Observation / 写真の観察 / 投稿の切り口〜末尾）を除去して5項目のみ残す
   const cleanDescription = imageDescription
-    .replace(/\n*6\.\s*(?:写真の観察|投稿の切り口)[\s\S]*$/m, '')
+    .replace(/\n*6\.\s*(?:【?Observation|写真の観察|投稿の切り口)[\s\S]*$/m, '')
     .replace(/\[(?:[①②③]\s*.+?|視点[ABC])\]\s*.+\n?/g, '')
     .trim();
 
@@ -174,7 +174,7 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
     if (viewpoints.length === 3) {
       await pushMessage(lineUserId, [{
         type: 'text',
-        text: `この写真の見方を3つ見つけました💡\n\n① ${viewpoints[0]}\n② ${viewpoints[1]}\n③ ${viewpoints[2]}\n\n気になる視点を選んでください✏️`,
+        text: `📷 この写真から発見しました\n\n① ${viewpoints[0]}\n② ${viewpoints[1]}\n③ ${viewpoints[2]}\n\n気になる発見を選んでください →`,
         quickReply: {
           items: [
             { type: 'action', action: { type: 'message', label: truncateLabel(viewpoints[0]), text: viewpoints[0] } },

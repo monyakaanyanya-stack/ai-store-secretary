@@ -2673,7 +2673,7 @@ describe('Scenario 47: 魅力発見AI', async () => {
       }
     }
     const cleanDescription = imageDescription
-      .replace(/\n*6\.\s*(?:写真の観察|投稿の切り口)[\s\S]*$/m, '')
+      .replace(/\n*6\.\s*(?:【?Observation|写真の観察|投稿の切り口)[\s\S]*$/m, '')
       .replace(/\[(?:[①②③]\s*.+?|視点[ABC])\]\s*.+\n?/g, '')
       .trim();
     return {
@@ -2704,6 +2704,35 @@ describe('Scenario 47: 魅力発見AI', async () => {
     assert.equal(result.viewpointLabels[0], '空間');
     assert.equal(result.viewpointLabels[1], '光');
     assert.equal(result.viewpointLabels[2], '過ごし方');
+  });
+
+  it('parseCharmViewpoints: Observation→Detection チェーンフォーマットをパースできる', () => {
+    const input = `1. マフィンが6個トレイに並んでいる
+2. 暖色の照明、焼き色が濃い
+3. バターと小麦の香りがしそう
+4. 午前中の仕込み時間帯
+5. 焼きたて感に引かれそう
+
+6. 【Observation — 視覚的事実の列挙】
+- マフィンの縁の焼き色が外側から内側へグラデーションしている
+- トレイの上で6個が均等な間隔で並んでいる
+- 表面に細かいひび割れがある
+- 暖色の照明がマフィン上面に影を落としている
+
+7. 【Detection — 店主も気づいていない魅力の発見】
+[① _] 縁の焼き色のグラデーションが手焼きの痕跡として残っている
+[② _] 6個の均等な間隔がトレイ全体の整然とした印象を作っている
+[③ _] 表面のひび割れが焼き上がりの膨らみを視覚的に伝えている`;
+
+    const result = parseCharmViewpoints(input);
+    assert.equal(result.viewpoints.length, 3);
+    assert.equal(result.viewpoints[0], '縁の焼き色のグラデーションが手焼きの痕跡として残っている');
+    assert.equal(result.viewpoints[1], '6個の均等な間隔がトレイ全体の整然とした印象を作っている');
+    assert.equal(result.viewpoints[2], '表面のひび割れが焼き上がりの膨らみを視覚的に伝えている');
+    // cleanDescription should only contain items 1-5
+    assert.ok(!result.cleanDescription.includes('Observation'), 'cleanDescription should not contain Observation section');
+    assert.ok(!result.cleanDescription.includes('Detection'), 'cleanDescription should not contain Detection section');
+    assert.ok(result.cleanDescription.includes('マフィンが6個'), 'cleanDescription should keep items 1-5');
   });
 
   it('parseCharmViewpoints: 旧フォーマット（視点A/B/C）もフォールバックで動く', () => {
@@ -2756,11 +2785,14 @@ describe('Scenario 47: 魅力発見AI', async () => {
       'parseCharmViewpoints should be exported');
   });
 
-  it('describeImageプロンプトに観察視点の項目6が含まれる', () => {
+  it('describeImageプロンプトにObservation→Detectionチェーンが含まれる', () => {
     const content = fs.readFileSync(
       new URL('../src/services/claudeService.js', import.meta.url), 'utf-8'
     );
-    assert.ok(content.includes('写真の観察'), 'describeImage should include observation section');
+    assert.ok(content.includes('Observation'), 'describeImage should include Observation section');
+    assert.ok(content.includes('Detection'), 'describeImage should include Detection section');
+    assert.ok(content.includes('視覚的事実のみ'), 'Observation should enforce visual facts only');
+    assert.ok(content.includes('<具体物> + <視覚効果>'), 'Detection should enforce structure rule');
     assert.ok(content.includes('[① _]'), 'describeImage should include numbered format');
     assert.ok(content.includes('[② _]'), 'describeImage should include numbered format');
     assert.ok(content.includes('[③ _]'), 'describeImage should include numbered format');
@@ -2788,8 +2820,16 @@ describe('Scenario 47: 魅力発見AI', async () => {
     const content = fs.readFileSync(
       new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
     );
-    assert.ok(content.includes('見方を3つ見つけました'), 'should include observation discovery message in Push');
+    assert.ok(content.includes('この写真から発見しました'), 'should include detection discovery message in Push');
     assert.ok(content.includes('charmViewpoints'), 'should save viewpoints to pending_image_context');
+  });
+
+  it('promptBuilderのviewpointラベルにDetectionが含まれる', () => {
+    const content = fs.readFileSync(
+      new URL('../src/utils/promptBuilder.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('Detection（写真から発見した魅力）'), 'should use Detection label for viewpoint hints');
+    assert.ok(content.includes('Detectionの事実をそのまま投稿の起点にする'), 'should instruct Detection-based composition');
   });
 
   it('フォールバック: 視点パース失敗時に汎用ヒントボタンをPushする', () => {
