@@ -1012,10 +1012,10 @@ describe('Scenario 28: Ver.4.0 Dual Trigger Model', async () => {
     const store = { name: 'テスト店', tone: 'カジュアル', config: {} };
     const prompt = buildImagePostPrompt(store, null, null, '', 'テスト画像説明');
 
-    assert.ok(prompt.includes('想起トリガー'),
-      'Should include recall trigger concept');
-    assert.ok(prompt.includes('来店トリガー'),
-      'Should include visit trigger concept');
+    assert.ok(prompt.includes('独り言'),
+      'Should include monologue concept');
+    assert.ok(prompt.includes('説明文を書かない'),
+      'Should prohibit explanatory writing');
     assert.ok(prompt.includes('想起の一言'),
       'Should include recall one-liner format');
     assert.ok(prompt.includes('来店の一文'),
@@ -1061,10 +1061,10 @@ describe('Scenario 28: Ver.4.0 Dual Trigger Model', async () => {
 
     assert.ok(!prompt.includes('良き理解者'),
       'Old identity should be removed');
-    assert.ok(prompt.includes('影の秘書'),
-      'New identity should be shadow secretary');
-    assert.ok(prompt.includes('思い出してしまう'),
-      'Should mention recall goal');
+    assert.ok(prompt.includes('SNSライターではありません'),
+      'New identity should be store owner, not SNS writer');
+    assert.ok(prompt.includes('店主のメモ'),
+      'Should instruct memo-style writing');
   });
 
   it('buildRevisionPrompt に Dual Trigger ルールが含まれる', async () => {
@@ -1086,11 +1086,11 @@ describe('Scenario 28: Ver.4.0 Dual Trigger Model', async () => {
     const imagePrompt = buildImagePostPrompt(store, null, null, '', 'テスト画像');
     const textPrompt = buildTextPostPrompt(store, 'テスト', null, null, '');
 
-    // 1行目のルール
-    assert.ok(imagePrompt.includes('1行目のルール'),
-      'Image prompt should include first line rule');
-    assert.ok(textPrompt.includes('1行目のルール'),
-      'Text prompt should include first line rule');
+    // 書き方の型（独り言スタイル）
+    assert.ok(imagePrompt.includes('作業中の独り言'),
+      'Image prompt should include monologue style rule');
+    assert.ok(textPrompt.includes('作業中の独り言') || textPrompt.includes('本文の書き方'),
+      'Text prompt should include writing pattern');
     // 本文の書き方
     assert.ok(imagePrompt.includes('本文の書き方'),
       'Image prompt should include writing pattern');
@@ -2829,7 +2829,7 @@ describe('Scenario 47: 魅力発見AI', async () => {
       new URL('../src/utils/promptBuilder.js', import.meta.url), 'utf-8'
     );
     assert.ok(content.includes('Detection（写真から発見した魅力）'), 'should use Detection label for viewpoint hints');
-    assert.ok(content.includes('Detectionの事実をそのまま投稿の起点にする'), 'should instruct Detection-based composition');
+    assert.ok(content.includes('店主が気づいた形で自然に独り言に入れる'), 'should instruct Detection as store owner monologue');
   });
 
   it('フォールバック: 視点パース失敗時に汎用ヒントボタンをPushする', () => {
