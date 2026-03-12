@@ -1,4 +1,4 @@
-import { replyText } from '../services/lineService.js';
+import { replyText, replyWithQuickReply } from '../services/lineService.js';
 import { getStore, getLatestPost } from '../services/supabaseService.js';
 import {
   connectInstagramAccount,
@@ -7,9 +7,10 @@ import {
   getInstagramStats,
   getInstagramAccount,
   publishToInstagram,
+  publishCarouselToInstagram,
   buildInstagramAuthUrl,
 } from '../services/instagramService.js';
-import { supabase } from '../services/supabaseService.js';
+import { supabase, savePendingImageContext, clearPendingImageContext } from '../services/supabaseService.js';
 
 /**
  * Instagram コマンドの振り分け
@@ -206,6 +207,120 @@ async function handleInstagramPublish(user, replyToken) {
   } catch (err) {
     console.error('[Instagram] 投稿エラー:', err);
     await replyText(replyToken, '❌ Instagram投稿に失敗しました。しばらくしてから再度お試しください。');
+  }
+  return true;
+}
+
+/**
+ * カルーセル投稿モードを開始
+ * 元画像をimagesに入れてpending_image_contextを設定
+ */
+export async function handleCarouselStart(user, replyToken) {
+  try {
+    const store = await getStore(user.current_store_id);
+    if (!store) {
+      await replyText(replyToken, '店舗が見つかりません。');
+      return true;
+    }
+
+    const latestPost = await getLatestPost(store.id);
+    if (!latestPost || !latestPost.image_url) {
+      await replyText(replyToken, '投稿する画像がありません。先に画像を送って投稿を作成してください。');
+      return true;
+    }
+
+    // 3案未選択チェック
+    if (/\[\s*案A[：:]/.test(latestPost.content)) {
+      await replyText(replyToken, '先にA / B / C を選択してから投稿してください。');
+      return true;
+    }
+
+    // カルーセルモードを開始
+    await savePendingImageContext(user.id, {
+      carousel_mode: true,
+      images: [latestPost.image_url],
+      storeId: store.id,
+      postId: latestPost.id,
+      createdAt: new Date().toISOString(),
+    });
+
+    await replyWithQuickReply(
+      replyToken,
+      `📸 複数枚投稿モード\n\n1枚目（元の画像）は追加済みです。\n追加の画像を送ってください（最大10枚）\n\n全部送ったら「完了」を押してください。`,
+      [
+        { type: 'action', action: { type: 'message', label: '✅ 完了', text: '完了' } },
+        { type: 'action', action: { type: 'message', label: '❌ キャンセル', text: 'キャンセル' } },
+      ]
+    );
+  } catch (err) {
+    console.error('[Instagram] カルーセル開始エラー:', err);
+    await replyText(replyToken, '❌ エラーが発生しました。しばらくしてから再度お試しください。');
+  }
+  return true;
+}
+
+/**
+ * カルーセルモード中のテキスト応答処理
+ * 「完了」→ 投稿 / その他 → 画像を送るよう促す
+ */
+export async function handleCarouselTextResponse(user, trimmed, replyToken) {
+  const ctx = user.pending_image_context;
+
+  if (trimmed === '完了') {
+    return await handleCarouselComplete(user, replyToken);
+  }
+
+  // その他のテキスト → 画像を送るよう促す
+  await replyWithQuickReply(
+    replyToken,
+    `画像を送るか「完了」を押してください。\n現在 ${ctx.images.length}枚`,
+    [
+      { type: 'action', action: { type: 'message', label: '✅ 完了', text: '完了' } },
+      { type: 'action', action: { type: 'message', label: '❌ キャンセル', text: 'キャンセル' } },
+    ]
+  );
+  return true;
+}
+
+/**
+ * カルーセル投稿を実行
+ */
+async function handleCarouselComplete(user, replyToken) {
+  const ctx = user.pending_image_context;
+
+  if (!ctx || !ctx.images || ctx.images.length < 2) {
+    await replyText(replyToken, 'カルーセル投稿には2枚以上の画像が必要です。画像を追加してください。');
+    return true;
+  }
+
+  try {
+    const store = await getStore(ctx.storeId);
+    if (!store) {
+      await clearPendingImageContext(user.id);
+      await replyText(replyToken, '店舗が見つかりません。');
+      return true;
+    }
+
+    const latestPost = await getLatestPost(store.id);
+    if (!latestPost) {
+      await clearPendingImageContext(user.id);
+      await replyText(replyToken, '投稿が見つかりません。');
+      return true;
+    }
+
+    // 撮影アドバイス（━━━ 区切り以降）を除外して本文のみ投稿
+    const caption = latestPost.content.split(/\n━{3,}/)[0].trim();
+
+    // pending_image_context をクリア（投稿前にクリア）
+    await clearPendingImageContext(user.id);
+
+    const result = await publishCarouselToInstagram(store.id, ctx.images, caption);
+
+    await replyText(replyToken, `✅ Instagramにカルーセル投稿しました！（${ctx.images.length}枚）\n\n📱 投稿ID: ${result.id}\n\nInstagramアプリで確認してみてください。`);
+  } catch (err) {
+    console.error('[Instagram] カルーセル投稿エラー:', err);
+    await clearPendingImageContext(user.id);
+    await replyText(replyToken, '❌ カルーセル投稿に失敗しました。しばらくしてから再度お試しください。');
   }
   return true;
 }

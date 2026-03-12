@@ -57,14 +57,16 @@ export async function handleProposalSelection(user, store, latestPost, input, re
 
     // Instagram連携済み & 画像URLあり → 投稿ボタンを先頭に追加
     const igAccount = await getInstagramAccount(store.id).catch(() => null);
+    console.log(`[Proposal] Instagram判定: igAccount=${!!igAccount}, image_url=${!!latestPost.image_url}, image_url値=${latestPost.image_url?.slice(0, 60) || 'null'}`);
     if (igAccount && latestPost.image_url) {
-      quickReplies.unshift({
-        type: 'action',
-        action: { type: 'message', label: '📸 Instagram投稿', text: 'instagram投稿' },
-      });
+      quickReplies.unshift(
+        { type: 'action', action: { type: 'message', label: '📸 Instagram投稿', text: 'instagram投稿' } },
+        { type: 'action', action: { type: 'message', label: '📸 複数枚投稿', text: '複数枚投稿' } },
+      );
     }
 
     // 6. 返信
+    console.log(`[Proposal] quickReplies数=${quickReplies.length}, labels=${quickReplies.map(q => q.action.label).join(', ')}`);
     return await replyWithQuickReply(replyToken, `案${selection}（${styleName}）ですね！コピペでどうぞ👇
 ━━━━━━━━━━━
 ${finalContent}

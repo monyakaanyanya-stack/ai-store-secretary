@@ -1,10 +1,11 @@
-import { replyText } from '../services/lineService.js';
+import { replyText, replyWithQuickReply } from '../services/lineService.js';
 import { askClaude } from '../services/claudeService.js';
 import {
   getStore,
   getLatestPost,
   saveLearningData,
   savePostHistory,
+  updatePostContent,
 } from '../services/supabaseService.js';
 import { buildRevisionPrompt } from '../utils/promptBuilder.js';
 import { applyFeedbackToProfile, getOrCreateLearningProfile } from '../services/personalizationEngine.js';
@@ -14,6 +15,7 @@ import {
   getProfileAndPrompt,
 } from '../services/advancedPersonalization.js';
 import { checkGenerationLimit } from '../services/subscriptionService.js';
+import { getInstagramAccount } from '../services/instagramService.js';
 
 /**
  * フィードバック処理: 最新投稿を修正 + 学習データとして蓄積
@@ -158,6 +160,9 @@ export async function handleStyleLearning(user, userRewrite, replyToken) {
       analysis || {}
     );
 
+    // 書き直し文章で投稿内容を上書き（そのままInstagram投稿できるように）
+    await updatePostContent(latestPost.id, userRewrite);
+
     const profile = await getOrCreateLearningProfile(store.id);
     const profileData = profile?.profile_data || {};
     const latestLearnings = profileData.latest_learnings || [];
@@ -166,11 +171,22 @@ export async function handleStyleLearning(user, userRewrite, replyToken) {
       ? latestLearnings.map(l => `✅ ${l}`).join('\n')
       : '✅ 文体パターンを学習しました';
 
-    await replyText(replyToken, `見本から学習しました！
+    const message = `見本から学習しました！
 
 【学んだこと】
 ${learningList}
-📚 ${profile.interaction_count}回目の学習`);
+📚 ${profile.interaction_count}回目の学習`;
+
+    // Instagram連携済み & 画像URLあり → 📸ボタン付きで返信
+    const igAccount = await getInstagramAccount(store.id).catch(() => null);
+    if (igAccount && latestPost.image_url) {
+      const quickReplies = [
+        { type: 'action', action: { type: 'message', label: '📸 Instagram投稿', text: 'instagram投稿' } },
+      ];
+      await replyWithQuickReply(replyToken, message, quickReplies);
+    } else {
+      await replyText(replyToken, message);
+    }
   } catch (err) {
     console.error('[StyleLearning] エラー:', err);
     await replyText(replyToken, 'うまくいきませんでした...もう一度試してみてください');

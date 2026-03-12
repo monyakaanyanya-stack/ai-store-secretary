@@ -295,7 +295,7 @@ export async function addSimpleBelief(storeId, beliefText, source) {
  * 人格要約を生成・更新
  * 抽象的な「人格」ではなく、具体的な「ライティング指示集」を生成する
  */
-async function regeneratePersonaDefinition(storeId, profileData, beliefLogs) {
+export async function regeneratePersonaDefinition(storeId, profileData, beliefLogs) {
   // writing_style も材料に含める
   const ws = profileData.writing_style || {};
   const styleSection = [];
@@ -367,6 +367,101 @@ ${beliefLogs.map(b => `・${b.text}`).join('\n')}${styleMaterial}
   console.log(`[AdvancedPersonalization] 人格要約 Ver.${newVersion} 生成完了`);
 }
 
+// persona自動更新の投稿間隔
+const AUTO_PERSONA_POST_INTERVAL = 10;
+// 同時実行防止ロック（storeId → true）
+const _personaRegenerating = new Map();
+
+/**
+ * 投稿数ベースで persona_definition を自動更新
+ * 前回更新から AUTO_PERSONA_POST_INTERVAL 投稿経過 & belief_logs >= MIN_BELIEFS_FOR_PERSONA で発火
+ * pendingImageHandler から fire-and-forget で呼ばれる
+ */
+export async function autoRegeneratePersonaIfNeeded(storeId) {
+  // 同時実行防止: 同じ店舗で既に走っていたらスキップ
+  if (_personaRegenerating.get(storeId)) {
+    console.log(`[AutoPersona] スキップ（実行中）: store=${storeId}`);
+    return false;
+  }
+
+  try {
+    _personaRegenerating.set(storeId, true);
+
+    const { data: profile } = await supabase
+      .from('learning_profiles')
+      .select('profile_data')
+      .eq('store_id', storeId)
+      .single();
+
+    if (!profile) return false;
+
+    const profileData = profile.profile_data || {};
+    const beliefLogs = profileData.belief_logs || [];
+
+    // 材料不足: belief_logs が最低件数に満たない
+    if (beliefLogs.length < MIN_BELIEFS_FOR_PERSONA) return false;
+
+    // 投稿数取得
+    const { count, error } = await supabase
+      .from('post_history')
+      .select('*', { count: 'exact', head: true })
+      .eq('store_id', storeId);
+
+    if (error || count === null) return false;
+
+    const lastUpdateCount = profileData._last_persona_update_post_count || 0;
+
+    // 前回更新からの投稿数が閾値未満
+    if (count - lastUpdateCount < AUTO_PERSONA_POST_INTERVAL) return false;
+
+    // 先にカウントを更新して重複発火を防止
+    profileData._last_persona_update_post_count = count;
+    await supabase
+      .from('learning_profiles')
+      .update({ profile_data: profileData })
+      .eq('store_id', storeId);
+
+    console.log(`[AutoPersona] 自動更新開始: store=${storeId}, posts=${count}, lastUpdate=${lastUpdateCount}, beliefs=${beliefLogs.length}`);
+
+    // persona系のbeliefのみ抽出（数字の傾向=strategyは除外）
+    const personaBeliefs = filterPersonaBeliefs(beliefLogs);
+
+    if (personaBeliefs.length < MIN_BELIEFS_FOR_PERSONA) {
+      console.log(`[AutoPersona] persona系belief不足（${personaBeliefs.length}件）: store=${storeId}`);
+      return false;
+    }
+
+    await regeneratePersonaDefinition(storeId, profileData, personaBeliefs);
+
+    console.log(`[AutoPersona] 自動更新完了: store=${storeId}, nextUpdate=${count + AUTO_PERSONA_POST_INTERVAL}投稿後`);
+    return true;
+  } finally {
+    _personaRegenerating.delete(storeId);
+  }
+}
+
+/**
+ * belief_logs から persona系（口調・言い回し・構成癖・価値観）のみ抽出
+ * strategy系（投稿時間・数値傾向・テーマ）は persona_definition に混ぜない
+ */
+function filterPersonaBeliefs(beliefLogs) {
+  // strategy系のキーワード: 数字の傾向・投稿タイミング・テーマ選定
+  const strategyPatterns = [
+    /投稿時間|朝投稿|夜投稿|時間帯/,
+    /保存率|いいね数|エンゲージ|フォロワー/,
+    /文字数が[多少長短]|短文が|長文が/,
+    /曜日|月曜|火曜|水曜|木曜|金曜|土曜|日曜/,
+    /反応が[良好高低]|パフォーマンス/,
+    /ハッシュタグ数|タグが/,
+  ];
+
+  return beliefLogs.filter(b => {
+    const text = b.text || '';
+    // strategy系パターンに一致したら除外
+    return !strategyPatterns.some(p => p.test(text));
+  });
+}
+
 /**
  * エンゲージメントデータから投稿の成功要因を自動分析し belief_logs に追加
  * @param {string} storeId
@@ -432,9 +527,9 @@ ${postContent.slice(0, 500)}
 function _buildPromptParts(profileData) {
   const parts = [];
 
-  // ★ ライティング指示集（最重要）
+  // ★ ライティング指示集（写真に合うものだけ自然に反映）
   if (profileData.persona_definition) {
-    parts.push(`\n━━━━━━━━━━━━━━━━━━━━━━━━\n【最重要：この店主専用ライティング指示 Ver.${profileData.persona_version || 1}】\n${profileData.persona_definition}\n※ 上記は店主のフィードバックから構築した具体的なルール。生成時に全項目を厳守せよ。\n━━━━━━━━━━━━━━━━━━━━━━━━`);
+    parts.push(`\n━━━━━━━━━━━━━━━━━━━━━━━━\n【この店主のライティング傾向 Ver.${profileData.persona_version || 1}】\n${profileData.persona_definition}\n※ 上記は店主のフィードバックから学んだ傾向。写真や文脈に合う項目だけ自然に取り入れること。全部を毎回入れる必要はない。\n━━━━━━━━━━━━━━━━━━━━━━━━`);
   }
 
   // 語尾・口癖
@@ -463,7 +558,7 @@ function _buildPromptParts(profileData) {
   if (!profileData.persona_definition) {
     const beliefLogs = profileData.belief_logs || [];
     if (beliefLogs.length > 0) {
-      parts.push(`【この店主のライティングルール（必ず反映せよ）】\n${beliefLogs.map(b => `・${b.text}`).join('\n')}\n※ 上記は店主の修正から抽出した具体的なルール。生成時に全項目を厳守すること。`);
+      parts.push(`【この店主のライティング傾向】\n${beliefLogs.map(b => `・${b.text}`).join('\n')}\n※ 上記は店主の修正から学んだ傾向。写真や文脈に合うものだけ自然に反映すること。`);
     }
   }
 
@@ -480,7 +575,7 @@ function _buildPromptParts(profileData) {
       .filter(([k]) => k !== 'total')
       .sort((a, b) => b[1] - a[1])[0];
     if (favorite && favorite[1] >= 2) {
-      parts.push(`【この店主が好む案の傾向】\n・${styleDescriptions[favorite[0]] || favorite[0]}を好む（${totalSelections}回中${favorite[1]}回選択）\n→ 3案すべてにこの傾向をベースとして反映しつつ、各案の個性は維持せよ`);
+      parts.push(`【この店主が好む案の傾向】\n・${styleDescriptions[favorite[0]] || favorite[0]}を好む（${totalSelections}回中${favorite[1]}回選択）\n→ 3案の中でこの傾向を参考にしつつ、各案の個性は維持する`);
     }
   }
 

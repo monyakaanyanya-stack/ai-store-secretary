@@ -196,7 +196,8 @@ export const POST_LENGTH_MAP = {
 
 // L5: import文は本来先頭に置くべきだが、ESMがhoistするため実害はない
 // 次回リファクタ時にファイル先頭に移動すること
-import { getHashtagsForCategory, getCategoryGroup } from '../config/categoryDictionary.js';
+import { getHashtagsForCategory, getCategoryGroup, findCategoryByLabel } from '../config/categoryDictionary.js';
+import { getTemplatesForGroup } from '../config/nudgeTemplates.js';
 
 function getToneName(tone) {
   const toneData = TONE_MAP[tone] || TONE_MAP.casual;
@@ -262,6 +263,34 @@ function buildCharacterSection(store) {
   if (parts.length === 0) return '';
 
   return `\n━━━━━━━━━━━━━━━━━━━━━━━━\n🎭 あなたの個性（最優先で反映）\n━━━━━━━━━━━━━━━━━━━━━━━━\n${parts.join('\n\n')}\n━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+}
+
+/**
+ * 業種別の「次に撮れるもの」候補を生成
+ * nudgeTemplates からランダムに3件選んで返す
+ * @param {string|null} category - 店舗カテゴリ
+ * @returns {string} 候補リスト文字列（カテゴリ不明の場合は空文字）
+ */
+function buildNextSubjectHints(category) {
+  if (!category) return '';
+  const catInfo = findCategoryByLabel(category);
+  if (!catInfo) return '';
+
+  const templates = getTemplatesForGroup(catInfo.groupId);
+  if (!templates || templates.length === 0) return '';
+
+  // 季節フィルタ
+  const month = new Date().getMonth() + 1;
+  const season = (month <= 2 || month === 12) ? '冬'
+    : month <= 5 ? '春'
+    : month <= 8 ? '夏' : '秋';
+  const filtered = templates.filter(t => !t.season || t.season === season);
+
+  // ランダムに3件選択
+  const shuffled = [...filtered].sort(() => Math.random() - 0.5);
+  const picked = shuffled.slice(0, 3);
+
+  return picked.map(t => `・${t.subject}（${t.description}）`).join('\n');
 }
 
 // ボタン選択テキストの一覧
@@ -591,7 +620,7 @@ export function buildImagePostPrompt(store, lengthOverride = null, blendedInsigh
     }
 
     if (insights.length > 0) {
-      collectiveIntelligenceSection = `\n━━━━━━━━━━━━━━━━━━━━━━━━\n📊 集合知データ【必ず反映すること】（同業種${category?.sampleSize || 0}件・保存強度ベース）\n※ 以下の指示は「守ること」セクションより優先して厳守する\n━━━━━━━━━━━━━━━━━━━━━━━━\n${insights.join('\n\n')}\n━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+      collectiveIntelligenceSection = `\n━━━━━━━━━━━━━━━━━━━━━━━━\n📊 集合知データ【参考】（同業種${category?.sampleSize || 0}件・保存強度ベース）\n※ 以下はデータから導いた傾向。この写真・店の文脈に合う範囲で参考にする\n━━━━━━━━━━━━━━━━━━━━━━━━\n${insights.join('\n\n')}\n━━━━━━━━━━━━━━━━━━━━━━━━\n`;
     }
   }
 
@@ -646,7 +675,7 @@ export function buildImagePostPrompt(store, lengthOverride = null, blendedInsigh
     return buildInfluencerImagePrompt({
       personalization, characterSection, imageDescriptionSection,
       hintSection, collectiveIntelligenceSection, industryPatternSection,
-      hashtagInstruction, lengthInfo, options,
+      hashtagInstruction, lengthInfo, options, category: store.category,
     });
   }
 
@@ -725,7 +754,7 @@ ${buildCategoryRules(store.category)}
 - 想起の一言は五感（香り・音・温度・光・手触り）のどれか1つを必ず含める
 - 来店の一文は「行きたくなる具体的なきっかけ」を書く。新メニュー・季節限定・ビフォーアフター・空き状況など、読み手が「今行く理由」を感じる情報を店主のつぶやき口調で入れる。営業時間や価格をそのまま書かない
 - 来店の一文は押し売りにならないこと（「ぜひ」「おすすめ」禁止）
-${collectiveIntelligenceSection ? '- 【最優先】集合知データ（📊セクション）の文字数・絵文字数の指示を必ず守る（「参考」ではなく「厳守」）' : ''}
+${collectiveIntelligenceSection ? '- 集合知データ（📊セクション）の文字数・絵文字数は目安として参考にする' : ''}
 
 ${buildOutputFormat(hint, hashtagInstruction)}
 
@@ -735,7 +764,15 @@ ${buildOutputFormat(hint, hashtagInstruction)}
 次に「なぜそれを撮ることに価値があるのか」——その物語の裏付けを添えて、次の提案をする（1〜2文）。
 技術指導ではなく「あなたの店の価値を再発見する体験」になるトーンで。合計3行以内。
 例: 「バターが溶ける瞬間を撮れるのは、店主さんだけの贅沢ですよね。その瞬間を切り取れたら、見てる人にもその贅沢をお裾分けできますよ。次はもう少し寄りで、湯気ごと撮ってみませんか？」
-${options.isPremium ? `
+${(() => {
+  const subjectHints = buildNextSubjectHints(store.category);
+  return subjectHints ? `
+💡 次はこんなのも撮ってみませんか？
+今日の写真とは違う被写体を、以下の候補から1つ選んで提案する（1文）。
+候補:
+${subjectHints}
+「なぜそれを撮ると反応が取れそうか」を添えて、店主が「明日撮ってみようかな」と思える提案にする。今日の写真と同じものは選ばないこと。` : '';
+})()}${options.isPremium ? `
 🎯 明日撮るべきもの
 上記の撮影提案に加えて、「明日これを撮ってください」と具体的に1つだけ指定する。
 被写体・アングル・タイミングを明確に書く（例: 「明日の仕込み中、生地をこねている手元を真上から」）。
@@ -752,7 +789,7 @@ ${options.isPremium ? `
 function buildInfluencerImagePrompt({
   personalization, characterSection, imageDescriptionSection,
   hintSection = '', collectiveIntelligenceSection, industryPatternSection,
-  hashtagInstruction, lengthInfo, options,
+  hashtagInstruction, lengthInfo, options, category = null,
 }) {
   return `${personalization}
 あなたはSNSインフルエンサーの投稿を代筆します。
@@ -834,7 +871,15 @@ ${hashtagInstruction ? '上記のハッシュタグルールに従うこと。' 
 ━━━━━━━━━━━━━━━━━━━━━━━━
 📸 次のコンテンツに
 この写真の良いところ1つ + 次こう撮ったら？を1つ。合計2行以内。
-${options.isPremium ? `
+${(() => {
+  const subjectHints = buildNextSubjectHints(category);
+  return subjectHints ? `
+💡 次はこんなのも撮ってみない？
+今日の写真とは違う被写体を、以下から1つ選んで提案する（1文）。
+候補:
+${subjectHints}
+なぜ反応が取れそうかを添えて。今日の写真と同じものは選ばない。` : '';
+})()}${options.isPremium ? `
 🎯 明日撮るべきコンテンツ
 「明日これを撮って」と具体的に1つ指定。被写体・アングル・タイミングを明確に。
 なぜ反応が取れそうかを1文で。` : ''}
@@ -1028,7 +1073,7 @@ export function buildTextPostPrompt(store, userText, lengthOverride = null, blen
     }
 
     if (insights.length > 0) {
-      collectiveIntelligenceSection = `\n━━━━━━━━━━━━━━━━━━━━━━━━\n📊 集合知データ【必ず反映すること】（同業種${category?.sampleSize || 0}件・保存強度ベース）\n※ 以下の指示は「ルール」セクションより優先して厳守する\n━━━━━━━━━━━━━━━━━━━━━━━━\n${insights.join('\n\n')}\n━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+      collectiveIntelligenceSection = `\n━━━━━━━━━━━━━━━━━━━━━━━━\n📊 集合知データ【参考】（同業種${category?.sampleSize || 0}件・保存強度ベース）\n※ 以下はデータから導いた傾向。文脈に合う範囲で参考にする\n━━━━━━━━━━━━━━━━━━━━━━━━\n${insights.join('\n\n')}\n━━━━━━━━━━━━━━━━━━━━━━━━\n`;
     }
   }
 
@@ -1131,7 +1176,7 @@ ${buildCategoryRules(store.category)}
 - 想起の一言は五感（香り・音・温度・光・手触り）のどれか1つを必ず含める
 - 来店の一文は「行きたくなる具体的なきっかけ」を書く。新メニュー・季節限定・ビフォーアフター・空き状況など、読み手が「今行く理由」を感じる情報を店主のつぶやき口調で入れる。営業時間や価格をそのまま書かない
 - 来店の一文は押し売りにならないこと（「ぜひ」「おすすめ」禁止）
-${collectiveIntelligenceSection ? '- 【最優先】集合知データ（📊セクション）の文字数・絵文字数・ハッシュタグの指示を必ず守る（「参考」ではなく「厳守」）' : ''}
+${collectiveIntelligenceSection ? '- 集合知データ（📊セクション）の文字数・絵文字数・ハッシュタグは目安として参考にする' : ''}
 
 【出力形式】
 ⚠️ [ 案A：... ] のラベルは以下の通り一字一句そのまま出力すること。独自のラベル（「光の肖像」「誠実の肖像」等）は絶対に使わない。

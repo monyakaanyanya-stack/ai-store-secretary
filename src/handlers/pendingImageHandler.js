@@ -7,6 +7,7 @@ import { saveEngagementMetrics } from '../services/collectiveIntelligence.js';
 import { getRevisionExample } from '../utils/categoryExamples.js';
 import { checkGenerationLimit, isFeatureEnabled } from '../services/subscriptionService.js';
 import { isDevTestStore } from './adminHandler.js';
+import { autoRegeneratePersonaIfNeeded } from '../services/advancedPersonalization.js';
 
 // pending_image_context の有効期限（30分）
 const PENDING_EXPIRE_MS = 30 * 60 * 1000;
@@ -139,6 +140,10 @@ export async function handlePendingImageResponse(user, text, replyToken) {
 
     const rawContent = await askClaude(prompt);
     const savedPost = await savePostHistory(user.id, store.id, rawContent, null, ctx.imageUrl || null);
+
+    // persona自動更新チェック（10投稿ごと・fire-and-forget）
+    autoRegeneratePersonaIfNeeded(store.id).catch(e =>
+      console.error('[AutoPersona] エラー:', e.message));
 
     // 開発者テスト店舗は集合知に保存しない
     if (store.category && !isDevTestStore(store)) {

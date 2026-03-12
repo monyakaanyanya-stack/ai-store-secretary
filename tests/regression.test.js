@@ -275,15 +275,15 @@ describe('Scenario 10: モジュールimport整合性', async () => {
       'deleteStore should include engagement_metrics cleanup');
   });
 
-  it('feedbackHandler が savePostHistory を使用（直しも生成回数カウント）', async () => {
+  it('feedbackHandler が savePostHistory を使用（直しも生成回数カウント）+ 学習後に投稿上書き', async () => {
     const fs = await import('node:fs');
     const content = fs.readFileSync(
       new URL('../src/handlers/feedbackHandler.js', import.meta.url), 'utf-8'
     );
     assert.ok(content.includes('savePostHistory'),
       'feedbackHandler should import savePostHistory for revision counting');
-    assert.ok(!content.includes('updatePostContent'),
-      'feedbackHandler should NOT use updatePostContent (revisions are new records now)');
+    assert.ok(content.includes('updatePostContent'),
+      'feedbackHandler should use updatePostContent for style learning post overwrite');
   });
 
   it('textHandler の処理順序: handlePostSelection が pending_follower_request より先', async () => {
@@ -2580,5 +2580,72 @@ describe('Scenario 45: 開発者テスト店舗', async () => {
     );
     assert.ok(content.includes("category === '開発者テスト'"),
       'saveEngagementMetrics に開発者テスト除外ガードがある');
+  });
+});
+
+// Scenario 46: persona自動更新（10投稿ごと）
+describe('Scenario 46: persona自動更新', async () => {
+  const fs = await import('node:fs');
+
+  it('autoRegeneratePersonaIfNeeded がエクスポートされている', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/advancedPersonalization.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('export async function autoRegeneratePersonaIfNeeded'),
+      'autoRegeneratePersonaIfNeeded should be exported');
+  });
+
+  it('regeneratePersonaDefinition がエクスポートされている', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/advancedPersonalization.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('export async function regeneratePersonaDefinition'),
+      'regeneratePersonaDefinition should be exported');
+  });
+
+  it('autoRegeneratePersonaIfNeeded が投稿数ベースの閾値チェックを持つ', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/advancedPersonalization.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('AUTO_PERSONA_POST_INTERVAL'),
+      'should have AUTO_PERSONA_POST_INTERVAL constant');
+    assert.ok(content.includes('_last_persona_update_post_count'),
+      'should track _last_persona_update_post_count');
+  });
+
+  it('pendingImageHandler に autoRegeneratePersonaIfNeeded が含まれる', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/pendingImageHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('autoRegeneratePersonaIfNeeded'),
+      'pendingImageHandler should call autoRegeneratePersonaIfNeeded');
+  });
+
+  it('autoRegeneratePersonaIfNeeded がfire-and-forget（awaitなし）で呼ばれる', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/pendingImageHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('autoRegeneratePersonaIfNeeded(store.id).catch'),
+      'autoRegeneratePersonaIfNeeded should be fire-and-forget with .catch()');
+  });
+
+  it('同時実行防止ロック（_personaRegenerating）がある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/advancedPersonalization.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('_personaRegenerating'),
+      'should have in-memory lock to prevent concurrent regeneration');
+    assert.ok(content.includes('finally'),
+      'should release lock in finally block');
+  });
+
+  it('persona系beliefのみ抽出するフィルター（filterPersonaBeliefs）がある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/advancedPersonalization.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('filterPersonaBeliefs'),
+      'should filter persona-type beliefs from strategy-type');
+    assert.ok(content.includes('strategyPatterns'),
+      'should have strategy patterns to exclude');
   });
 });

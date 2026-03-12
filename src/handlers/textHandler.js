@@ -109,6 +109,14 @@ export async function handleTextMessage(user, text, replyToken) {
     '店舗一覧', '店舗切り替え', '店舗切替', '店舗削除', 'ヘルプ', 'help', '学習状況', '問い合わせ', '登録',
     'プラン', 'アップグレード', '今週の計画', '投稿ネタ', '投稿ネタ教えて', 'ネタ', 'コマンド一覧', 'コマンド'].includes(trimmed)
     || trimmed.startsWith('切替:') || trimmed.startsWith('/');
+
+  // カルーセルモード中のテキスト処理（通常のpending_image_contextより先に判定）
+  if (user.pending_image_context?.carousel_mode && !isSystemCommand) {
+    const { handleCarouselTextResponse } = await import('./instagramHandler.js');
+    const handled = await handleCarouselTextResponse(user, trimmed, replyToken);
+    if (handled) return;
+  }
+
   if (user.pending_image_context && !isSystemCommand) {
     const handled = await handlePendingImageResponse(user, trimmed, replyToken);
     if (handled) return;
@@ -428,9 +436,10 @@ ${contactEmail}
     return await handleStoreDeleteExecution(user, replyToken);
   }
 
-  // キャンセル（データリセット・店舗削除・入力待ち共通）
+  // キャンセル（データリセット・店舗削除・入力待ち・カルーセル共通）
   if (trimmed === 'キャンセル' || trimmed === 'cancel') {
     if (user.pending_command) await clearPendingCommand(user.id);
+    if (user.pending_image_context?.carousel_mode) await clearPendingImageContext(user.id);
     return await replyText(replyToken, 'キャンセルしました！');
   }
 
@@ -458,6 +467,12 @@ ${contactEmail}
   if (trimmed === 'instagram投稿') {
     const { handleInstagramCommand } = await import('./instagramHandler.js');
     return await handleInstagramCommand(user, 'post', replyToken);
+  }
+
+  // Instagram複数枚投稿（カルーセルモード開始）
+  if (trimmed === '複数枚投稿') {
+    const { handleCarouselStart } = await import('./instagramHandler.js');
+    return await handleCarouselStart(user, replyToken);
   }
 
   // M1: 案選択: A, B, C, 案A, 案B, 案C, a, b, c, 1, 2, 3, 全角Ａ/Ｂ/Ｃ/１/２/３

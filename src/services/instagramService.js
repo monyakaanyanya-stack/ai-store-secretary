@@ -619,6 +619,93 @@ export async function publishToInstagram(storeId, imageUrl, caption) {
   return published;
 }
 
+/**
+ * カルーセル用の子コンテナを作成（各画像ごと）
+ * @param {object} account - getInstagramAccount() の返り値
+ * @param {string} imageUrl - 公開アクセス可能な画像URL
+ * @returns {Promise<{id: string}>} コンテナID
+ */
+export async function createCarouselItemContainer(account, imageUrl) {
+  const apiBase = account.access_token.startsWith('IG') ? INSTAGRAM_API_BASE : GRAPH_API_BASE;
+  return await graphApiPostBase(apiBase, `/${account.instagram_user_id}/media`, account.access_token, {
+    image_url: imageUrl,
+    is_carousel_item: true,
+  });
+}
+
+/**
+ * Instagram にカルーセル（複数枚）投稿するオーケストレーター
+ * @param {string} storeId - 店舗ID
+ * @param {string[]} imageUrls - Supabase Storage の公開URL配列（2〜10枚）
+ * @param {string} caption - 投稿キャプション
+ * @returns {Promise<{id: string}>} 投稿結果
+ */
+export async function publishCarouselToInstagram(storeId, imageUrls, caption) {
+  if (!imageUrls || imageUrls.length < 2) {
+    throw new Error('カルーセル投稿には2枚以上の画像が必要です');
+  }
+  if (imageUrls.length > 10) {
+    throw new Error('カルーセル投稿は最大10枚までです');
+  }
+
+  const account = await getInstagramAccount(storeId);
+  if (!account) throw new Error('Instagramが連携されていません');
+
+  const apiBase = account.access_token.startsWith('IG') ? INSTAGRAM_API_BASE : GRAPH_API_BASE;
+  console.log(`[Instagram] カルーセル投稿開始: store=${storeId}, images=${imageUrls.length}枚`);
+
+  // ステップ1: 各画像の子コンテナを作成
+  const childIds = [];
+  for (const url of imageUrls) {
+    const child = await createCarouselItemContainer(account, url);
+    console.log(`[Instagram] 子コンテナ作成: id=${child.id}`);
+    childIds.push(child.id);
+  }
+
+  // ステップ2: カルーセル親コンテナを作成
+  const container = await graphApiPostBase(apiBase, `/${account.instagram_user_id}/media`, account.access_token, {
+    media_type: 'CAROUSEL',
+    children: childIds.join(','),
+    caption,
+  });
+  console.log(`[Instagram] カルーセルコンテナ作成: id=${container.id}`);
+
+  // ステータスポーリング
+  await waitForContainerReady(account, container.id);
+
+  // FINISHED後もInstagram側の内部処理があるため少し待つ
+  await new Promise(resolve => setTimeout(resolve, 3000));
+
+  // ステップ3: 公開（リトライあり — 9007エラー対策）
+  let published;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      published = await publishMediaContainer(account, container.id);
+      break;
+    } catch (err) {
+      if (attempt < 3 && err.message.includes('9007')) {
+        console.warn(`[Instagram] カルーセル公開リトライ (${attempt}/3): ${err.message}`);
+        await new Promise(resolve => setTimeout(resolve, 5000));
+      } else {
+        throw err;
+      }
+    }
+  }
+  console.log(`[Instagram] カルーセル投稿完了: media_id=${published.id}`);
+
+  // instagram_posts テーブルに記録
+  await supabase.from('instagram_posts').insert({
+    store_id: storeId,
+    instagram_account_id: account.id,
+    media_id: published.id,
+    caption,
+    media_type: 'CAROUSEL',
+    published_via: 'app',
+  });
+
+  return published;
+}
+
 // ============================================================
 // Instagram OAuth フロー（自動連携）
 // ============================================================

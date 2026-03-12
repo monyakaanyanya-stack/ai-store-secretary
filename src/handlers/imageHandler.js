@@ -145,6 +145,11 @@ async function analyzeImageInBackground(userId, store, imageBase64, imageUrl, me
  * ユーザーがボタンを選ぶ間に画像分析が完了するため、体感3-5秒短縮
  */
 export async function handleImageMessage(user, messageId, replyToken) {
+  // カルーセルモード中 → 画像を追加
+  if (user.pending_image_context?.carousel_mode) {
+    return await handleCarouselImageAdd(user, messageId, replyToken);
+  }
+
   if (!user.current_store_id) {
     return await replyText(replyToken,
       'まだ店舗が登録されていないみたいです。「登録」で始められます！'
@@ -276,5 +281,56 @@ ${getHintExamples(store.category)}
   } catch (err) {
     console.error('[Image] 画像投稿生成エラー:', err);
     await replyText(replyToken, 'うまくいきませんでした...もう一度試してみてください');
+  }
+}
+
+/**
+ * カルーセルモード中に画像が送信された場合の処理
+ * 画像をStorageにアップロードし、pending_image_contextのimages配列に追加
+ */
+async function handleCarouselImageAdd(user, messageId, replyToken) {
+  const ctx = user.pending_image_context;
+
+  if (ctx.images.length >= 10) {
+    const { replyWithQuickReply } = await import('../services/lineService.js');
+    await replyWithQuickReply(
+      replyToken,
+      '最大10枚に達しました。「完了」を押して投稿してください。',
+      [
+        { type: 'action', action: { type: 'message', label: '✅ 完了', text: '完了' } },
+        { type: 'action', action: { type: 'message', label: '❌ キャンセル', text: 'キャンセル' } },
+      ]
+    );
+    return;
+  }
+
+  try {
+    const imageBase64 = await getImageAsBase64(messageId);
+    const imageUrl = await uploadImageToStorage(imageBase64, `${user.id}/${Date.now()}.jpg`);
+
+    if (!imageUrl) {
+      await replyText(replyToken, '画像のアップロードに失敗しました。もう一度送ってください。');
+      return;
+    }
+
+    // images配列に追加
+    const updatedImages = [...ctx.images, imageUrl];
+    await savePendingImageContext(user.id, {
+      ...ctx,
+      images: updatedImages,
+    });
+
+    const { replyWithQuickReply } = await import('../services/lineService.js');
+    await replyWithQuickReply(
+      replyToken,
+      `${updatedImages.length}枚目を追加しました（現在 ${updatedImages.length}枚）\n\n続けて画像を送るか「完了」を押してください。`,
+      [
+        { type: 'action', action: { type: 'message', label: '✅ 完了', text: '完了' } },
+        { type: 'action', action: { type: 'message', label: '❌ キャンセル', text: 'キャンセル' } },
+      ]
+    );
+  } catch (err) {
+    console.error('[Image] カルーセル画像追加エラー:', err);
+    await replyText(replyToken, '画像の追加に失敗しました。もう一度送ってください。');
   }
 }
