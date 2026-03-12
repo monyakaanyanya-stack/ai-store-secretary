@@ -39,7 +39,7 @@ function getHintExamples(category) {
 export function parseCharmViewpoints(imageDescription) {
   if (!imageDescription) return { cleanDescription: '', viewpoints: [], viewpointLabels: [] };
 
-  // 新フォーマット: [① カテゴリ名] 内容
+  // フォーマット: [① _] 内容（旧: [① カテゴリ名] 内容 も互換）
   const newFormatRegex = /\[([①②③])\s*(.+?)\]\s*(.+)/g;
   const viewpoints = [];
   const viewpointLabels = [];

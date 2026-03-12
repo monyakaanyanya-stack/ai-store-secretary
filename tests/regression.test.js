@@ -2656,7 +2656,7 @@ describe('Scenario 47: 魅力発見AI', async () => {
   // parseCharmViewpoints のロジックを直接テスト（importするとsupabase依存が走るため再実装）
   function parseCharmViewpoints(imageDescription) {
     if (!imageDescription) return { cleanDescription: '', viewpoints: [], viewpointLabels: [] };
-    // 新フォーマット: [① カテゴリ名] 内容
+    // フォーマット: [① _] 内容（旧: [① カテゴリ名] 内容 も互換）
     const newFormatRegex = /\[([①②③])\s*(.+?)\]\s*(.+)/g;
     const viewpoints = [];
     const viewpointLabels = [];
@@ -2761,9 +2761,9 @@ describe('Scenario 47: 魅力発見AI', async () => {
       new URL('../src/services/claudeService.js', import.meta.url), 'utf-8'
     );
     assert.ok(content.includes('写真の観察'), 'describeImage should include observation section');
-    assert.ok(content.includes('[① カテゴリ名]'), 'describeImage should include numbered category format');
-    assert.ok(content.includes('[② カテゴリ名]'), 'describeImage should include numbered category format');
-    assert.ok(content.includes('[③ カテゴリ名]'), 'describeImage should include numbered category format');
+    assert.ok(content.includes('[① _]'), 'describeImage should include numbered format');
+    assert.ok(content.includes('[② _]'), 'describeImage should include numbered format');
+    assert.ok(content.includes('[③ _]'), 'describeImage should include numbered format');
   });
 
   it('handleImageMessageの即応答にヒントボタンが含まれない', () => {
