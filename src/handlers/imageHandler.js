@@ -347,7 +347,7 @@ export async function handleImageMessage(user, messageId, replyToken) {
     });
 
     // 即応答（ボタンはバックグラウンド分析完了後にPush通知で送る）
-    await replyText(replyToken, 'いい写真ですね！あなたのお店の魅力を探しています...📸');
+    await replyText(replyToken, 'この写真から、お店の日常の魅力を探しています...📸');
 
     // バックグラウンドで画像分析 + 魅力発見開始（awaitしない = ユーザーの操作と並列実行）
     analyzeImageInBackground(user.id, user.line_user_id, store, imageBase64, imageUrl, messageId)
