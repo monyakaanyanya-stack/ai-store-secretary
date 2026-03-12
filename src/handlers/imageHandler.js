@@ -1,35 +1,18 @@
 import { replyText, replyWithQuickReply, getImageAsBase64, pushMessage } from '../services/lineService.js';
-import { describeImage } from '../services/claudeService.js';
-import { getStore, savePendingImageContext, uploadImageToStorage, setPendingCommand } from '../services/supabaseService.js';
+import { describeImage, askClaude } from '../services/claudeService.js';
+import { getStore, savePendingImageContext, clearPendingImageContext, uploadImageToStorage, setPendingCommand, savePostHistory } from '../services/supabaseService.js';
 import { getBlendedInsights, saveEngagementMetrics } from '../services/collectiveIntelligence.js';
 import { getPersonalizationPromptAddition } from '../services/personalizationEngine.js';
-import { getAdvancedPersonalizationPrompt } from '../services/advancedPersonalization.js';
+import { getAdvancedPersonalizationPrompt, autoRegeneratePersonaIfNeeded } from '../services/advancedPersonalization.js';
 import { getSeasonalMemoryPromptAddition } from '../services/seasonalMemoryService.js';
 import { extractInsightsFromScreenshot } from '../services/insightsOCRService.js';
 import { applyEngagementMetrics, getRecentPostHistory } from './reportHandler.js';
 import { detectContentCategory } from '../utils/contentCategoryDetector.js';
 import { checkGenerationLimit, isFeatureEnabled } from '../services/subscriptionService.js';
-import { getCategoryGroup } from '../config/categoryDictionary.js';
 import { isDevTestStore } from './adminHandler.js';
+import { buildImagePostPrompt } from '../utils/promptBuilder.js';
+import { getRevisionExample } from '../utils/categoryExamples.js';
 
-/**
- * カテゴリに応じたヒント例文を返す
- */
-function getHintExamples(category) {
-  const group = getCategoryGroup(category);
-  switch (group) {
-    case '美容系':
-      return '例：ブリーチからのアッシュグレー\n例：縮毛矯正でツヤツヤになった\n例：新色、自信ある';
-    case '飲食系':
-      return '例：今朝これ焼けたとき嬉しかった\n例：常連さんが褒めてくれた\n例：新作、自信ある';
-    case '小売系':
-      return '例：入荷したとき思わず自分用に欲しくなった\n例：お客さんが迷わず手に取ってくれた\n例：この色、今の季節にぴったり';
-    case 'サービス系':
-      return '例：今日のお客さん、すごく喜んでくれた\n例：この空間が一番好きな時間帯\n例：新しいメニュー、手応えあり';
-    default:
-      return '例：今日あったこと、嬉しかったこと\n例：お客さんに褒めてもらえた\n例：新作、自信ある';
-  }
-}
 
 /**
  * describeImage出力から観察視点（[① カテゴリ] 内容）をパースし、5項目観察と分離する
@@ -71,12 +54,12 @@ export function parseCharmViewpoints(imageDescription) {
 }
 
 /**
- * バックグラウンドで画像分析+補助データ取得を行い、結果をDBに保存
- * 分析完了後、Push通知で投稿視点ボタンを送信
+ * バックグラウンドで画像分析→投稿生成まで一気に実行し、結果をPush通知で送信
+ * ヒント選択ステップなし — 写真を送るだけで3案が届く
  */
 async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, imageUrl, messageId) {
   try {
-    console.log(`[Image] バックグラウンド分析開始: store=${store.name}`);
+    console.log(`[Image] バックグラウンド分析+生成開始: store=${store.name}`);
     const startMs = Date.now();
 
     const safeResolve = (promise, defaultVal, label) =>
@@ -118,8 +101,10 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
         imageUrl,
         createdAt: new Date().toISOString(),
       });
-      // フォールバック: 汎用ヒントボタンをPush
-      await sendFallbackHintPush(lineUserId, store.category);
+      await pushMessage(lineUserId, [{
+        type: 'text',
+        text: '画像がうまく読み取れませんでした...もう一度送ってみてください',
+      }]);
       return;
     }
 
@@ -129,12 +114,11 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
       const labelInfo = viewpointLabels.length === 3 ? viewpointLabels.join('/') : 'ラベルなし';
       console.log(`[Image] 観察視点抽出成功: [${labelInfo}] ${viewpoints.map((v, i) => `${i + 1}="${v}"`).join(', ')}`);
     } else {
-      console.log('[Image] 観察視点パース失敗 → フォールバックヒントボタン');
+      console.log('[Image] 観察視点パース失敗（ヒントなしで生成続行）');
     }
 
     // 被写体カテゴリー検出 → 集合知取得（cleanDescriptionで検出）
     const contentCategory = detectContentCategory(cleanDescription);
-    // 開発者テスト店舗: 検出カテゴリーを store.category の代わりに使用
     const effectiveCategory = isDevTestStore(store)
       ? (contentCategory || store.category)
       : store.category;
@@ -151,8 +135,10 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
     );
 
     const personalization = (basicPersonalization || '') + (advancedPersonalization || '') + (seasonalMemory || '');
+    const hasLearning = (advancedPersonalization || '') !== '';
 
-    // 分析完了 → DB更新（cleanDescriptionで保存 = 5項目のみ）
+    // ── 分析完了 → そのまま投稿生成へ ──
+    // DB状態を 'generating' に更新（ユーザーがテキスト送信した場合の判定用）
     await savePendingImageContext(userId, {
       messageId,
       imageDescription: cleanDescription,
@@ -161,80 +147,100 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
       blendedInsights: blendedInsights ?? null,
       personalization,
       imageUrl,
-      hasLearning: (advancedPersonalization || '') !== '',
+      hasLearning,
       effectiveCategory: effectiveCategory || null,
-      analysisStatus: 'complete',
+      analysisStatus: 'generating',
       createdAt: new Date().toISOString(),
     });
 
-    const elapsed = ((Date.now() - startMs) / 1000).toFixed(1);
-    console.log(`[Image] バックグラウンド分析完了: store=${store.name} (${elapsed}s)`);
+    const analysisElapsed = ((Date.now() - startMs) / 1000).toFixed(1);
+    console.log(`[Image] 分析完了 (${analysisElapsed}s) → 投稿生成開始: store=${store.name}`);
 
-    // Push通知で観察視点ボタン or フォールバックヒントを送信
-    if (viewpoints.length === 3) {
-      await pushMessage(lineUserId, [{
-        type: 'text',
-        text: `この写真、ここがいいなと思いました👀\n\n① ${viewpoints[0]}\n② ${viewpoints[1]}\n③ ${viewpoints[2]}\n\n気になるのありますか？`,
-        quickReply: {
-          items: [
-            { type: 'action', action: { type: 'message', label: truncateLabel(viewpoints[0]), text: viewpoints[0] } },
-            { type: 'action', action: { type: 'message', label: truncateLabel(viewpoints[1]), text: viewpoints[1] } },
-            { type: 'action', action: { type: 'message', label: truncateLabel(viewpoints[2]), text: viewpoints[2] } },
-            { type: 'action', action: { type: 'message', label: 'スキップ', text: 'スキップ' } },
-          ],
-        },
-      }]);
-    } else {
-      await sendFallbackHintPush(lineUserId, store.category);
+    // ── 投稿生成 ──
+    const isPremium = await isFeatureEnabled(userId, 'enhancedPhotoAdvice');
+
+    // 開発者テスト店舗: 検出カテゴリーで store を一時的にオーバーライド
+    const storeForPrompt = isDevTestStore(store) && effectiveCategory
+      ? { ...store, category: effectiveCategory }
+      : store;
+
+    // 最も良い観察視点を自動選択してヒントとして使用（viewpoints があれば1つ目）
+    const autoHint = viewpoints.length > 0 ? viewpoints[0] : null;
+
+    const prompt = buildImagePostPrompt(
+      storeForPrompt,
+      null,
+      blendedInsights ?? null,
+      personalization,
+      cleanDescription,
+      { isPremium, hint: autoHint, hintType: autoHint ? 'viewpoint' : 'manual' },
+    );
+
+    const rawContent = await askClaude(prompt);
+    const savedPost = await savePostHistory(userId, store.id, rawContent, null, imageUrl || null);
+
+    // pending context クリア（生成完了）
+    await clearPendingImageContext(userId);
+
+    // persona自動更新チェック（fire-and-forget）
+    autoRegeneratePersonaIfNeeded(store.id).catch(e =>
+      console.error('[AutoPersona] エラー:', e.message));
+
+    // 集合知保存（開発者テスト店舗は除外）
+    if (store.category && !isDevTestStore(store)) {
+      try {
+        await saveEngagementMetrics(store.id, store.category, {
+          post_id: savedPost.id,
+          content: rawContent,
+        });
+      } catch (metricsErr) {
+        console.error('[Image] メトリクス初期保存エラー（投稿は成功）:', metricsErr.message);
+      }
     }
-  } catch (err) {
-    console.error(`[Image] バックグラウンド分析エラー (store=${store.name}):`, err.message);
-    try {
-      await savePendingImageContext(userId, {
-        messageId,
-        imageDescription: null,
-        storeId: store.id,
-        analysisStatus: 'error',
-        imageUrl,
-        createdAt: new Date().toISOString(),
-      });
-      // エラー時もPushでフォールバックボタンを送る（ユーザーがボタンなしで放置されない）
-      await sendFallbackHintPush(lineUserId, store.category);
-    } catch {
-      // DB保存も失敗した場合は諦める
-    }
-  }
-}
 
-/**
- * LINE Quick Reply label の20文字制限に合わせてトランケーション
- */
-function truncateLabel(text) {
-  if (!text || text.length <= 20) return text;
-  return text.slice(0, 18) + '…';
-}
+    const totalElapsed = ((Date.now() - startMs) / 1000).toFixed(1);
+    console.log(`[Image] 分析+生成完了: store=${store.name} (${totalElapsed}s)`);
 
-/**
- * フォールバック: 汎用ヒントボタンをPush通知で送信
- */
-async function sendFallbackHintPush(lineUserId, category) {
-  try {
+    // ── Push通知で3案を送信 ──
+    const genLimit = await checkGenerationLimit(userId);
+    const revisionExample = getRevisionExample(store.category);
+    const learningNote = hasLearning ? '\n🧠 これまでの学習を反映しています' : '';
+    const remaining = Number.isFinite(genLimit.limit) ? genLimit.limit - (genLimit.used + 1) : null;
+    const remainingNote = remaining !== null && remaining <= 3 ? `\n📊 今月の残り: ${remaining}回` : '';
+    const formattedReply = `3つの投稿案ができました！どの案が理想に近いですか？👇${learningNote}
+━━━━━━━━━━━
+${rawContent}
+━━━━━━━━━━━
+
+A・B・C を選んだあと「直し: ${revisionExample}」で微調整もできます${remainingNote}`;
+
     await pushMessage(lineUserId, [{
       type: 'text',
-      text: `分析できました！一言もらえるとグッと「あなたらしい」投稿になります💡\n\n${getHintExamples(category)}\n\nボタンで選んでも、自由に文章を送ってもOKです✏️`,
+      text: formattedReply,
       quickReply: {
         items: [
-          { type: 'action', action: { type: 'message', label: 'お知らせ', text: 'お知らせ' } },
-          { type: 'action', action: { type: 'message', label: '日常感', text: '日常感' } },
-          { type: 'action', action: { type: 'message', label: 'お役立ち', text: 'お役立ち情報' } },
-          { type: 'action', action: { type: 'message', label: 'スキップ', text: 'スキップ' } },
+          { type: 'action', action: { type: 'message', label: '✅ A案', text: 'A' } },
+          { type: 'action', action: { type: 'message', label: '✅ B案', text: 'B' } },
+          { type: 'action', action: { type: 'message', label: '✅ C案', text: 'C' } },
+          { type: 'action', action: { type: 'message', label: '✏️ 直し', text: '直し:' } },
+          { type: 'action', action: { type: 'message', label: '📝 学習', text: '学習:' } },
         ],
       },
     }]);
-  } catch (pushErr) {
-    console.error('[Image] フォールバックPush送信失敗:', pushErr.message);
+  } catch (err) {
+    console.error(`[Image] バックグラウンド分析+生成エラー (store=${store.name}):`, err.message);
+    try {
+      await clearPendingImageContext(userId);
+      await pushMessage(lineUserId, [{
+        type: 'text',
+        text: 'うまくいきませんでした...もう一度画像を送ってみてください',
+      }]);
+    } catch {
+      // Push送信も失敗した場合は諦める
+    }
   }
 }
+
 
 /**
  * 画像メッセージ処理
@@ -359,8 +365,8 @@ export async function handleImageMessage(user, messageId, replyToken) {
       createdAt: new Date().toISOString(),
     });
 
-    // 即応答（ボタンはバックグラウンド分析完了後にPush通知で送る）
-    await replyText(replyToken, 'この写真を観察しています...📸');
+    // 即応答 — 秘書トーンで「お任せください」メッセージ
+    await replyText(replyToken, 'お任せください、投稿を考えておきますね！\n他の作業をしていてもらって大丈夫です✨');
 
     // バックグラウンドで画像分析 + 魅力発見開始（awaitしない = ユーザーの操作と並列実行）
     analyzeImageInBackground(user.id, user.line_user_id, store, imageBase64, imageUrl, messageId)

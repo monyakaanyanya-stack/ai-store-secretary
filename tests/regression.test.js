@@ -1003,8 +1003,9 @@ describe('Scenario 28: Ver.4.0 Dual Trigger Model', async () => {
     );
     assert.ok(!content.includes('equipmentLevel'),
       'equipmentLevel references should be removed from pendingImageHandler');
-    assert.ok(content.includes('options.hint') || content.includes('isPremium, hint'),
-      'Hint should be passed via options, not mixed into imageDescription');
+    // pendingImageHandler は簡略化され、待機メッセージのみ返す
+    assert.ok(content.includes('handlePendingImageResponse'),
+      'pendingImageHandler should export handlePendingImageResponse');
   });
 
   it('buildImagePostPrompt に Dual Trigger 出力形式がある', async () => {
@@ -1288,19 +1289,16 @@ describe('Scenario 29: 案A/B/C選択 + スタイル学習', async () => {
     assert.equal(result, null, 'Should return null for non-proposal content');
   });
 
-  it('imageHandler の返信に案選択UIが含まれる（pendingImageHandler に移動済み）', async () => {
+  it('imageHandler の返信に案選択UIが含まれる（バックグラウンド処理で直接Push）', async () => {
     const fs = await import('node:fs');
-    // 一言ヒント機能導入後、A/B/C UIは pendingImageHandler.js に移動
-    const pending = fs.readFileSync(
-      new URL('../src/handlers/pendingImageHandler.js', import.meta.url), 'utf-8'
-    );
-    assert.ok(pending.includes('どの案が理想に近いですか'),
-      'Reply should ask user to select A/B/C');
-    assert.ok(pending.includes('3つの投稿案ができました'),
-      'Reply should mention 3 proposals');
+    // ヒント選択ステップ廃止後、A/B/C UIは imageHandler.js のバックグラウンド処理でPush
     const image = fs.readFileSync(
       new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
     );
+    assert.ok(image.includes('どの案が理想に近いですか'),
+      'Reply should ask user to select A/B/C');
+    assert.ok(image.includes('3つの投稿案ができました'),
+      'Reply should mention 3 proposals');
     assert.ok(!image.includes('appendTemplateFooter(rawContent'),
       'Should NOT apply footer before selection');
   });
@@ -1504,10 +1502,10 @@ describe('Scenario 31: 画像「一言ヒント」機能', async () => {
     assert.ok(content.includes('savePendingImageContext'), 'savePendingImageContext を呼び出す');
   });
 
-  it('imageHandler が質問メッセージを送信する', () => {
+  it('imageHandler が「お任せください」メッセージを送信する', () => {
     const content = fs.readFileSync('src/handlers/imageHandler.js', 'utf8');
-    assert.ok(content.includes('一言もらえると'), '質問文にヒント誘導が含まれる');
-    assert.ok(content.includes('スキップ'), 'スキップの案内が含まれる');
+    assert.ok(content.includes('お任せください'), '即応答に「お任せください」が含まれる');
+    assert.ok(content.includes('他の作業をしていてもらって大丈夫です'), '待機案内が含まれる');
   });
 
   it('textHandler に pending_image_context チェックがある', () => {
@@ -1529,14 +1527,13 @@ describe('Scenario 31: 画像「一言ヒント」機能', async () => {
     assert.ok(content.includes("切替:"), '店舗切替が除外される');
   });
 
-  it('pendingImageHandler でスキップを検出する', () => {
-    const content = fs.readFileSync('src/handlers/pendingImageHandler.js', 'utf8');
-    assert.ok(content.includes("'スキップ'"), 'スキップ文字列を検出する');
-    assert.ok(content.includes('isSkip'), 'スキップ判定変数がある');
+  it('imageHandler が最初の視点を自動選択する', () => {
+    const content = fs.readFileSync('src/handlers/imageHandler.js', 'utf8');
+    assert.ok(content.includes('viewpoints[0]'), '最初の視点を自動選択する');
   });
 
-  it('ヒントがoptions.hintとして別渡しされる', () => {
-    const content = fs.readFileSync('src/handlers/pendingImageHandler.js', 'utf8');
+  it('ヒントがoptions.hintとして別渡しされる（imageHandlerのバックグラウンド処理）', () => {
+    const content = fs.readFileSync('src/handlers/imageHandler.js', 'utf8');
     assert.ok(content.includes('isPremium, hint'), 'ヒントをoptions経由で渡す');
     assert.ok(!content.includes('enrichedDescription'), '旧enrichedDescription方式は廃止');
   });
@@ -1758,12 +1755,12 @@ describe('Scenario 38: Instagram投稿機能（Content Publishing API）', async
   });
 
   // --- pendingImageHandler で imageUrl を引き継ぎ ---
-  it('pendingImageHandler で imageUrl を post_history に引き継いでいる', async () => {
+  it('imageHandler で imageUrl を post_history に引き継いでいる', async () => {
     const fs = await import('node:fs');
     const content = fs.readFileSync(
-      new URL('../src/handlers/pendingImageHandler.js', import.meta.url), 'utf-8'
+      new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
     );
-    assert.ok(content.includes('ctx.imageUrl'), 'ctx.imageUrlを参照している');
+    assert.ok(content.includes('imageUrl'), 'imageUrlを参照している');
   });
 
   // --- instagramHandler に post コマンドがある ---
@@ -2153,9 +2150,9 @@ describe('Scenario 40: 強化版撮影アドバイス', async () => {
       '理由説明の指示がある');
   });
 
-  it('pendingImageHandler で enhancedPhotoAdvice チェックがある', () => {
+  it('imageHandler で enhancedPhotoAdvice チェックがある', () => {
     const content = fs.readFileSync(
-      new URL('../src/handlers/pendingImageHandler.js', import.meta.url), 'utf-8'
+      new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
     );
     assert.ok(content.includes('enhancedPhotoAdvice'),
       'enhancedPhotoAdvice フラグを参照している');
@@ -2558,17 +2555,17 @@ describe('Scenario 45: 開発者テスト店舗', async () => {
     assert.ok(content.includes('effectiveCategory:'), 'effectiveCategory を context に保存している');
   });
 
-  it('pendingImageHandler に isDevTestStore チェックがある', () => {
+  it('imageHandler に isDevTestStore チェックがある', () => {
     const content = fs.readFileSync(
-      new URL('../src/handlers/pendingImageHandler.js', import.meta.url), 'utf-8'
+      new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
     );
     assert.ok(content.includes('isDevTestStore'), 'isDevTestStore を使用している');
     assert.ok(content.includes('storeForPrompt'), 'storeForPrompt でカテゴリーオーバーライドしている');
   });
 
-  it('pendingImageHandler が開発者テスト時に集合知保存をスキップする', () => {
+  it('imageHandler が開発者テスト時に集合知保存をスキップする', () => {
     const content = fs.readFileSync(
-      new URL('../src/handlers/pendingImageHandler.js', import.meta.url), 'utf-8'
+      new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
     );
     assert.ok(content.includes('!isDevTestStore(store)'),
       '集合知保存条件に isDevTestStore チェックがある');
@@ -2613,17 +2610,17 @@ describe('Scenario 46: persona自動更新', async () => {
       'should track _last_persona_update_post_count');
   });
 
-  it('pendingImageHandler に autoRegeneratePersonaIfNeeded が含まれる', () => {
+  it('imageHandler に autoRegeneratePersonaIfNeeded が含まれる', () => {
     const content = fs.readFileSync(
-      new URL('../src/handlers/pendingImageHandler.js', import.meta.url), 'utf-8'
+      new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
     );
     assert.ok(content.includes('autoRegeneratePersonaIfNeeded'),
-      'pendingImageHandler should call autoRegeneratePersonaIfNeeded');
+      'imageHandler should call autoRegeneratePersonaIfNeeded');
   });
 
   it('autoRegeneratePersonaIfNeeded がfire-and-forget（awaitなし）で呼ばれる', () => {
     const content = fs.readFileSync(
-      new URL('../src/handlers/pendingImageHandler.js', import.meta.url), 'utf-8'
+      new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
     );
     assert.ok(content.includes('autoRegeneratePersonaIfNeeded(store.id).catch'),
       'autoRegeneratePersonaIfNeeded should be fire-and-forget with .catch()');
@@ -2798,29 +2795,21 @@ describe('Scenario 47: 魅力発見AI', async () => {
     assert.ok(content.includes('[③ _]'), 'describeImage should include numbered format');
   });
 
-  it('handleImageMessageの即応答にヒントボタンが含まれない', () => {
+  it('handleImageMessageの即応答に「お任せください」メッセージが含まれる', () => {
     const content = fs.readFileSync(
       new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
     );
     // handleImageMessage内: replyTextで即応答（ボタンなし）
-    assert.ok(content.includes('観察しています'), 'should show observation message');
-    // バックグラウンド完了後にPush通知でボタンを送る
-    assert.ok(content.includes('pushMessage'), 'should use pushMessage for viewpoint buttons');
+    assert.ok(content.includes('お任せください'), 'should show "leave it to me" message');
+    // バックグラウンド完了後にPush通知で投稿案を送る
+    assert.ok(content.includes('pushMessage'), 'should use pushMessage for proposals');
   });
 
-  it('ラベル20文字制限のトランケーション（truncateLabel）が存在する', () => {
+  it('Push通知で投稿案A/B/Cを送信する', () => {
     const content = fs.readFileSync(
       new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
     );
-    assert.ok(content.includes('truncateLabel'), 'should have truncateLabel function');
-    assert.ok(content.includes('.slice(0, 18)'), 'should truncate to 18 chars + ellipsis');
-  });
-
-  it('Push通知で投稿視点ボタンA/B/Cとスキップを送信する', () => {
-    const content = fs.readFileSync(
-      new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
-    );
-    assert.ok(content.includes('ここがいいなと思いました'), 'should include casual detection message in Push');
+    assert.ok(content.includes('3つの投稿案ができました'), 'should include proposal message in Push');
     assert.ok(content.includes('charmViewpoints'), 'should save viewpoints to pending_image_context');
   });
 
@@ -2833,12 +2822,12 @@ describe('Scenario 47: 魅力発見AI', async () => {
     assert.ok(content.includes('行動の中に溶かせ'), 'should instruct to embed Detection in actions');
   });
 
-  it('フォールバック: 視点パース失敗時に汎用ヒントボタンをPushする', () => {
+  it('視点パース失敗時でもバックグラウンド生成が続行する', () => {
     const content = fs.readFileSync(
       new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
     );
-    assert.ok(content.includes('sendFallbackHintPush'), 'should have fallback hint push function');
-    // フォールバックにもお知らせ/日常感/お役立ち/スキップが含まれる
-    assert.ok(content.includes('お知らせ'), 'fallback should include hint buttons');
+    // 視点パース失敗時はautoHint=nullで生成が続行される
+    assert.ok(content.includes('viewpoints.length > 0'), 'should check viewpoints availability');
+    assert.ok(content.includes('pushMessage'), 'should push proposals even without viewpoints');
   });
 });
