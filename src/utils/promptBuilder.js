@@ -196,8 +196,7 @@ export const POST_LENGTH_MAP = {
 
 // L5: import文は本来先頭に置くべきだが、ESMがhoistするため実害はない
 // 次回リファクタ時にファイル先頭に移動すること
-import { getHashtagsForCategory, getCategoryGroup, findCategoryByLabel } from '../config/categoryDictionary.js';
-import { getTemplatesForGroup } from '../config/nudgeTemplates.js';
+import { getHashtagsForCategory, getCategoryGroup } from '../config/categoryDictionary.js';
 
 function getToneName(tone) {
   const toneData = TONE_MAP[tone] || TONE_MAP.casual;
@@ -263,34 +262,6 @@ function buildCharacterSection(store) {
   if (parts.length === 0) return '';
 
   return `\n━━━━━━━━━━━━━━━━━━━━━━━━\n🎭 あなたの個性（最優先で反映）\n━━━━━━━━━━━━━━━━━━━━━━━━\n${parts.join('\n\n')}\n━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-}
-
-/**
- * 業種別の「次に撮れるもの」候補を生成
- * nudgeTemplates からランダムに3件選んで返す
- * @param {string|null} category - 店舗カテゴリ
- * @returns {string} 候補リスト文字列（カテゴリ不明の場合は空文字）
- */
-function buildNextSubjectHints(category) {
-  if (!category) return '';
-  const catInfo = findCategoryByLabel(category);
-  if (!catInfo) return '';
-
-  const templates = getTemplatesForGroup(catInfo.groupId);
-  if (!templates || templates.length === 0) return '';
-
-  // 季節フィルタ
-  const month = new Date().getMonth() + 1;
-  const season = (month <= 2 || month === 12) ? '冬'
-    : month <= 5 ? '春'
-    : month <= 8 ? '夏' : '秋';
-  const filtered = templates.filter(t => !t.season || t.season === season);
-
-  // ランダムに3件選択
-  const shuffled = [...filtered].sort(() => Math.random() - 0.5);
-  const picked = shuffled.slice(0, 3);
-
-  return picked.map(t => `・${t.subject}（${t.description}）`).join('\n');
 }
 
 // ボタン選択テキストの一覧
@@ -764,15 +735,7 @@ ${buildOutputFormat(hint, hashtagInstruction)}
 次に「なぜそれを撮ることに価値があるのか」——その物語の裏付けを添えて、次の提案をする（1〜2文）。
 技術指導ではなく「あなたの店の価値を再発見する体験」になるトーンで。合計3行以内。
 例: 「バターが溶ける瞬間を撮れるのは、店主さんだけの贅沢ですよね。その瞬間を切り取れたら、見てる人にもその贅沢をお裾分けできますよ。次はもう少し寄りで、湯気ごと撮ってみませんか？」
-${(() => {
-  const subjectHints = buildNextSubjectHints(store.category);
-  return subjectHints ? `
-💡 次はこんなのも撮ってみませんか？
-今日の写真とは違う被写体を、以下の候補から1つ選んで提案する（1文）。
-候補:
-${subjectHints}
-「なぜそれを撮ると反応が取れそうか」を添えて、店主が「明日撮ってみようかな」と思える提案にする。今日の写真と同じものは選ばないこと。` : '';
-})()}${options.isPremium ? `
+${options.isPremium ? `
 🎯 明日撮るべきもの
 上記の撮影提案に加えて、「明日これを撮ってください」と具体的に1つだけ指定する。
 被写体・アングル・タイミングを明確に書く（例: 「明日の仕込み中、生地をこねている手元を真上から」）。
