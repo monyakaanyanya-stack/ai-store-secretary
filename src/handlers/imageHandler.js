@@ -172,15 +172,14 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
 
     // Push通知で観察視点ボタン or フォールバックヒントを送信
     if (viewpoints.length === 3) {
-      const labels = viewpointLabels.length === 3 ? viewpointLabels : ['①', '②', '③'];
       await pushMessage(lineUserId, [{
         type: 'text',
-        text: `この写真の見方を3つ見つけました💡\n\n① ${labels[0]}  ${viewpoints[0]}\n② ${labels[1]}  ${viewpoints[1]}\n③ ${labels[2]}  ${viewpoints[2]}\n\n気になる視点を選んでください✏️`,
+        text: `この写真の見方を3つ見つけました💡\n\n① ${viewpoints[0]}\n② ${viewpoints[1]}\n③ ${viewpoints[2]}\n\n気になる視点を選んでください✏️`,
         quickReply: {
           items: [
-            { type: 'action', action: { type: 'message', label: truncateLabel(`${labels[0]} ${viewpoints[0]}`), text: viewpoints[0] } },
-            { type: 'action', action: { type: 'message', label: truncateLabel(`${labels[1]} ${viewpoints[1]}`), text: viewpoints[1] } },
-            { type: 'action', action: { type: 'message', label: truncateLabel(`${labels[2]} ${viewpoints[2]}`), text: viewpoints[2] } },
+            { type: 'action', action: { type: 'message', label: truncateLabel(viewpoints[0]), text: viewpoints[0] } },
+            { type: 'action', action: { type: 'message', label: truncateLabel(viewpoints[1]), text: viewpoints[1] } },
+            { type: 'action', action: { type: 'message', label: truncateLabel(viewpoints[2]), text: viewpoints[2] } },
             { type: 'action', action: { type: 'message', label: 'スキップ', text: 'スキップ' } },
           ],
         },
