@@ -174,7 +174,7 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
     if (viewpoints.length === 3) {
       await pushMessage(lineUserId, [{
         type: 'text',
-        text: `📷 この写真から発見しました\n\n① ${viewpoints[0]}\n② ${viewpoints[1]}\n③ ${viewpoints[2]}\n\n気になる発見を選んでください →`,
+        text: `この写真、ここがいいなと思いました👀\n\n① ${viewpoints[0]}\n② ${viewpoints[1]}\n③ ${viewpoints[2]}\n\n気になるのありますか？`,
         quickReply: {
           items: [
             { type: 'action', action: { type: 'message', label: truncateLabel(viewpoints[0]), text: viewpoints[0] } },

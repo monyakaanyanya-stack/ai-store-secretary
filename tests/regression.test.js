@@ -2820,7 +2820,7 @@ describe('Scenario 47: 魅力発見AI', async () => {
     const content = fs.readFileSync(
       new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
     );
-    assert.ok(content.includes('この写真から発見しました'), 'should include detection discovery message in Push');
+    assert.ok(content.includes('ここがいいなと思いました'), 'should include casual detection message in Push');
     assert.ok(content.includes('charmViewpoints'), 'should save viewpoints to pending_image_context');
   });
 
