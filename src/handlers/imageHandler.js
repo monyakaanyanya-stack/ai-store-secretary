@@ -32,29 +32,41 @@ function getHintExamples(category) {
 }
 
 /**
- * describeImage出力から投稿視点（[視点A/B/C]）をパースし、5項目観察と分離する
+ * describeImage出力から観察視点（[① カテゴリ] 内容）をパースし、5項目観察と分離する
  * @param {string} imageDescription - describeImageの出力テキスト
- * @returns {{ cleanDescription: string, viewpoints: string[] }}
+ * @returns {{ cleanDescription: string, viewpoints: string[], viewpointLabels: string[] }}
  */
 export function parseCharmViewpoints(imageDescription) {
-  if (!imageDescription) return { cleanDescription: '', viewpoints: [] };
+  if (!imageDescription) return { cleanDescription: '', viewpoints: [], viewpointLabels: [] };
 
-  const viewpointRegex = /\[視点([ABC])\]\s*(.+)/g;
+  // 新フォーマット: [① カテゴリ名] 内容
+  const newFormatRegex = /\[([①②③])\s*(.+?)\]\s*(.+)/g;
   const viewpoints = [];
+  const viewpointLabels = [];
   let match;
-  while ((match = viewpointRegex.exec(imageDescription)) !== null) {
-    viewpoints.push(match[2].trim());
+  while ((match = newFormatRegex.exec(imageDescription)) !== null) {
+    viewpointLabels.push(match[2].trim());
+    viewpoints.push(match[3].trim());
   }
 
-  // 視点セクション（6. 投稿の切り口〜末尾）を除去して5項目のみ残す
+  // 旧フォーマットフォールバック: [視点A/B/C] 内容
+  if (viewpoints.length === 0) {
+    const oldFormatRegex = /\[視点([ABC])\]\s*(.+)/g;
+    while ((match = oldFormatRegex.exec(imageDescription)) !== null) {
+      viewpoints.push(match[2].trim());
+    }
+  }
+
+  // 観察セクション（6. 写真の観察 or 6. 投稿の切り口〜末尾）を除去して5項目のみ残す
   const cleanDescription = imageDescription
-    .replace(/\n*6\.\s*投稿の切り口[\s\S]*$/m, '')
-    .replace(/\[視点[ABC]\]\s*.+\n?/g, '')
+    .replace(/\n*6\.\s*(?:写真の観察|投稿の切り口)[\s\S]*$/m, '')
+    .replace(/\[(?:[①②③]\s*.+?|視点[ABC])\]\s*.+\n?/g, '')
     .trim();
 
   return {
     cleanDescription: cleanDescription || imageDescription,
     viewpoints: viewpoints.length === 3 ? viewpoints : [],
+    viewpointLabels: viewpointLabels.length === 3 ? viewpointLabels : [],
   };
 }
 
@@ -111,12 +123,13 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
       return;
     }
 
-    // 投稿視点をパース（5項目観察と分離）
-    const { cleanDescription, viewpoints } = parseCharmViewpoints(imageDescription);
+    // 観察視点をパース（5項目観察と分離）
+    const { cleanDescription, viewpoints, viewpointLabels } = parseCharmViewpoints(imageDescription);
     if (viewpoints.length === 3) {
-      console.log(`[Image] 投稿視点抽出成功: ${viewpoints.map((v, i) => `${['A','B','C'][i]}="${v}"`).join(', ')}`);
+      const labelInfo = viewpointLabels.length === 3 ? viewpointLabels.join('/') : 'ラベルなし';
+      console.log(`[Image] 観察視点抽出成功: [${labelInfo}] ${viewpoints.map((v, i) => `${i + 1}="${v}"`).join(', ')}`);
     } else {
-      console.log('[Image] 投稿視点パース失敗 → フォールバックヒントボタン');
+      console.log('[Image] 観察視点パース失敗 → フォールバックヒントボタン');
     }
 
     // 被写体カテゴリー検出 → 集合知取得（cleanDescriptionで検出）
@@ -157,16 +170,17 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
     const elapsed = ((Date.now() - startMs) / 1000).toFixed(1);
     console.log(`[Image] バックグラウンド分析完了: store=${store.name} (${elapsed}s)`);
 
-    // Push通知で投稿視点ボタン or フォールバックヒントを送信
+    // Push通知で観察視点ボタン or フォールバックヒントを送信
     if (viewpoints.length === 3) {
+      const labels = viewpointLabels.length === 3 ? viewpointLabels : ['①', '②', '③'];
       await pushMessage(lineUserId, [{
         type: 'text',
-        text: `この写真から3つの投稿の切り口が見つかりました💡\n\nA. ${viewpoints[0]}\nB. ${viewpoints[1]}\nC. ${viewpoints[2]}\n\nどれかを選ぶか、自分の言葉で一言どうぞ✏️`,
+        text: `この写真の見方を3つ見つけました💡\n\n① ${labels[0]}  ${viewpoints[0]}\n② ${labels[1]}  ${viewpoints[1]}\n③ ${labels[2]}  ${viewpoints[2]}\n\n気になる視点を選んでください✏️`,
         quickReply: {
           items: [
-            { type: 'action', action: { type: 'message', label: truncateLabel(viewpoints[0]), text: viewpoints[0] } },
-            { type: 'action', action: { type: 'message', label: truncateLabel(viewpoints[1]), text: viewpoints[1] } },
-            { type: 'action', action: { type: 'message', label: truncateLabel(viewpoints[2]), text: viewpoints[2] } },
+            { type: 'action', action: { type: 'message', label: truncateLabel(`${labels[0]} ${viewpoints[0]}`), text: viewpoints[0] } },
+            { type: 'action', action: { type: 'message', label: truncateLabel(`${labels[1]} ${viewpoints[1]}`), text: viewpoints[1] } },
+            { type: 'action', action: { type: 'message', label: truncateLabel(`${labels[2]} ${viewpoints[2]}`), text: viewpoints[2] } },
             { type: 'action', action: { type: 'message', label: 'スキップ', text: 'スキップ' } },
           ],
         },
@@ -347,7 +361,7 @@ export async function handleImageMessage(user, messageId, replyToken) {
     });
 
     // 即応答（ボタンはバックグラウンド分析完了後にPush通知で送る）
-    await replyText(replyToken, 'この写真から、お店の日常の魅力を分析しています...📸');
+    await replyText(replyToken, 'この写真を観察しています...📸');
 
     // バックグラウンドで画像分析 + 魅力発見開始（awaitしない = ユーザーの操作と並列実行）
     analyzeImageInBackground(user.id, user.line_user_id, store, imageBase64, imageUrl, messageId)

@@ -2655,31 +2655,59 @@ describe('Scenario 47: 魅力発見AI', async () => {
   const fs = await import('node:fs');
   // parseCharmViewpoints のロジックを直接テスト（importするとsupabase依存が走るため再実装）
   function parseCharmViewpoints(imageDescription) {
-    if (!imageDescription) return { cleanDescription: '', viewpoints: [] };
-    const viewpointRegex = /\[視点([ABC])\]\s*(.+)/g;
+    if (!imageDescription) return { cleanDescription: '', viewpoints: [], viewpointLabels: [] };
+    // 新フォーマット: [① カテゴリ名] 内容
+    const newFormatRegex = /\[([①②③])\s*(.+?)\]\s*(.+)/g;
     const viewpoints = [];
+    const viewpointLabels = [];
     let match;
-    while ((match = viewpointRegex.exec(imageDescription)) !== null) {
-      viewpoints.push(match[2].trim());
+    while ((match = newFormatRegex.exec(imageDescription)) !== null) {
+      viewpointLabels.push(match[2].trim());
+      viewpoints.push(match[3].trim());
+    }
+    // 旧フォーマットフォールバック: [視点A/B/C] 内容
+    if (viewpoints.length === 0) {
+      const oldFormatRegex = /\[視点([ABC])\]\s*(.+)/g;
+      while ((match = oldFormatRegex.exec(imageDescription)) !== null) {
+        viewpoints.push(match[2].trim());
+      }
     }
     const cleanDescription = imageDescription
-      .replace(/\n*6\.\s*投稿の切り口[\s\S]*$/m, '')
-      .replace(/\[視点[ABC]\]\s*.+\n?/g, '')
+      .replace(/\n*6\.\s*(?:写真の観察|投稿の切り口)[\s\S]*$/m, '')
+      .replace(/\[(?:[①②③]\s*.+?|視点[ABC])\]\s*.+\n?/g, '')
       .trim();
     return {
       cleanDescription: cleanDescription || imageDescription,
       viewpoints: viewpoints.length === 3 ? viewpoints : [],
+      viewpointLabels: viewpointLabels.length === 3 ? viewpointLabels : [],
     };
   }
 
-  it('parseCharmViewpoints: 正常な3視点をパースできる', () => {
+  it('parseCharmViewpoints: 新フォーマット（カテゴリ付き）で3視点をパースできる', () => {
     const input = `1. 焼きたてのパンが写っている
 2. 暖かい色味で柔らかい印象
 3. 小麦の香りがしそう
 4. 朝の時間帯
 5. 焼き立ての匂いに引かれそう
 
-6. 投稿の切り口（3つ）
+6. 写真の観察（3つの視点）
+[① 空間] 石壁と木の温もりに包まれた店内
+[② 光] 自然光が一番きれいに入る時間
+[③ 過ごし方] 窓際の席で静かに過ごす時間`;
+
+    const result = parseCharmViewpoints(input);
+    assert.equal(result.viewpoints.length, 3);
+    assert.equal(result.viewpoints[0], '石壁と木の温もりに包まれた店内');
+    assert.equal(result.viewpoints[1], '自然光が一番きれいに入る時間');
+    assert.equal(result.viewpoints[2], '窓際の席で静かに過ごす時間');
+    assert.equal(result.viewpointLabels.length, 3);
+    assert.equal(result.viewpointLabels[0], '空間');
+    assert.equal(result.viewpointLabels[1], '光');
+    assert.equal(result.viewpointLabels[2], '過ごし方');
+  });
+
+  it('parseCharmViewpoints: 旧フォーマット（視点A/B/C）もフォールバックで動く', () => {
+    const input = `1. 焼きたてのパン
 [視点A] 朝一番に焼けたときの湯気と店内の匂い
 [視点B] 常連さんが必ず頼むその理由
 [視点C] この焼き色が出るまで温度を3回変えた`;
@@ -2687,22 +2715,21 @@ describe('Scenario 47: 魅力発見AI', async () => {
     const result = parseCharmViewpoints(input);
     assert.equal(result.viewpoints.length, 3);
     assert.equal(result.viewpoints[0], '朝一番に焼けたときの湯気と店内の匂い');
-    assert.equal(result.viewpoints[1], '常連さんが必ず頼むその理由');
-    assert.equal(result.viewpoints[2], 'この焼き色が出るまで温度を3回変えた');
+    assert.equal(result.viewpointLabels.length, 0, '旧フォーマットではラベルなし');
   });
 
-  it('parseCharmViewpoints: cleanDescriptionに視点セクションが含まれない', () => {
+  it('parseCharmViewpoints: cleanDescriptionに観察セクションが含まれない', () => {
     const input = `1. 焼きたてのパン
 2. 暖かい色味
 
-6. 投稿の切り口（3つ）
-[視点A] 朝の湯気
-[視点B] 常連の理由
-[視点C] 焼き色のこだわり`;
+6. 写真の観察（3つの視点）
+[① 空間] 朝の湯気
+[② 光] 常連の理由
+[③ 過ごし方] 焼き色のこだわり`;
 
     const result = parseCharmViewpoints(input);
-    assert.ok(!result.cleanDescription.includes('[視点A]'), 'cleanDescription should not contain viewpoint markers');
-    assert.ok(!result.cleanDescription.includes('投稿の切り口'), 'cleanDescription should not contain section header');
+    assert.ok(!result.cleanDescription.includes('[①'), 'cleanDescription should not contain observation markers');
+    assert.ok(!result.cleanDescription.includes('写真の観察'), 'cleanDescription should not contain section header');
     assert.ok(result.cleanDescription.includes('焼きたてのパン'), 'cleanDescription should keep original 5 items');
   });
 
@@ -2716,9 +2743,9 @@ describe('Scenario 47: 魅力発見AI', async () => {
   });
 
   it('parseCharmViewpoints: null/undefined入力で安全', () => {
-    assert.deepEqual(parseCharmViewpoints(null), { cleanDescription: '', viewpoints: [] });
-    assert.deepEqual(parseCharmViewpoints(undefined), { cleanDescription: '', viewpoints: [] });
-    assert.deepEqual(parseCharmViewpoints(''), { cleanDescription: '', viewpoints: [] });
+    assert.deepEqual(parseCharmViewpoints(null), { cleanDescription: '', viewpoints: [], viewpointLabels: [] });
+    assert.deepEqual(parseCharmViewpoints(undefined), { cleanDescription: '', viewpoints: [], viewpointLabels: [] });
+    assert.deepEqual(parseCharmViewpoints(''), { cleanDescription: '', viewpoints: [], viewpointLabels: [] });
   });
 
   it('imageHandler.jsのparseCharmViewpointsがexportされている', () => {
@@ -2729,14 +2756,14 @@ describe('Scenario 47: 魅力発見AI', async () => {
       'parseCharmViewpoints should be exported');
   });
 
-  it('describeImageプロンプトに投稿視点の項目6が含まれる', () => {
+  it('describeImageプロンプトに観察視点の項目6が含まれる', () => {
     const content = fs.readFileSync(
       new URL('../src/services/claudeService.js', import.meta.url), 'utf-8'
     );
-    assert.ok(content.includes('投稿の切り口'), 'describeImage should include viewpoint section');
-    assert.ok(content.includes('[視点A]'), 'describeImage should include viewpoint format markers');
-    assert.ok(content.includes('[視点B]'), 'describeImage should include viewpoint format markers');
-    assert.ok(content.includes('[視点C]'), 'describeImage should include viewpoint format markers');
+    assert.ok(content.includes('写真の観察'), 'describeImage should include observation section');
+    assert.ok(content.includes('[① カテゴリ名]'), 'describeImage should include numbered category format');
+    assert.ok(content.includes('[② カテゴリ名]'), 'describeImage should include numbered category format');
+    assert.ok(content.includes('[③ カテゴリ名]'), 'describeImage should include numbered category format');
   });
 
   it('handleImageMessageの即応答にヒントボタンが含まれない', () => {
@@ -2744,7 +2771,7 @@ describe('Scenario 47: 魅力発見AI', async () => {
       new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
     );
     // handleImageMessage内: replyTextで即応答（ボタンなし）
-    assert.ok(content.includes('魅力を分析しています'), 'should show charm discovery message');
+    assert.ok(content.includes('観察しています'), 'should show observation message');
     // バックグラウンド完了後にPush通知でボタンを送る
     assert.ok(content.includes('pushMessage'), 'should use pushMessage for viewpoint buttons');
   });
@@ -2761,7 +2788,7 @@ describe('Scenario 47: 魅力発見AI', async () => {
     const content = fs.readFileSync(
       new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
     );
-    assert.ok(content.includes('3つの投稿の切り口が見つかりました'), 'should include discovery message in Push');
+    assert.ok(content.includes('見方を3つ見つけました'), 'should include observation discovery message in Push');
     assert.ok(content.includes('charmViewpoints'), 'should save viewpoints to pending_image_context');
   });
 
