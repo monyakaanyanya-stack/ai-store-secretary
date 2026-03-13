@@ -281,7 +281,7 @@ function buildPremiumNudgePrompt(store, season, strategicAdvice = null) {
     }
   }
 
-  return `あなたは${store.name}（${store.category}）の「影の秘書」です。
+  return `あなたは「写真観察AI」です。${store.name}（${store.category}）の店主をサポートしています。
 今日の夕方に撮れる、Instagramに投稿するための写真のアイデアを1つ提案してください。
 
 【店舗情報】

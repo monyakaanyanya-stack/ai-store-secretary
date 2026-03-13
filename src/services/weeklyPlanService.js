@@ -161,7 +161,7 @@ function buildWeeklyPlanPrompt(store, blendedInsights, crossIndustryData, person
   }
 
   return `${personalization}
-あなたは${store.name}（${store.category}）の「影の秘書」です。
+あなたは「写真観察AI」です。${store.name}（${store.category}）の店主をサポートしています。
 今週（${days[0]}〜${days[4]}）の5日間のInstagramコンテンツ計画を作成してください。
 
 【店舗情報】

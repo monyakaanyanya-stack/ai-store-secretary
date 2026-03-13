@@ -1056,44 +1056,39 @@ describe('Scenario 28: Ver.4.0 Dual Trigger Model', async () => {
       'Old Ver.17.0 rule should be removed');
   });
 
-  it('Dual Trigger のアイデンティティ: 影の秘書', async () => {
+  it('写真観察AIのアイデンティティ', async () => {
     const { buildImagePostPrompt } = await import('../src/utils/promptBuilder.js');
     const store = { name: 'テスト店', tone: 'カジュアル', config: {} };
     const prompt = buildImagePostPrompt(store, null, null, '', 'テスト画像');
 
     assert.ok(!prompt.includes('良き理解者'),
       'Old identity should be removed');
-    assert.ok(prompt.includes('SNSライターではありません'),
-      'New identity should be store owner, not SNS writer');
-    assert.ok(prompt.includes('店主のメモ'),
-      'Should instruct memo-style writing');
+    assert.ok(prompt.includes('写真観察AI'),
+      'New identity should be Photo Observation AI');
+    assert.ok(prompt.includes('文章生成AIではありません'),
+      'Should clarify not a text generation AI');
   });
 
-  it('buildRevisionPrompt に Dual Trigger ルールが含まれる', async () => {
+  it('buildRevisionPrompt に写真観察AIルールが含まれる', async () => {
     const { buildRevisionPrompt } = await import('../src/utils/promptBuilder.js');
     const store = { name: 'テスト店', tone: 'カジュアル', config: {} };
     const prompt = buildRevisionPrompt(store, '元の投稿', 'もっと短く');
 
-    assert.ok(prompt.includes('想起トリガー'),
-      'Revision prompt should include recall trigger');
+    assert.ok(prompt.includes('写真観察AI'),
+      'Revision prompt should include Photo Observation AI identity');
     assert.ok(prompt.includes('幻想的'),
       'Revision prompt should include forbidden words');
   });
 
-  it('影の秘書コンセプト: 書き方の型・1行目ルール・禁止ワードが含まれる', async () => {
+  it('写真観察AIコンセプト: 観察→ネタ変換の型・禁止ワードが含まれる', async () => {
     const { buildImagePostPrompt, buildTextPostPrompt } = await import('../src/utils/promptBuilder.js');
     const store = { name: 'テスト店', tone: 'カジュアル', config: {} };
     const imagePrompt = buildImagePostPrompt(store, null, null, '', 'テスト画像');
     const textPrompt = buildTextPostPrompt(store, 'テスト', null, null, '');
 
-    // 書き方の型（独り言スタイル）
-    assert.ok(imagePrompt.includes('作業中の独り言'),
-      'Image prompt should include monologue style rule');
-    assert.ok(textPrompt.includes('作業中の独り言') || textPrompt.includes('本文の書き方'),
-      'Text prompt should include writing pattern');
-    // 本文の書き方
-    assert.ok(imagePrompt.includes('本文の書き方'),
-      'Image prompt should include writing pattern');
+    // 写真観察→ネタ変換の型
+    assert.ok(imagePrompt.includes('観察') && imagePrompt.includes('ネタ変換'),
+      'Image prompt should include observation and conversion pattern');
     assert.ok(textPrompt.includes('本文の書き方'),
       'Text prompt should include writing pattern');
     // 禁止ワード
@@ -1530,14 +1525,15 @@ describe('Scenario 31: 画像「一言ヒント」機能', async () => {
     assert.ok(content.includes("切替:"), '店舗切替が除外される');
   });
 
-  it('imageHandler が最初の視点を自動選択する', () => {
+  it('imageHandler がDetectionを内部処理として渡す', () => {
     const content = fs.readFileSync('src/handlers/imageHandler.js', 'utf8');
-    assert.ok(content.includes('viewpoints[0]'), '最初の視点を自動選択する');
+    assert.ok(content.includes('detections: viewpoints'), 'Detection（観察視点）をdetectionsとして渡す');
+    assert.ok(!content.includes('autoHint'), 'autoHint方式は廃止');
   });
 
-  it('ヒントがoptions.hintとして別渡しされる（imageHandlerのバックグラウンド処理）', () => {
+  it('ヒントがoptions.detectionsとして渡される（imageHandlerのバックグラウンド処理）', () => {
     const content = fs.readFileSync('src/handlers/imageHandler.js', 'utf8');
-    assert.ok(content.includes('isPremium, hint'), 'ヒントをoptions経由で渡す');
+    assert.ok(content.includes('isPremium, detections'), 'detectionsをoptions経由で渡す');
     assert.ok(!content.includes('enrichedDescription'), '旧enrichedDescription方式は廃止');
   });
 });
@@ -2816,12 +2812,12 @@ describe('Scenario 47: 魅力発見AI', async () => {
     assert.ok(content.includes('charmViewpoints'), 'should save viewpoints to pending_image_context');
   });
 
-  it('promptBuilderのviewpointラベルにDetectionが含まれる', () => {
+  it('promptBuilderにDetection内部処理セクションがある', () => {
     const content = fs.readFileSync(
       new URL('../src/utils/promptBuilder.js', import.meta.url), 'utf-8'
     );
-    assert.ok(content.includes('Detection（発見）'), 'should use Detection label for viewpoint hints');
-    assert.ok(content.includes('Detectionを言い換えるな'), 'should instruct not to paraphrase Detection');
+    assert.ok(content.includes('Detection（内部処理'), 'should have Detection internal processing section');
+    assert.ok(content.includes('Detectionを説明するな'), 'should instruct not to explain Detection');
     assert.ok(content.includes('行動の中に溶かせ'), 'should instruct to embed Detection in actions');
   });
 
@@ -2829,8 +2825,8 @@ describe('Scenario 47: 魅力発見AI', async () => {
     const content = fs.readFileSync(
       new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
     );
-    // 視点パース失敗時はautoHint=nullで生成が続行される
-    assert.ok(content.includes('viewpoints.length > 0'), 'should check viewpoints availability');
+    // 視点パース失敗時もdetections=[]で生成が続行される
+    assert.ok(content.includes('detections: viewpoints'), 'should pass viewpoints as detections');
     assert.ok(content.includes('pushMessage'), 'should push proposals even without viewpoints');
   });
 });

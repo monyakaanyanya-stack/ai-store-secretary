@@ -550,6 +550,14 @@ export function buildImagePostPrompt(store, lengthOverride = null, blendedInsigh
     ? `\n【この写真の観察結果】\n${imageDescription}\n`
     : '';
 
+  // Detection（内部処理）セクション
+  const detections = options.detections || [];
+  let detectionSection = '';
+  if (detections.length > 0) {
+    const detectionList = detections.map(d => `- ${d}`).join('\n');
+    detectionSection = `\n【Detection（内部処理 — 本文の1行目に自然に溶かすこと）】\n${detectionList}\n\n※ Detectionを説明するな。店主の行動の中に溶かせ。1行目がDetectionの言い換えになったらNG。\n`;
+  }
+
   // ヒント（ユーザーの一言 or ボタン選択）セクション
   const hint = options.hint || null;
   const isInfluencer = store.category === 'インフルエンサー';
@@ -559,9 +567,7 @@ export function buildImagePostPrompt(store, lengthOverride = null, blendedInsigh
     // ボタン選択ではなく自由テキストの場合のみヒントセクションを追加
     const hintLabel = isInfluencer
       ? '【補足情報（投稿に自然に反映してよい）】'
-      : options.hintType === 'viewpoint'
-        ? '【Detection（写真から発見した魅力）】'
-        : '【店主からの一言（この言葉を投稿の核にすること）】';
+      : '【店主からの一言（この言葉を投稿の核にすること）】';
     hintSection = `\n${hintLabel}\n${hint}\n`;
   }
 
@@ -582,35 +588,35 @@ export function buildImagePostPrompt(store, lengthOverride = null, blendedInsigh
 
   // ── 店舗用プロンプト（従来通り）──────────────────────────
   const roleSection = `## 1. あなたの役割（最重要）
-あなたはSNSライターではありません。${store.name}の店主です。
-今まさにお店で作業している最中に、写真を撮ってSNSに投稿しようとしています。
-
-文章を書くのではなく、店主が作業中にふと思ったことをそのまま書いてください。
-文章ではなく、店主のメモのように書いてください。
-
+あなたは「写真観察AI」です。
+あなたの役割は 写真を観察し その中にある視点・瞬間・空気感を見つけ SNS投稿のネタに変換することです。
+あなたは文章生成AIではありません。
+写真の中にある ・光 ・配置 ・素材 ・瞬間 ・店の空気 を観察し
+店主が気づいていない魅力を SNS投稿として言語化します。
 写真に写っていない情報を補わない。「それっぽい文脈」を足さない。`;
 
   return `${personalization}
 ${roleSection}
 
-## 1.5 書き方の型（最重要）
-【絶対ルール】
-- 説明文を書かない
-- 感想をきれいにまとめない
-- 作業中の独り言にする
-- 難しい言葉を使わない
-- 1文は短くする
-- 少しラフでOK
-- 写真の内容を説明しない。店主の行動と気づきだけ書く
+## 1.5 写真観察→ネタ変換の型（最重要）
+【観察（50%）— 写真から何を見つけるか】
+- 光・色・配置・素材・瞬間・空気感を具体的に観察する
+- 「この店の今日」にしかない要素を見つける
+- Detectionがあれば、その視点を1行目に溶かし込む
 
-【本文の書き方】
-① 今やっていた作業（1行）— 「並べてた」「焼いてた」「片付けてた」など
-② 写真を見てふと思ったこと（1-2行）— 気づき・発見・ツッコミ
-③ 軽い一言（1行）— 残り個数、営業情報、ひとこと
+【ネタ変換（30%）— 観察をSNS投稿にするには】
+- 観察結果を「店主の行動→気づき」の流れに変換する
+- ① 今やっていた作業（1行）— 「並べてた」「焼いてた」「片付けてた」
+- ② 写真を見てふと思ったこと（1-2行）— 気づき・発見・ツッコミ
+- ③ 軽い一言（1行）— 残り個数、ひとこと
 - 店主のヒントがある場合、その言葉をそのまま核にする。AIが上手く書き換えない
+
+【文体（20%）— 最低限のルール】
+- 説明文を書かない。独り言にする
+- 1文は短く。少しラフでOK
+- 写真の内容を説明しない。店主の行動と気づきだけ書く
 - 「上手い文章」より「本人が書いたっぽい独り言」を最優先する
 - 失敗談・ツッコミ・不完全な表現は「味」になる。排除せず残す
-- 写真の見た目を説明するのは「文章」。店主は説明しない。行動と気づきだけ書く
 
 ## 2. 禁止ワード
 ${toneData.forbidden_words.join(', ')}, 幻想的, 素敵, 魅力的, 素晴らしい, 完璧, 最高, 美しい, まじ, まじで, やばい, やばすぎ, 超, めっちゃ, 美味しい, 絶品, こだわり, 自慢の, 人気の, 話題の, 光の意志, 質感の物語, 沈黙のデザイン, 肖像, 独白
@@ -624,16 +630,14 @@ ${toneData.style_rules.map((r, i) => `${i + 1}. ${r}`).join('\n')}
 ${buildCategoryExamples(store.category)}
 【NGな例】
 ${toneData.bad_examples.join('\n\n')}
-${templateInfo}${characterSection}${imageDescriptionSection}${hintSection}${collectiveIntelligenceSection}${industryPatternSection}${hashtagInstruction}
+${templateInfo}${characterSection}${imageDescriptionSection}${detectionSection}${hintSection}${collectiveIntelligenceSection}${industryPatternSection}${hashtagInstruction}
 
 ## 4. 出力構成（厳守）
 以下の写真情報と補足情報をもとにInstagram投稿文を3案作成してください。
 余計な挨拶や解説は不要です。以下の形式のみで出力してください。
 ${isButtonHint
   ? `\n【投稿タイプ: ${hint}】\n下記の出力形式に従い、このタイプに合った3案を作成してください。写真から読み取れる要素を各案で異なる切り口で使うこと。`
-  : hint && options.hintType === 'viewpoint'
-    ? `\n【この写真のDetection（発見）】\n「${hint}」\n\n【最重要ルール: Detectionを言い換えるな。行動の中に溶かせ】\n❌ NG: Detectionをそのまま文章にする\n  Detection「自然光がパンの丸みを立体的に見せている」\n  → ❌「光の加減でパンの丸みが全然違って見える」（言い換えただけ）\n  → ❌「自然光って不思議、パンが立体的に見える」（言い換えただけ）\n  → ❌「光の角度でパンの表情が全く違う」（言い換えただけ）\n\n✅ OK: 店主の行動の中でDetectionに触れる\n  → ✅「トレイ並べてたらちょうど光が当たって、つい撮った」（行動→気づき）\n  → ✅「この時間帯に撮るとパン丸く見えるの知ってた？」（発見を会話に）\n  → ✅「並べ終わって片付けようとしたら影がいい感じで」（行動の途中で気づく）\n\n【3案の書き分け】\n案A: Detectionに気づいた「瞬間」を書く（行動→ふと気づく）\n案B: Detectionを「誰かに話す」ように書く（〜知ってた？ 〜なんだよね）\n案C: Detectionとは別の作業をしていて「ついでに」気づく\n\n3案がDetectionの同じ言い換えになったら全部やり直し。`
-    : hint
+  : hint
     ? `\n【投稿の方向性（最重要）】\n店主の一言「${hint}」がこの投稿の目的です。本文の内容・視点・語りの方向すべてをこの一言から組み立ててください。\n- 本文の1行目から一言の意図が伝わること\n- 写真の要素のうち、この一言に関連するものだけを選んで使う\n- 3案はそれぞれ異なる切り口で書くこと`
     : '\n【投稿の方向性】\n写真から読み取れる要素を3つ選び、各案ごとに異なる要素を核にして書いてください。3案が似た内容にならないこと。'}
 
@@ -942,14 +946,13 @@ export function buildTextPostPrompt(store, userText, lengthOverride = null, blen
   }
 
   // ── 店舗用プロンプト（従来通り）──────────────────────────
-  const textRoleSection = `あなたは${store.name}の店主の、言葉にならないこだわりを言語化する「影の秘書」です。
-店主が肌で感じたこと——オーブンの熱、ナイフの手応え、常連さんの表情——を、
-店主自身が「そうそう、それが言いたかった」と思える言葉に変える。
-
-目的は、投稿を見た人がその店を思い出してしまうこと（想起トリガー）。
+  const textRoleSection = `あなたは「写真観察AI」です。
+${store.name}の店主が送ってきたテキスト情報から、投稿ネタになる視点・瞬間・空気感を見つけ、
+店主自身が「そうそう、それが言いたかった」と思える言葉に変換します。
+あなたは文章生成AIではありません。店主の言葉の中にある魅力を見つけて言語化します。
 
 強いセールスは禁止。不自然な比喩は禁止。
-写真に写っていない情報を補わない。「それっぽい文脈」を足さず、この写真からしか生まれない投稿にすること。
+「それっぽい文脈」を足さず、店主の言葉からしか生まれない投稿にすること。
 語彙は一般的で自然な日本語にしてください。`;
 
   return `${personalization}
@@ -1245,10 +1248,10 @@ export function buildRevisionPrompt(store, originalPost, feedback, advancedPerso
   const characterSection = buildCharacterSection(store);
 
   return `${advancedPersonalization}
-あなたは${store.name}の店主の、言葉にならないこだわりを言語化する「影の秘書」です。以下の投稿を修正してください。
+あなたは「写真観察AI」です。${store.name}の投稿を修正してください。
 
 【ライティング・ルール】
-- 想起トリガー: 五感・時間帯・小さな情景で店を思い出させる
+- 写真の観察結果を活かし、店主の言葉で書く
 - 詩的すぎない・過度な感情表現をしない・抽象的すぎない
 - 店主が実際に言いそうな語り口にする（視点は常に店主側。客のフリをしない）
 

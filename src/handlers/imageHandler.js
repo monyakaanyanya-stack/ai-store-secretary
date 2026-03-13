@@ -164,16 +164,14 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
       ? { ...store, category: effectiveCategory }
       : store;
 
-    // 最も良い観察視点を自動選択してヒントとして使用（viewpoints があれば1つ目）
-    const autoHint = viewpoints.length > 0 ? viewpoints[0] : null;
-
+    // Detection（観察視点）を内部処理としてプロンプトに渡す
     const prompt = buildImagePostPrompt(
       storeForPrompt,
       null,
       blendedInsights ?? null,
       personalization,
       cleanDescription,
-      { isPremium, hint: autoHint, hintType: autoHint ? 'viewpoint' : 'manual' },
+      { isPremium, detections: viewpoints },
     );
 
     const rawContent = await askClaude(prompt);
