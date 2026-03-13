@@ -301,15 +301,26 @@ async function handleCarouselComplete(user, replyToken) {
       return true;
     }
 
-    const latestPost = await getLatestPost(store.id);
-    if (!latestPost) {
-      await clearPendingImageContext(user.id);
-      await replyText(replyToken, '投稿が見つかりません。');
-      return true;
+    // direct_modeの場合はctxからキャプション取得、通常はlatestPostから
+    let caption;
+    if (ctx.direct_mode && ctx.direct_caption) {
+      caption = ctx.direct_caption;
+    } else {
+      const latestPost = await getLatestPost(store.id);
+      if (!latestPost) {
+        await clearPendingImageContext(user.id);
+        await replyText(replyToken, '投稿が見つかりません。');
+        return true;
+      }
+      // 撮影アドバイス（━━━ 区切り以降）を除外して本文のみ投稿
+      caption = latestPost.content.split(/\n━{3,}/)[0].trim();
     }
 
-    // 撮影アドバイス（━━━ 区切り以降）を除外して本文のみ投稿
-    const caption = latestPost.content.split(/\n━{3,}/)[0].trim();
+    // direct_modeの場合はpost_historyに保存
+    if (ctx.direct_mode) {
+      const { savePostHistory } = await import('../services/supabaseService.js');
+      await savePostHistory(user.id, store.id, caption, null, ctx.images[0]);
+    }
 
     // pending_image_context をクリア（投稿前にクリア）
     await clearPendingImageContext(user.id);

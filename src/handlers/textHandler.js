@@ -110,7 +110,7 @@ export async function handleTextMessage(user, text, replyToken) {
   const isSystemCommand = ['キャンセル', 'cancel', 'リセット', 'データリセット',
     '店舗一覧', '店舗切り替え', '店舗切替', '店舗削除', 'ヘルプ', 'help', '学習状況', '問い合わせ', '登録',
     'プラン', 'アップグレード', '今週の計画', '投稿ネタ', '投稿ネタ教えて', 'ネタ', 'コマンド一覧', 'コマンド',
-    'モード切替', 'モード切り替え', 'AI投稿モード', 'そのまま投稿モード', 'direct投稿実行'].includes(trimmed)
+    'モード切替', 'モード切り替え', 'AI投稿モード', 'そのまま投稿モード', 'direct投稿実行', 'direct複数枚投稿'].includes(trimmed)
     || trimmed.startsWith('切替:') || trimmed.startsWith('/');
 
   // カルーセルモード中のテキスト処理（通常のpending_image_contextより先に判定）
@@ -498,6 +498,11 @@ ${contactEmail}
   // direct_mode投稿実行
   if (trimmed === 'direct投稿実行') {
     return await handleDirectPostExecute(user, replyToken);
+  }
+
+  // direct_mode複数枚投稿（カルーセル開始）
+  if (trimmed === 'direct複数枚投稿') {
+    return await handleDirectCarouselStart(user, replyToken);
   }
 
   // M1: 案選択: A, B, C, 案A, 案B, 案C, a, b, c, 1, 2, 3, 全角Ａ/Ｂ/Ｃ/１/２/３
@@ -1672,6 +1677,7 @@ async function handleDirectModeText(user, text, replyToken) {
       `📝 投稿プレビュー\n━━━━━━━━━━━\n${caption}\n━━━━━━━━━━━\n\nこの内容で投稿しますか？`,
       [
         { type: 'action', action: { type: 'message', label: '📸 投稿する', text: 'direct投稿実行' } },
+        { type: 'action', action: { type: 'message', label: '📸 複数枚投稿', text: 'direct複数枚投稿' } },
         { type: 'action', action: { type: 'message', label: '❌ キャンセル', text: 'キャンセル' } },
       ]
     );
@@ -1712,4 +1718,29 @@ async function handleDirectPostExecute(user, replyToken) {
     await clearPendingImageContext(user.id);
     return await replyText(replyToken, `⚠️ 投稿に失敗しました。\n\n${err.message}\n\nもう一度お試しください。`);
   }
+}
+
+// ==================== direct_mode 複数枚投稿（カルーセル開始） ====================
+
+async function handleDirectCarouselStart(user, replyToken) {
+  const ctx = user.pending_image_context;
+  if (!ctx?.direct_mode || !ctx.direct_caption || !ctx.imageUrl) {
+    return await replyText(replyToken, '投稿データがありません。写真を送り直してください。');
+  }
+
+  // カルーセルモードに切り替え（1枚目は既にある）
+  await savePendingImageContext(user.id, {
+    ...ctx,
+    carousel_mode: true,
+    images: [ctx.imageUrl],
+  });
+
+  return await replyWithQuickReply(
+    replyToken,
+    `📸 複数枚投稿モード\n\n1枚目は受け取り済みです。\n続けて画像を送ってください（最大10枚）。\n\n送り終わったら「完了」を押してください。`,
+    [
+      { type: 'action', action: { type: 'message', label: '✅ 完了', text: '完了' } },
+      { type: 'action', action: { type: 'message', label: '❌ キャンセル', text: 'キャンセル' } },
+    ]
+  );
 }
