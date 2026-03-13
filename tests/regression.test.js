@@ -1017,9 +1017,9 @@ describe('Scenario 28: Ver.4.0 Dual Trigger Model', async () => {
       'Should include monologue concept');
     assert.ok(prompt.includes('説明文を書かない'),
       'Should prohibit explanatory writing');
-    assert.ok(prompt.includes('想起の一言'),
-      'Should include recall one-liner format');
-    // 来店の一文は出力パートとして削除済み（禁止ルールとしての言及は残る）
+    // 想起の一言・来店の一文は独立パートとして削除済み（本文+ハッシュタグの2パート構成）
+    assert.ok(!prompt.includes('（想起の一言）'),
+      'Recall one-liner should not be a separate output part');
     assert.ok(!prompt.includes('（来店の一文'),
       'Visit one-liner should not be in output format');
   });
