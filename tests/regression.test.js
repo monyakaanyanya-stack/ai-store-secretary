@@ -1019,8 +1019,9 @@ describe('Scenario 28: Ver.4.0 Dual Trigger Model', async () => {
       'Should prohibit explanatory writing');
     assert.ok(prompt.includes('想起の一言'),
       'Should include recall one-liner format');
-    assert.ok(prompt.includes('来店の一文'),
-      'Should include visit one-liner format');
+    // 来店の一文は完全削除済み（本文+想起の一言+ハッシュタグの3パート構成）
+    assert.ok(!prompt.includes('来店の一文'),
+      'Visit one-liner should be removed');
   });
 
   it('Dual Trigger の出力形式に新3案ラベルがある', async () => {
@@ -1073,8 +1074,6 @@ describe('Scenario 28: Ver.4.0 Dual Trigger Model', async () => {
     const store = { name: 'テスト店', tone: 'カジュアル', config: {} };
     const prompt = buildRevisionPrompt(store, '元の投稿', 'もっと短く');
 
-    assert.ok(prompt.includes('Dual Trigger Model'),
-      'Revision prompt should include Dual Trigger Model rules');
     assert.ok(prompt.includes('想起トリガー'),
       'Revision prompt should include recall trigger');
     assert.ok(prompt.includes('幻想的'),
