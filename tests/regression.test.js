@@ -1037,8 +1037,8 @@ describe('Scenario 28: Ver.4.0 Dual Trigger Model', async () => {
       'Output format should include [ 案C：店主のひとりごと ]');
     assert.ok(prompt.includes('3案作成'),
       'Should instruct 3 proposals');
-    assert.ok(prompt.includes('次の撮影アイデア'),
-      'Should include simplified Photo Advice section');
+    assert.ok(prompt.includes('この写真の別の撮り方'),
+      'Should include Photo Advice section for alternative shooting');
   });
 
   it('旧Ver.17.0の芸術語が禁止ワードに含まれる', async () => {
