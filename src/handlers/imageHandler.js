@@ -277,6 +277,31 @@ export async function handleImageMessage(user, messageId, replyToken) {
       return await replyText(replyToken, '店舗が見つかりません。「店舗一覧」で確認してみてください');
     }
 
+    // ── direct_mode: AI生成スキップ → テキスト入力待ち ──
+    if (store.config?.post_mode === 'direct') {
+      console.log(`[Image] direct_mode: AI生成スキップ store=${store.name}`);
+      const imageBase64 = await getImageAsBase64(messageId);
+      const imageUrl = await uploadImageToStorage(imageBase64, `${user.id}/${Date.now()}.jpg`)
+        .catch(err => {
+          console.warn('[Image] Storage アップロード失敗:', err.message);
+          return null;
+        });
+
+      if (!imageUrl) {
+        return await replyText(replyToken, '画像のアップロードに失敗しました。もう一度送ってください。');
+      }
+
+      await savePendingImageContext(user.id, {
+        messageId,
+        storeId: store.id,
+        imageUrl,
+        direct_mode: true,
+        createdAt: new Date().toISOString(),
+      });
+
+      return await replyText(replyToken, '📷 写真を受け取りました！\n\n投稿の冒頭テキストを送ってください。\nテンプレートとハッシュタグは自動で付きます。');
+    }
+
     // 画像をBase64で取得
     console.log(`[Image] 画像取得中: messageId=${messageId}`);
     const imageBase64 = await getImageAsBase64(messageId);

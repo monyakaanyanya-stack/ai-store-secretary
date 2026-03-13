@@ -9,6 +9,7 @@ import {
   supabase,
   updateStoreConfig,
   updateStoreTemplates,
+  updateStorePostMode,
   setPendingCommand,
   clearPendingCommand,
   clearPendingImageContext,
@@ -107,13 +108,20 @@ export async function handleTextMessage(user, text, replyToken) {
   // （システムコマンドはスキップ、それ以外はここで受け取る）
   const isSystemCommand = ['キャンセル', 'cancel', 'リセット', 'データリセット',
     '店舗一覧', '店舗切り替え', '店舗切替', '店舗削除', 'ヘルプ', 'help', '学習状況', '問い合わせ', '登録',
-    'プラン', 'アップグレード', '今週の計画', '投稿ネタ', '投稿ネタ教えて', 'ネタ', 'コマンド一覧', 'コマンド'].includes(trimmed)
+    'プラン', 'アップグレード', '今週の計画', '投稿ネタ', '投稿ネタ教えて', 'ネタ', 'コマンド一覧', 'コマンド',
+    'モード切替', 'モード切り替え', 'AI投稿モード', 'そのまま投稿モード', 'direct投稿実行'].includes(trimmed)
     || trimmed.startsWith('切替:') || trimmed.startsWith('/');
 
   // カルーセルモード中のテキスト処理（通常のpending_image_contextより先に判定）
   if (user.pending_image_context?.carousel_mode && !isSystemCommand) {
     const { handleCarouselTextResponse } = await import('./instagramHandler.js');
     const handled = await handleCarouselTextResponse(user, trimmed, replyToken);
+    if (handled) return;
+  }
+
+  // direct_modeの画像待ち → テキスト受信でテンプレ結合＆プレビュー表示
+  if (user.pending_image_context?.direct_mode && !isSystemCommand) {
+    const handled = await handleDirectModeText(user, trimmed, replyToken);
     if (handled) return;
   }
 
@@ -473,6 +481,22 @@ ${contactEmail}
   if (trimmed === '複数枚投稿') {
     const { handleCarouselStart } = await import('./instagramHandler.js');
     return await handleCarouselStart(user, replyToken);
+  }
+
+  // モード切替（AI投稿 ↔ そのまま投稿）
+  if (trimmed === 'モード切替' || trimmed === 'モード切り替え') {
+    return await handlePostModeSwitch(user, replyToken);
+  }
+  if (trimmed === 'AI投稿モード') {
+    return await handlePostModeSet(user, 'ai', replyToken);
+  }
+  if (trimmed === 'そのまま投稿モード') {
+    return await handlePostModeSet(user, 'direct', replyToken);
+  }
+
+  // direct_mode投稿実行
+  if (trimmed === 'direct投稿実行') {
+    return await handleDirectPostExecute(user, replyToken);
   }
 
   // M1: 案選択: A, B, C, 案A, 案B, 案C, a, b, c, 1, 2, 3, 全角Ａ/Ｂ/Ｃ/１/２/３
@@ -1547,5 +1571,144 @@ async function handleEnableReminder(user, replyToken) {
   } catch (err) {
     console.error('[Reminder] 再開エラー:', err);
     await replyText(replyToken, 'エラーが発生しました。しばらくしてから再度お試しください。');
+  }
+}
+
+// ==================== モード切替（AI投稿 ↔ そのまま投稿） ====================
+
+async function handlePostModeSwitch(user, replyToken) {
+  if (!user.current_store_id) {
+    return await replyText(replyToken, '店舗が選択されていません。');
+  }
+
+  const store = await getStore(user.current_store_id);
+  const currentMode = store.config?.post_mode || 'ai';
+  const modeLabel = currentMode === 'direct' ? 'そのまま投稿モード' : 'AI投稿モード';
+
+  return await replyWithQuickReply(
+    replyToken,
+    `📋 投稿モード切替\n\n現在: ${modeLabel}\n\nどちらに切り替えますか？`,
+    [
+      { type: 'action', action: { type: 'message', label: '🤖 AI投稿', text: 'AI投稿モード' } },
+      { type: 'action', action: { type: 'message', label: '📷 そのまま投稿', text: 'そのまま投稿モード' } },
+    ]
+  );
+}
+
+async function handlePostModeSet(user, mode, replyToken) {
+  if (!user.current_store_id) {
+    return await replyText(replyToken, '店舗が選択されていません。');
+  }
+
+  // direct_modeはStandard以上（Instagram連携が前提）
+  if (mode === 'direct') {
+    const canInstagram = await isFeatureEnabled(user.id, 'instagramPost');
+    if (!canInstagram) {
+      return await replyText(replyToken, '⚠️ そのまま投稿モードはStandardプラン以上で利用できます。\n\n「アップグレード」で確認してみてください。');
+    }
+
+    // Instagram連携チェック
+    const { getInstagramAccount } = await import('../services/instagramService.js');
+    const igAccount = await getInstagramAccount(user.current_store_id);
+    if (!igAccount) {
+      return await replyText(replyToken, '⚠️ そのまま投稿モードにはInstagram連携が必要です。\n\n「インスタ連携」で連携してください。');
+    }
+  }
+
+  await updateStorePostMode(user.current_store_id, mode);
+  const label = mode === 'direct' ? 'そのまま投稿モード' : 'AI投稿モード';
+  const desc = mode === 'direct'
+    ? '写真＋テキストを送ると、テンプレートとハッシュタグを付けてそのまま投稿できます。'
+    : '写真を送ると、AIが3案の投稿文を生成します。';
+
+  return await replyText(replyToken, `✅ ${label}に切り替えました！\n\n${desc}`);
+}
+
+// ==================== direct_mode テキスト受信 → テンプレ結合 ====================
+
+async function handleDirectModeText(user, text, replyToken) {
+  const ctx = user.pending_image_context;
+  if (!ctx?.direct_mode || !ctx.imageUrl) return false;
+
+  try {
+    const store = await getStore(ctx.storeId);
+    if (!store) {
+      await clearPendingImageContext(user.id);
+      return await replyText(replyToken, '店舗が見つかりません。');
+    }
+
+    // 投稿テキストを組み立て: 冒頭テキスト + テンプレート + ハッシュタグ
+    const templates = store.config?.templates || {};
+    const parts = [text]; // 冒頭テキスト
+
+    // テンプレート情報（住所・営業時間・カスタムフィールド）
+    const infoLines = [];
+    if (templates.住所) infoLines.push(`📍 ${templates.住所}`);
+    if (templates.営業時間) infoLines.push(`🕐 ${templates.営業時間}`);
+    Object.entries(templates.custom_fields || {}).forEach(([k, v]) => {
+      infoLines.push(`${k}: ${v}`);
+    });
+    if (infoLines.length > 0) {
+      parts.push(infoLines.join('\n'));
+    }
+
+    // ハッシュタグ
+    if (templates.hashtags?.length > 0) {
+      parts.push(templates.hashtags.join(' '));
+    }
+
+    const caption = parts.join('\n\n');
+
+    // pending_image_context を更新（キャプション保存）
+    await savePendingImageContext(user.id, {
+      ...ctx,
+      direct_caption: caption,
+    });
+
+    // プレビュー表示 + 確認ボタン
+    return await replyWithQuickReply(
+      replyToken,
+      `📝 投稿プレビュー\n━━━━━━━━━━━\n${caption}\n━━━━━━━━━━━\n\nこの内容で投稿しますか？`,
+      [
+        { type: 'action', action: { type: 'message', label: '📸 投稿する', text: 'direct投稿実行' } },
+        { type: 'action', action: { type: 'message', label: '❌ キャンセル', text: 'キャンセル' } },
+      ]
+    );
+  } catch (err) {
+    console.error('[DirectMode] テキスト処理エラー:', err);
+    await clearPendingImageContext(user.id);
+    await replyText(replyToken, 'エラーが発生しました。もう一度お試しください。');
+    return true;
+  }
+}
+
+// ==================== direct_mode 投稿実行 ====================
+
+async function handleDirectPostExecute(user, replyToken) {
+  const ctx = user.pending_image_context;
+  if (!ctx?.direct_mode || !ctx.direct_caption || !ctx.imageUrl) {
+    return await replyText(replyToken, '投稿データがありません。写真を送り直してください。');
+  }
+
+  try {
+    const { publishToInstagram } = await import('../services/instagramService.js');
+    const store = await getStore(ctx.storeId);
+    if (!store) {
+      await clearPendingImageContext(user.id);
+      return await replyText(replyToken, '店舗が見つかりません。');
+    }
+
+    // post_historyに保存（Instagram投稿の記録として）
+    await savePostHistory(user.id, store.id, ctx.direct_caption, null, ctx.imageUrl);
+
+    // Instagram投稿
+    const result = await publishToInstagram(store.id, ctx.imageUrl, ctx.direct_caption);
+    await clearPendingImageContext(user.id);
+
+    return await replyText(replyToken, `✅ Instagramに投稿しました！\n\n投稿ID: ${result.id}`);
+  } catch (err) {
+    console.error('[DirectMode] 投稿エラー:', err);
+    await clearPendingImageContext(user.id);
+    return await replyText(replyToken, `⚠️ 投稿に失敗しました。\n\n${err.message}\n\nもう一度お試しください。`);
   }
 }

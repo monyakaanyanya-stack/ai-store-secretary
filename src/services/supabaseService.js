@@ -285,6 +285,24 @@ export async function updateStoreTemplates(storeId, templates) {
   await updateStoreConfig(storeId, newConfig);
 }
 
+/**
+ * 投稿モードを更新（ai / direct）
+ */
+export async function updateStorePostMode(storeId, mode) {
+  const { data: store } = await supabase
+    .from('stores')
+    .select('config')
+    .eq('id', storeId)
+    .single();
+
+  const newConfig = {
+    ...(store?.config || {}),
+    post_mode: mode
+  };
+
+  await updateStoreConfig(storeId, newConfig);
+}
+
 // ==================== フォロワー数管理 ====================
 
 /**

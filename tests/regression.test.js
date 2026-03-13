@@ -2934,3 +2934,107 @@ describe('Scenario 48: 集合知戦略シフト', async () => {
     assert.ok(content.includes('postingTimeTip'), 'should check postingTimeTip');
   });
 });
+
+// ==================== Scenario 49: direct_mode（そのまま投稿モード） ====================
+describe('Scenario 49: direct_mode（そのまま投稿モード）', async () => {
+  const fs = await import('node:fs');
+
+  it('supabaseService に updateStorePostMode がある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/supabaseService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('export async function updateStorePostMode'),
+      'updateStorePostMode がエクスポートされている');
+    assert.ok(content.includes("post_mode: mode"),
+      'post_mode をconfigに保存する');
+  });
+
+  it('imageHandler に direct_mode 分岐がある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes("post_mode === 'direct'"),
+      'direct_modeの判定がある');
+    assert.ok(content.includes('direct_mode: true'),
+      'pending_image_contextにdirect_mode保存');
+    assert.ok(content.includes('投稿の冒頭テキストを送ってください'),
+      'direct_mode時のテキスト入力案内がある');
+  });
+
+  it('textHandler にモード切替コマンドがある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/textHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes("'モード切替'"),
+      'モード切替コマンドがある');
+    assert.ok(content.includes('handlePostModeSwitch'),
+      'handlePostModeSwitch ハンドラがある');
+    assert.ok(content.includes('handlePostModeSet'),
+      'handlePostModeSet ハンドラがある');
+  });
+
+  it('textHandler の isSystemCommand にモード切替系が含まれる', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/textHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes("'モード切替'") && content.includes("'モード切り替え'"),
+      'モード切替がisSystemCommandに含まれる');
+    assert.ok(content.includes("'AI投稿モード'"),
+      'AI投稿モードがisSystemCommandに含まれる');
+    assert.ok(content.includes("'そのまま投稿モード'"),
+      'そのまま投稿モードがisSystemCommandに含まれる');
+    assert.ok(content.includes("'direct投稿実行'"),
+      'direct投稿実行がisSystemCommandに含まれる');
+  });
+
+  it('textHandler に direct_mode テキスト受信ハンドラがある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/textHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('handleDirectModeText'),
+      'handleDirectModeText ハンドラがある');
+    assert.ok(content.includes('direct_caption'),
+      'direct_caption をpending_image_contextに保存');
+    assert.ok(content.includes('投稿プレビュー'),
+      'プレビュー表示がある');
+  });
+
+  it('textHandler に direct投稿実行ハンドラがある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/textHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('handleDirectPostExecute'),
+      'handleDirectPostExecute ハンドラがある');
+    assert.ok(content.includes('publishToInstagram'),
+      'Instagram投稿APIを呼び出す');
+  });
+
+  it('direct_mode切替時にStandardプランチェックがある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/textHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes("isFeatureEnabled(user.id, 'instagramPost')"),
+      'instagramPost機能のプランチェック');
+    assert.ok(content.includes('getInstagramAccount'),
+      'Instagram連携チェック');
+  });
+
+  it('direct_modeのテンプレート結合が正しい順序（冒頭テキスト→テンプレ→ハッシュタグ）', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/textHandler.js', import.meta.url), 'utf-8'
+    );
+    // テンプレート情報を組み立てている
+    assert.ok(content.includes("templates.住所") && content.includes("templates.営業時間"),
+      'テンプレートの住所・営業時間を結合');
+    assert.ok(content.includes("templates.hashtags"),
+      'ハッシュタグを結合');
+  });
+
+  it('updateStorePostMode が supabaseService からインポートされている', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/textHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('updateStorePostMode'),
+      'updateStorePostMode がimportされている');
+  });
+});
