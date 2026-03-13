@@ -12,6 +12,7 @@ import {
   updateStorePostMode,
   setPendingCommand,
   clearPendingCommand,
+  savePendingImageContext,
   clearPendingImageContext,
   getLatestPost,
 } from '../services/supabaseService.js';
