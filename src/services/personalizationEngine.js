@@ -310,8 +310,8 @@ export async function getLearningStatus(storeId, category) {
 フィードバックを送ると、あなたの好みに合わせた投稿を生成できるようになります！
 
 使い方:
-「直し: もっとカジュアルに」
-「直し: 絵文字を少なめに」
+「学習: もっとカジュアルに」
+「学習: 絵文字を少なめに」
 など、投稿後にフィードバックを送ってください。`;
   }
 
@@ -414,5 +414,5 @@ export async function getLearningStatus(storeId, category) {
 
 ${sections.join('\n\n')}
 
-💡 「直し: 〜」で修正するほど人格が育ちます`;
+💡 「学習: 〜」で修正するほど人格が育ちます`;
 }

@@ -242,27 +242,25 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
 ${postText}
 ━━━━━━━━━━━
 
-このまま投稿できます。「直し: ${revisionExample}」で微調整も◎
-✏️直し = この投稿を修正  📝学習 = 今後の文体を記憶${remainingNote}${photoAdvice}`
+このまま投稿できます。
+📝「学習: ${revisionExample}」で修正＋今後にも反映${remainingNote}${photoAdvice}`
       : `3つの投稿案ができました！どの案が理想に近いですか？👇${learningNote}
 ━━━━━━━━━━━
 ${rawContent}
 ━━━━━━━━━━━
 
-A・B・C を選んだあと「直し: ${revisionExample}」で微調整もできます${remainingNote}`;
+A・B・C を選んだあと「学習: ${revisionExample}」で修正もできます${remainingNote}`;
 
     const quickReplyItems = isOneProposal
       ? [
           { type: 'action', action: { type: 'message', label: '✅ これで決定', text: pickedLabel } },
           { type: 'action', action: { type: 'message', label: '🔄 別の案を見る', text: '別案' } },
-          { type: 'action', action: { type: 'message', label: '✏️ 直し', text: '直し:' } },
           { type: 'action', action: { type: 'message', label: '📝 学習', text: '学習:' } },
         ]
       : [
           { type: 'action', action: { type: 'message', label: '✅ A案', text: 'A' } },
           { type: 'action', action: { type: 'message', label: '✅ B案', text: 'B' } },
           { type: 'action', action: { type: 'message', label: '✅ C案', text: 'C' } },
-          { type: 'action', action: { type: 'message', label: '✏️ 直し', text: '直し:' } },
           { type: 'action', action: { type: 'message', label: '📝 学習', text: '学習:' } },
         ];
 

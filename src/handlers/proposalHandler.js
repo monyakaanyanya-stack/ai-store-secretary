@@ -76,7 +76,7 @@ ${finalContent}
 ━━━━━━━━━━━
 
 💡 自分だけの一言を足すと、もっと「あなたの投稿」になります
-気になるところがあれば「直し: 〜」で修正できます`, quickReplies);
+気になるところがあれば「学習: 〜」で修正＋今後にも反映`, quickReplies);
   } catch (err) {
     console.error(`[Proposal] 案選択エラー: store=${store.name}`, err);
     return await replyText(replyToken, 'うまくいきませんでした...もう一度画像を送ってみてください');
@@ -314,7 +314,7 @@ ${parts.join('\n\n')}
     if (proposalA) quickReplies.push({ type: 'action', action: { type: 'message', label: '✅ A案', text: 'A' } });
     if (proposalB) quickReplies.push({ type: 'action', action: { type: 'message', label: '✅ B案', text: 'B' } });
     if (proposalC) quickReplies.push({ type: 'action', action: { type: 'message', label: '✅ C案', text: 'C' } });
-    quickReplies.push({ type: 'action', action: { type: 'message', label: '✏️ 直し', text: '直し:' } });
+    quickReplies.push({ type: 'action', action: { type: 'message', label: '📝 学習', text: '学習:' } });
 
     console.log(`[Proposal] 別案表示（3案比較）: store=${store.name}`);
     return await replyWithQuickReply(replyToken, formattedReply, quickReplies);

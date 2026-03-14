@@ -153,6 +153,22 @@ export async function handleTextMessage(user, text, replyToken) {
       return await handleFeedback(user, trimmed, replyToken);
     }
     if (cmd === 'style_learning') {
+      // 後方互換: 旧style_learningはrevisionと同じ統合フローへ
+      if (user.current_store_id) {
+        const storeForCheck = await getStore(user.current_store_id);
+        if (storeForCheck) {
+          const { data: checkPost } = await supabase
+            .from('post_history')
+            .select('content')
+            .eq('store_id', storeForCheck.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+          if (checkPost?.content && !/\[\s*案A[：:]/.test(checkPost.content)) {
+            return await handleFeedback(user, trimmed, replyToken);
+          }
+        }
+      }
       return await handleStyleLearning(user, trimmed, replyToken);
     }
     if (cmd === 'awaiting_schedule_time') {
@@ -275,23 +291,56 @@ export async function handleTextMessage(user, text, replyToken) {
     return await handleFeedback(user, feedback, replyToken);
   }
 
-  // 見本学習: 「学習:」で始まる（ユーザーが自分で書き直した版を送って差分学習）
+  // 統合学習: 「学習:」で始まる（修正指示 or スタイル記憶をAIが自動判定）
   if (trimmed.startsWith('学習:')) {
-    const userRewrite = trimmed.replace(/^学習[:：]\s*/, '');
+    const instruction = trimmed.replace(/^学習[:：]\s*/, '');
 
     // 内容が空 = 「学習」ボタンが押された → 入力待ちモードへ
-    if (!userRewrite.trim()) {
+    if (!instruction.trim()) {
       try {
-        await setPendingCommand(user.id, 'style_learning');
+        await setPendingCommand(user.id, 'revision');
       } catch (e) {
-        return await replyText(replyToken, '⚠️ 状態の保存に失敗しました。「学習: 書き直した文章」の形で送ってください。');
+        return await replyText(replyToken, '⚠️ 状態の保存に失敗しました。「学習: もっとカジュアルに」の形で送ってください。');
       }
-      return await replyText(
+      // カテゴリーに応じたクイックリプライ選択肢を取得
+      let revisionCategory = null;
+      if (user.current_store_id) {
+        try {
+          const storeForCategory = await getStore(user.current_store_id);
+          revisionCategory = storeForCategory?.category ?? null;
+        } catch (_) { /* 取得失敗時はデフォルト選択肢を使用 */ }
+      }
+      return await replyWithQuickReply(
         replyToken,
-        '📝 書き直した文章を送ってください\n\nAIが生成した投稿と比較して、あなたの好みの文体を学習します。\n\n例）α7C来たよ！まじ持ちやすくてやばい💫 #カメラ好き'
+        '📝 どう変えたいか教えてください\n\n例）もっとカジュアルに、短く、敬語で\n→ 今の投稿を修正＋今後にも反映します',
+        getRevisionQuickReplies(revisionCategory)
       );
     }
-    return await handleStyleLearning(user, userRewrite, replyToken);
+
+    // 最新投稿がある → 修正生成＋diff学習（handleFeedback）
+    // 最新投稿がない → スタイル記憶のみ（handleStyleLearning）
+    if (user.current_store_id) {
+      const storeForCheck = await getStore(user.current_store_id);
+      if (storeForCheck) {
+        const { data: checkPost } = await supabase
+          .from('post_history')
+          .select('content')
+          .eq('store_id', storeForCheck.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        // 3案が未選択なら先に案を選んでもらう
+        if (checkPost?.content && /\[\s*案A[：:]/.test(checkPost.content)) {
+          return await replyText(replyToken, '先にA / B / C のいずれかを選んでから教えてください✉️');
+        }
+        // 最新投稿がある → 修正＋学習
+        if (checkPost?.content) {
+          return await handleFeedback(user, instruction, replyToken);
+        }
+      }
+    }
+    // 最新投稿がない → スタイル記憶のみ
+    return await handleStyleLearning(user, instruction, replyToken);
   }
 
   // エンゲージメント報告: 「報告:」で始まる
@@ -1286,12 +1335,11 @@ async function handleTextPostGenerationWithLength(user, text, replyToken, length
 ${postContent}
 ━━━━━━━━━━━
 
-気になるところがあれば「直し: ${revisionExample}」で修正できます${remainingNote}`;
+気になるところがあれば「学習: ${revisionExample}」で修正＋今後にも反映${remainingNote}`;
 
     await replyWithQuickReply(replyToken, formattedReply, [
       { type: 'action', action: { type: 'message', label: '👍 良い', text: '👍' } },
       { type: 'action', action: { type: 'message', label: '👎 イマイチ', text: '👎' } },
-      { type: 'action', action: { type: 'message', label: '✏️ 直し', text: '直し:' } },
       { type: 'action', action: { type: 'message', label: '📝 学習', text: '学習:' } },
     ]);
   } catch (err) {
@@ -1648,7 +1696,7 @@ async function handleNegativeFeedback(user, replyToken) {
     }
 
     console.log(`[Feedback] 👎 イマイチ評価: store=${store.name}`);
-    await replyText(replyToken, '👎 なるほど、ちょっと違いましたか。\n\n「直し: 〜」で教えてもらえると次はもっと上手くやれます！');
+    await replyText(replyToken, '👎 なるほど、ちょっと違いましたか。\n\n「学習: 〜」で教えてもらえると修正＋次からも反映します！');
   } catch (err) {
     console.error('[Feedback] 👎 処理エラー:', err);
     await replyText(replyToken, 'エラーが発生しました。しばらくしてから再度お試しください。');
