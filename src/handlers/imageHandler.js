@@ -111,8 +111,20 @@ async function generateSupplements(postId, bodyText, store, blendedInsights, ima
   }
 }
 
+// pending_image_context の有効期限（10分）
+const CONTEXT_TTL_MS = 10 * 60 * 1000;
+
 /**
- * 「別案」用: pending_image_context から再生成
+ * pending_image_context が有効期限内かチェック
+ */
+export function isContextValid(ctx) {
+  if (!ctx || !ctx.createdAt) return false;
+  const elapsed = Date.now() - new Date(ctx.createdAt).getTime();
+  return elapsed < CONTEXT_TTL_MS;
+}
+
+/**
+ * 「別案」用: pending_image_context から再生成（variation_mode で差を出す）
  */
 export async function regenerateBody(user, store, ctx, lineUserId) {
   try {
@@ -122,9 +134,13 @@ export async function regenerateBody(user, store, ctx, lineUserId) {
       : store;
 
     const globalRules = await getGlobalPromptRules();
+
+    // variation_mode: さっきと違う切り口を指示
+    const variationInstruction = `\n【重要】さっきの投稿とは違う切り口で書いてください。別の観察ポイントから始め、違うフックを使ってください。\n`;
+
     const prompt = buildBodyPrompt(storeForPrompt, ctx.personalization || '', ctx.imageDescription, {
       detections: ctx.charmViewpoints || [],
-      globalRules,
+      globalRules: (globalRules || '') + variationInstruction,
       mainSubject: ctx.mainSubject || null,
       supportingElements: ctx.supportingElements || [],
     });

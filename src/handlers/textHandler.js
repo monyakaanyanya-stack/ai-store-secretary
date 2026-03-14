@@ -672,9 +672,10 @@ ${contactEmail}
           return await replyText(replyToken, `⚠️ 今月の生成上限（${genLimit.limit}回）に達しました。\n「アップグレード」で上限を増やすことができます。`);
         }
 
-        // pending_image_context から前回の素材を取得
+        // pending_image_context から前回の素材を取得（TTLチェック付き）
         const ctx = user.pending_image_context;
-        if (!ctx || !ctx.imageDescription || ctx.analysisStatus === 'pending' || ctx.analysisStatus === 'generating') {
+        const { isContextValid } = await import('./imageHandler.js');
+        if (!ctx || !ctx.imageDescription || ctx.analysisStatus === 'pending' || ctx.analysisStatus === 'generating' || !isContextValid(ctx)) {
           // 旧3案投稿の場合はフォールバック
           const { data: latestPost } = await supabase
             .from('post_history')
