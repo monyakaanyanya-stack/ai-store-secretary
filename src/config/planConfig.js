@@ -22,7 +22,7 @@
 export const PLANS = {
   free: {
     name: 'フリープラン',
-    monthlyGenerations: 20,
+    monthlyGenerations: 10,
     maxStores: 1,
     features: {
       collectiveIntelligence: true,

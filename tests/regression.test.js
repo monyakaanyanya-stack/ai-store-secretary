@@ -1551,8 +1551,8 @@ describe('Scenario 32: プラン制限・機能ゲーティング', async () => 
     assert.equal(Object.keys(PLANS).length, 4, 'プランは4つ');
   });
 
-  it('月間生成回数: free=20, light=10, standard=60, premium=200', () => {
-    assert.equal(PLANS.free.monthlyGenerations, 20);
+  it('月間生成回数: free=10, light=10, standard=60, premium=200', () => {
+    assert.equal(PLANS.free.monthlyGenerations, 10);
     assert.equal(PLANS.light.monthlyGenerations, 10);
     assert.equal(PLANS.standard.monthlyGenerations, 60);
     assert.equal(PLANS.premium.monthlyGenerations, 200);
@@ -1651,7 +1651,7 @@ describe('Scenario 32: プラン制限・機能ゲーティング', async () => 
   it('不明なプラン名は free にフォールバック', () => {
     const config = getPlanConfig('unknown');
     assert.equal(config.name, 'フリープラン');
-    assert.equal(config.monthlyGenerations, 20);
+    assert.equal(config.monthlyGenerations, 10);
   });
 
   it('null/undefined は free にフォールバック', () => {
@@ -1844,7 +1844,7 @@ describe('Scenario 35: サブスクリプション planConfig', async () => {
   });
 
   it('各プランに正しい月間生成数が設定されている', () => {
-    assert.equal(PLANS.free.monthlyGenerations, 20, 'free: 20回');
+    assert.equal(PLANS.free.monthlyGenerations, 10, 'free: 10回');
     assert.equal(PLANS.standard.monthlyGenerations, 60, 'standard: 60回');
     assert.equal(PLANS.premium.monthlyGenerations, 200, 'premium: 200回');
   });

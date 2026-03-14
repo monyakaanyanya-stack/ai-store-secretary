@@ -365,6 +365,47 @@
     .target-card h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 6px; color: var(--white); }
     .target-card p { font-size: 0.78rem; color: rgba(255,255,255,0.5); line-height: 1.7; }
 
+    /* ─── Loop diagram ─── */
+    .loop-wrap {
+      position: relative;
+      width: 340px; height: 340px;
+      margin: 56px auto 0;
+    }
+    .loop-circle {
+      position: absolute; inset: 0;
+      border: 2px dashed rgba(184,112,74,.25);
+      border-radius: 50%;
+    }
+    .loop-arrow-svg {
+      position: absolute; inset: -8px;
+    }
+    .loop-node {
+      position: absolute;
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      transform: translate(-50%, -50%);
+    }
+    .loop-icon {
+      width: 56px; height: 56px; border-radius: 50%;
+      background: var(--surface-strong); border: 2px solid var(--accent);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem; box-shadow: 0 4px 16px rgba(184,112,74,.15);
+      transition: all var(--transition);
+    }
+    .loop-icon:hover { transform: scale(1.1); box-shadow: 0 6px 24px rgba(184,112,74,.25); }
+    .loop-text {
+      font-size: 0.78rem; font-weight: 600; color: var(--text);
+      white-space: nowrap;
+    }
+    .loop-sub {
+      font-size: 0.68rem; color: var(--text-muted); white-space: nowrap;
+    }
+    @media (max-width: 480px) {
+      .loop-wrap { width: 280px; height: 280px; }
+      .loop-icon { width: 48px; height: 48px; font-size: 1.2rem; }
+      .loop-text { font-size: 0.72rem; }
+      .loop-sub { font-size: 0.62rem; }
+    }
+
     /* ─── CTA Final ─── */
     .cta-final {
       padding: 140px 40px; text-align: center; position: relative; overflow: hidden;
@@ -453,11 +494,11 @@
   <!-- ═══ 1. ファーストビュー ═══ -->
   <section class="hero">
     <div class="container">
-      <p class="hero-tagline">個人店のSNSは、ネタで止まる。</p>
-      <h1>写真を送るだけで<br><em>投稿ネタが見つかるAI</em></h1>
-      <p class="hero-sub">写真を観察して、投稿の切り口・投稿文・次の撮影アイデアまで。<br>LINE完結。アプリ不要。</p>
+      <p class="hero-tagline">SNS投稿、止まっていませんか？</p>
+      <h1>個人店にも<br><em>SNS担当</em>を</h1>
+      <p class="hero-sub">写真を送るだけで投稿ネタと投稿文が完成。<br>LINEに写真を送るだけ。30秒で1投稿完成。</p>
       <a href="https://lin.ee/OWTIvhZ" class="btn btn-large">無料で試す</a>
-      <p class="cta-sub">LINE追加だけ / 30秒 / 無料で使えます</p>
+      <p class="cta-sub">LINE追加だけ / アプリ不要 / 無料で使えます</p>
     </div>
   </section>
 
@@ -491,8 +532,8 @@
   <section class="section section-alt section-center fade-in">
     <div class="container">
       <p class="label">Solution</p>
-      <h2 class="title">写真を送るだけ。<br>AIが<em>投稿ネタ</em>まで見つけます。</h2>
-      <p class="desc">写真を観察 → 投稿の切り口を発見 → 投稿文を生成 → 次の撮影を提案。<br>この流れを、AIが30秒で行います。</p>
+      <h2 class="title">写真を送るだけで、<br>AIが<em>全部やります</em>。</h2>
+      <p class="desc">投稿ネタ・投稿文・次に撮る写真まで。<br>あなたがやることは、写真を1枚送るだけ。</p>
 
       <div class="steps-grid" style="margin-top:56px;">
         <div class="step-card">
@@ -502,21 +543,84 @@
         </div>
         <div class="step-card">
           <div class="step-num">2</div>
-          <h3>AIが写真を観察</h3>
-          <p>光・質感・空気感から<br>投稿の切り口を3つ発見。</p>
+          <h3>AIが投稿ネタを見つける</h3>
+          <p>写真から投稿の切り口を<br>3つ発見してくれる。</p>
         </div>
         <div class="step-card">
           <div class="step-num">3</div>
-          <h3>投稿案が届く</h3>
+          <h3>投稿文を3つ作る</h3>
           <p>3つのコンセプトで<br>投稿文を自動生成。</p>
         </div>
         <div class="step-card">
           <div class="step-num">4</div>
-          <h3>次の撮影も提案</h3>
-          <p>「明日はこれを撮ってみて」<br>まで教えてくれる。</p>
+          <h3>次に撮る写真を教える</h3>
+          <p>「明日はこれを撮ってみて」<br>までAIが提案。</p>
         </div>
       </div>
-      <p style="margin-top:32px;font-size:0.95rem;font-weight:600;color:var(--accent);">所要時間：約30秒</p>
+
+      <!-- 投稿作成時間の比較 -->
+      <div style="margin-top:40px;display:inline-flex;align-items:center;gap:24px;padding:20px 40px;background:var(--surface-strong);border:1px solid var(--border);border-radius:100px;box-shadow:var(--shadow-sm);">
+        <span style="font-size:0.9rem;color:var(--gray-mid);text-decoration:line-through;">通常：30分</span>
+        <span style="font-size:1.2rem;color:var(--accent);">→</span>
+        <span style="font-size:1.1rem;font-weight:700;color:var(--accent);">AI：30秒</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 投稿が続くループ ═══ -->
+  <section class="section section-center fade-in">
+    <div class="container">
+      <p class="label">Growth Loop</p>
+      <h2 class="title">SNSが<em>止まらない</em>ループ</h2>
+      <p class="desc">多くのツールは「投稿を作って終わり」。<br>AI店舗秘書は次の投稿ネタまで作るので、SNSが止まりません。</p>
+
+      <div class="loop-wrap">
+        <!-- 円の点線 -->
+        <div class="loop-circle"></div>
+
+        <!-- SVG矢印（円形の流れを示す） -->
+        <svg class="loop-arrow-svg" viewBox="0 0 360 360" fill="none">
+          <!-- 時計回りの矢印弧 -->
+          <path d="M 180 20 A 160 160 0 0 1 340 180" stroke="rgba(184,112,74,.3)" stroke-width="2" fill="none" stroke-dasharray="8 6"/>
+          <path d="M 340 180 A 160 160 0 0 1 180 340" stroke="rgba(184,112,74,.3)" stroke-width="2" fill="none" stroke-dasharray="8 6"/>
+          <path d="M 180 340 A 160 160 0 0 1 20 180" stroke="rgba(184,112,74,.3)" stroke-width="2" fill="none" stroke-dasharray="8 6"/>
+          <path d="M 20 180 A 160 160 0 0 1 180 20" stroke="rgba(184,112,74,.3)" stroke-width="2" fill="none" stroke-dasharray="8 6"/>
+          <!-- 矢印の三角 -->
+          <polygon points="175,22 185,22 180,12" fill="var(--accent)" opacity="0.6"/>
+          <polygon points="338,175 338,185 348,180" fill="var(--accent)" opacity="0.6"/>
+          <polygon points="185,338 175,338 180,348" fill="var(--accent)" opacity="0.6"/>
+          <polygon points="22,185 22,175 12,180" fill="var(--accent)" opacity="0.6"/>
+        </svg>
+
+        <!-- 上: 写真を撮る -->
+        <div class="loop-node" style="top:0%;left:50%;">
+          <div class="loop-icon">📸</div>
+          <span class="loop-text">写真を撮る</span>
+        </div>
+
+        <!-- 右: AIがネタ発見 -->
+        <div class="loop-node" style="top:50%;left:100%;">
+          <div class="loop-icon">🧠</div>
+          <span class="loop-text">AIがネタ発見</span>
+          <span class="loop-sub">切り口を3つ提案</span>
+        </div>
+
+        <!-- 下: 投稿する -->
+        <div class="loop-node" style="top:100%;left:50%;">
+          <div class="loop-icon">📱</div>
+          <span class="loop-text">投稿する</span>
+          <span class="loop-sub">選ぶだけで完成</span>
+        </div>
+
+        <!-- 左: 次の撮影提案 -->
+        <div class="loop-node" style="top:50%;left:0%;">
+          <div class="loop-icon">💡</div>
+          <span class="loop-text">次の撮影提案</span>
+          <span class="loop-sub">明日撮るものが決まる</span>
+        </div>
+      </div>
+
+      <p style="margin-top:48px;font-size:0.95rem;color:var(--text-muted);">撮る → 投稿する → 次を知る。<strong style="color:var(--text);">このループが回るから、続く。</strong></p>
     </div>
   </section>
 
@@ -734,7 +838,7 @@
           <p style="font-size:0.75rem;color:var(--accent);font-weight:600;margin-bottom:4px;">ベータテスト中</p>
           <p class="plan-desc">まずは試してみたい方</p>
           <ul class="plan-features">
-            <li>✓ 月20回 AI生成</li>
+            <li>✓ 月10回 AI生成</li>
             <li>✓ 3案提案</li>
             <li>✓ 業種別の成功データ</li>
             <li class="disabled">— Instagram投稿</li>
