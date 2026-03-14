@@ -10,7 +10,7 @@ const MIN_BELIEFS_FOR_PERSONA = 3;
 // persona_definition の最大文字数
 const MAX_PERSONA_LENGTH = 1000;
 // 恒久ルール（core_beliefs）の上限
-const MAX_CORE_BELIEFS = 5;
+const MAX_CORE_BELIEFS = 7;
 
 /**
  * persona_definition_next のバリデーション
@@ -586,12 +586,7 @@ function _buildPromptParts(profileData) {
     parts.push(`\n🔒【絶対ルール（何度も修正して確立）】\n${coreRules}\n※ 以下のルールは店主が繰り返し修正して確立した核心ルール。例外なく毎回守ること。他のすべてのルールより優先。`);
   }
 
-  // ★ ライティング指示集（写真に合うものだけ自然に反映）
-  if (profileData.persona_definition) {
-    parts.push(`\n━━━━━━━━━━━━━━━━━━━━━━━━\n【この店主のライティング傾向 Ver.${profileData.persona_version || 1}】★必ず守ること\n${profileData.persona_definition}\n※ 上記は店主が自分の投稿を何度も修正して確立したルール。毎回すべての項目を反映すること。\n━━━━━━━━━━━━━━━━━━━━━━━━`);
-  }
-
-  // 語尾・口癖
+  // 語尾・口癖（直接ルール → persona_definitionより先に注入）
   const ws = profileData.writing_style || {};
   const styleParts = [];
   if (ws.sentence_endings?.length > 0) {
@@ -605,6 +600,11 @@ function _buildPromptParts(profileData) {
   }
   if (styleParts.length > 0) {
     parts.push(`【文体ルール】★絶対厳守\n${styleParts.join('\n')}\n※ 語尾・口癖は店主のアイデンティティ。必ず毎回使うこと。`);
+  }
+
+  // ★ ライティング指示集（生成された人格 — 直接ルールの後に配置）
+  if (profileData.persona_definition) {
+    parts.push(`\n━━━━━━━━━━━━━━━━━━━━━━━━\n【この店主のライティング傾向 Ver.${profileData.persona_version || 1}】★必ず守ること\n${profileData.persona_definition}\n※ 上記は店主が自分の投稿を何度も修正して確立したルール。毎回すべての項目を反映すること。\n━━━━━━━━━━━━━━━━━━━━━━━━`);
   }
 
   // 避ける表現

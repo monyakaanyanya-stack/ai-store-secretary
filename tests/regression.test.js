@@ -3422,7 +3422,7 @@ describe('Scenario 55: core_beliefs（恒久ルール）', () => {
       new URL('../src/services/advancedPersonalization.js', import.meta.url), 'utf-8'
     );
     assert.ok(content.includes('MAX_CORE_BELIEFS'), 'MAX_CORE_BELIEFS定数が存在する');
-    assert.ok(/MAX_CORE_BELIEFS\s*=\s*5/.test(content), '上限は5件');
+    assert.ok(/MAX_CORE_BELIEFS\s*=\s*7/.test(content), '上限は7件');
   });
 
   it('analyzeFeedbackWithClaude のプロンプトに core_promotion 出力が含まれる', async () => {
