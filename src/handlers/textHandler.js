@@ -113,7 +113,7 @@ export async function handleTextMessage(user, text, replyToken) {
     'プラン', 'アップグレード', '今週の計画', '投稿ネタ', '投稿ネタ教えて', 'ネタ', 'コマンド一覧', 'コマンド',
     'モード切替', 'モード切り替え', 'AI投稿モード', 'そのまま投稿モード', 'そのまま投稿', 'direct投稿実行', 'direct複数枚投稿',
     'ストック', 'ストック保存', 'ストック投稿', 'ストック予約', 'ストック削除', 'ストック一括削除', '予約投稿', 'これで決定', '別案'].includes(trimmed)
-    || trimmed.startsWith('切替:') || trimmed.startsWith('ストック:') || trimmed.startsWith('予約:') || trimmed.startsWith('/');
+    || trimmed.startsWith('切替:') || trimmed.startsWith('ストック:') || trimmed.startsWith('予約:') || trimmed.startsWith('/') || trimmed.startsWith('学習:') || trimmed.startsWith('学習：') || trimmed.startsWith('直し:') || trimmed.startsWith('直し：');
 
   // カルーセルモード中のテキスト処理（通常のpending_image_contextより先に判定）
   if (user.pending_image_context?.carousel_mode && !isSystemCommand) {
