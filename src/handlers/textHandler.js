@@ -617,13 +617,17 @@ ${contactEmail}
     if (user.current_store_id) {
       const store = await getStore(user.current_store_id);
       if (store) {
-        const { data: latestPost } = await supabase
+        const { data: latestPost, error: postError } = await supabase
           .from('post_history')
           .select('*')
           .eq('store_id', store.id)
           .order('created_at', { ascending: false })
           .limit(1)
           .single();
+        if (postError) {
+          console.error('[TextHandler] 別案: DB取得エラー:', postError.message);
+          return await replyText(replyToken, 'うまくいきませんでした。もう一度お試しください');
+        }
         if (latestPost?.content && /\[\s*案B[：:]/.test(latestPost.content)) {
           const { handleShowAlternatives } = await import('./proposalHandler.js');
           return await handleShowAlternatives(user, store, latestPost, replyToken);

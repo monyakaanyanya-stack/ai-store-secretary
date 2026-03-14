@@ -247,38 +247,48 @@ async function addBeliefFromSelection(storeId, selection) {
  */
 export async function handleShowAlternatives(user, store, latestPost, replyToken) {
   try {
+    const proposalA = extractSelectedProposal(latestPost.content, 'A');
     const proposalB = extractSelectedProposal(latestPost.content, 'B');
     const proposalC = extractSelectedProposal(latestPost.content, 'C');
 
-    if (!proposalB && !proposalC) {
-      return await replyText(replyToken, '別の案が見つかりませんでした。もう一度写真を送ってみてください');
+    if (!proposalA && !proposalB && !proposalC) {
+      return await replyText(replyToken, '案が見つかりませんでした。もう一度写真を送ってみてください');
+    }
+
+    // 部分抽出のログ
+    if (!proposalA || !proposalB || !proposalC) {
+      console.warn(`[Proposal] 別案: 部分抽出 A=${!!proposalA}, B=${!!proposalB}, C=${!!proposalC}, store=${store.name}`);
     }
 
     // 「別案を見る」回数を記録（将来の分析用）
     await incrementAlternativesViewed(store.id);
 
-    // 案B/Cを表示
+    // 3案すべてを表示（比較して選べるように）
     // Photo Advice は案Aで既に表示済みなので除外
-    const stripAdvice = (text) => text ? text.replace(/\n\n━{5,}[\s\S]*━{5,}/, '').trim() : '';
+    const stripAdvice = (text) => {
+      if (!text) return '';
+      const stripped = text.replace(/\n\n━{5,}[\s\S]*━{5,}/, '').trim();
+      return stripped || text.trim();
+    };
     const parts = [];
+    if (proposalA) parts.push(`[ 案A ]\n${stripAdvice(proposalA)}`);
     if (proposalB) parts.push(`[ 案B ]\n${stripAdvice(proposalB)}`);
     if (proposalC) parts.push(`[ 案C ]\n${stripAdvice(proposalC)}`);
 
-    const formattedReply = `別の案はこちらです👇
+    const formattedReply = `3つの案を並べました👇
 ━━━━━━━━━━━
 ${parts.join('\n\n')}
 ━━━━━━━━━━━
 
-気に入った案があれば選んでください`;
+気に入った案を選んでください`;
 
-    const quickReplies = [
-      { type: 'action', action: { type: 'message', label: '✅ やっぱりA案', text: 'A' } },
-    ];
+    const quickReplies = [];
+    if (proposalA) quickReplies.push({ type: 'action', action: { type: 'message', label: '✅ A案', text: 'A' } });
     if (proposalB) quickReplies.push({ type: 'action', action: { type: 'message', label: '✅ B案', text: 'B' } });
     if (proposalC) quickReplies.push({ type: 'action', action: { type: 'message', label: '✅ C案', text: 'C' } });
     quickReplies.push({ type: 'action', action: { type: 'message', label: '✏️ 直し', text: '直し:' } });
 
-    console.log(`[Proposal] 別案表示: store=${store.name}`);
+    console.log(`[Proposal] 別案表示（3案比較）: store=${store.name}`);
     return await replyWithQuickReply(replyToken, formattedReply, quickReplies);
   } catch (err) {
     console.error(`[Proposal] 別案表示エラー: store=${store.name}`, err);
