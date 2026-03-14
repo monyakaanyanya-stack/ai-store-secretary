@@ -223,16 +223,18 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
     const isOneProposal = !!pickedProposal;
     const pickedLabel = pickedProposal ? randomPick : null;
 
-    console.log(`[Image] 分析+生成完了: store=${store.name} (${totalElapsed}s), 表示案=${pickedLabel || '全文'}`);
+    const hasAdviceInRaw = /📸/.test(rawContent) || /[━─―]{5,}/.test(rawContent);
+    console.log(`[Image] 分析+生成完了: store=${store.name} (${totalElapsed}s), 表示案=${pickedLabel || '全文'}, PhotoAdvice=${hasAdviceInRaw ? '有' : '無'}`);
 
-    // 投稿文とPhoto Adviceを分離（投稿文だけ外枠で囲む）
-    const adviceSplit = displayContent.match(/^([\s\S]*?)(\n\n━{5,}[\s\S]*━{5,})$/);
+    // 投稿文とPhoto Adviceを分離（━━━区切り or 📸マーカーで検出）
+    const adviceSplit = displayContent.match(/^([\s\S]*?)(\n\n[━─―]{5,}[\s\S]*[━─―]{5,})\s*$/)
+      || displayContent.match(/^([\s\S]*?)(\n\n📸[\s\S]*)$/);
     const postText = adviceSplit ? adviceSplit[1].trim() : displayContent;
     // 非Premiumユーザーは💡次の被写体提案と🎯明日撮るべきものを除外
     const rawPhotoAdvice = adviceSplit ? adviceSplit[2] : '';
     const photoAdvice = isPremium
       ? rawPhotoAdvice
-      : rawPhotoAdvice.replace(/\n💡 次はこんなのも[\s\S]*?(?=\n━|$)/, '').replace(/\n🎯 明日撮るべきもの[\s\S]*?(?=\n━|$)/, '');
+      : rawPhotoAdvice.replace(/\n💡 次はこんなのも[\s\S]*?(?=\n[━─―]|$)/, '').replace(/\n🎯 明日撮るべきもの[\s\S]*?(?=\n[━─―]|$)/, '');
 
     const formattedReply = isOneProposal
       ? `まずはおすすめの案です！${learningNote}
@@ -240,7 +242,8 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
 ${postText}
 ━━━━━━━━━━━
 
-このまま投稿できます。「直し: ${revisionExample}」で微調整も◎${remainingNote}${photoAdvice}`
+このまま投稿できます。「直し: ${revisionExample}」で微調整も◎
+✏️直し = この投稿を修正  📝学習 = 今後の文体を記憶${remainingNote}${photoAdvice}`
       : `3つの投稿案ができました！どの案が理想に近いですか？👇${learningNote}
 ━━━━━━━━━━━
 ${rawContent}

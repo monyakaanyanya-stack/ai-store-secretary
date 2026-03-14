@@ -133,21 +133,33 @@ export function extractSelectedProposal(fullContent, selection) {
 
   const startPos = markers[targetIdx].index + markers[targetIdx][0].length;
 
-  // 終了位置: 次の案マーカー or Photo Advice区切り線
+  // 終了位置: 次の案マーカー or Photo Advice区切り線 or 📸マーカー
   let endPos;
   if (targetIdx + 1 < markers.length) {
     endPos = markers[targetIdx + 1].index;
   } else {
-    // 最後の案の場合は区切り線まで
-    const dividerMatch = fullContent.slice(startPos).match(/\n━{5,}/);
-    endPos = dividerMatch ? startPos + dividerMatch.index : fullContent.length;
+    // 最後の案: ━━━区切り線 or 📸マーカーのどちらか先に見つかった方まで
+    const remaining = fullContent.slice(startPos);
+    const dividerMatch = remaining.match(/\n[━─―]{5,}/);
+    const photoMarker = remaining.match(/\n📸/);
+    const candidates = [];
+    if (dividerMatch) candidates.push(dividerMatch.index);
+    if (photoMarker) candidates.push(photoMarker.index);
+    endPos = candidates.length > 0
+      ? startPos + Math.min(...candidates)
+      : fullContent.length;
   }
 
   const proposalText = fullContent.slice(startPos, endPos).trim();
 
-  // Photo Advice セクションを抽出（全案共通・非貪欲マッチ）
-  const adviceMatch = fullContent.match(/(━{5,}[\s\S]*?━{5,})/);
-  const photoAdvice = adviceMatch ? '\n\n' + adviceMatch[1] : '';
+  // Photo Advice セクションを抽出（━━━区切り or 📸マーカーで検出）
+  const adviceDivider = fullContent.match(/([━─―]{5,}[\s\S]*?[━─―]{5,})\s*$/);
+  const adviceByMarker = !adviceDivider ? fullContent.match(/(\n📸[\s\S]*)$/) : null;
+  const photoAdvice = adviceDivider
+    ? '\n\n' + adviceDivider[1]
+    : adviceByMarker
+      ? '\n\n' + adviceByMarker[1].trim()
+      : '';
 
   return proposalText + photoAdvice;
 }
@@ -268,17 +280,22 @@ export async function handleShowAlternatives(user, store, latestPost, replyToken
     // Photo Advice は各案から除外して最後に1回だけ追加
     const stripAdvice = (text) => {
       if (!text) return '';
-      const stripped = text.replace(/\n\n━{5,}[\s\S]*━{5,}/, '').trim();
+      // ━━━区切り or 📸マーカー以降を除外
+      const stripped = text.replace(/\n\n[━─―]{5,}[\s\S]*[━─―]{5,}\s*$/, '')
+        .replace(/\n\n📸[\s\S]*$/, '').trim();
       return stripped || text.trim();
     };
     // Photo Advice を抽出（どの案からでもOK、全案共通）
     const firstProposal = proposalA || proposalB || proposalC;
-    const adviceMatch = firstProposal ? firstProposal.match(/\n\n(━{5,}[\s\S]*━{5,})/) : null;
-    let photoAdvice = adviceMatch ? '\n\n' + adviceMatch[1] : '';
+    const adviceDivider = firstProposal ? firstProposal.match(/\n\n([━─―]{5,}[\s\S]*[━─―]{5,})\s*$/) : null;
+    const adviceByMarker = !adviceDivider && firstProposal ? firstProposal.match(/\n\n(📸[\s\S]*)$/) : null;
+    let photoAdvice = adviceDivider ? '\n\n' + adviceDivider[1]
+      : adviceByMarker ? '\n\n' + adviceByMarker[1].trim()
+      : '';
     // 非Premiumユーザーは💡次の被写体提案と🎯明日撮るべきものを除外
     const isPremium = await isFeatureEnabled(user.id, 'enhancedPhotoAdvice');
     if (!isPremium && photoAdvice) {
-      photoAdvice = photoAdvice.replace(/\n💡 次はこんなのも[\s\S]*?(?=\n━|$)/, '').replace(/\n🎯 明日撮るべきもの[\s\S]*?(?=\n━|$)/, '');
+      photoAdvice = photoAdvice.replace(/\n💡 次はこんなのも[\s\S]*?(?=\n[━─―]|$)/, '').replace(/\n🎯 明日撮るべきもの[\s\S]*?(?=\n[━─―]|$)/, '');
     }
 
     const parts = [];
