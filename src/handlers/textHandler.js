@@ -112,7 +112,7 @@ export async function handleTextMessage(user, text, replyToken) {
     '店舗一覧', '店舗切り替え', '店舗切替', '店舗削除', 'ヘルプ', 'help', '学習状況', '問い合わせ', '登録',
     'プラン', 'アップグレード', '今週の計画', '投稿ネタ', '投稿ネタ教えて', 'ネタ', 'コマンド一覧', 'コマンド',
     'モード切替', 'モード切り替え', 'AI投稿モード', 'そのまま投稿モード', 'そのまま投稿', 'direct投稿実行', 'direct複数枚投稿',
-    'ストック', 'ストック保存', 'ストック投稿', 'ストック予約', 'ストック削除', 'ストック一括削除', '予約投稿', 'これで決定', '別案'].includes(trimmed)
+    'ストック', 'ストック保存', 'ストック投稿', 'ストック予約', 'ストック削除', 'ストック一括削除', '予約投稿', 'これで決定', '別案', 'コピー'].includes(trimmed)
     || trimmed.startsWith('切替:') || trimmed.startsWith('ストック:') || trimmed.startsWith('予約:') || trimmed.startsWith('/') || trimmed.startsWith('学習:') || trimmed.startsWith('学習：') || trimmed.startsWith('直し:') || trimmed.startsWith('直し：');
 
   // カルーセルモード中のテキスト処理（通常のpending_image_contextより先に判定）
@@ -737,6 +737,22 @@ ${contactEmail}
         return await replyText(replyToken, '✅ 投稿が確定しました！\n\n上のテキストをコピーしてSNSに貼り付けてください📋');
       }
     }
+  }
+
+  // 📋 コピーして使う（投稿テキストをコピーしやすい形で返す）
+  if (trimmed === 'コピー') {
+    if (user.current_store_id) {
+      const store = await getStore(user.current_store_id);
+      if (store) {
+        const latestPost = await getLatestPost(store.id);
+        if (latestPost) {
+          // Photo Advice（━━━区切り以降）を除外して本文+ハッシュタグのみ
+          const caption = latestPost.content.split(/\n━{3,}/)[0].trim();
+          return await replyText(replyToken, `📋 コピーしてお使いください👇\n\n${caption}`);
+        }
+      }
+    }
+    return await replyText(replyToken, 'まだ投稿がありません。写真を送ってみてください！');
   }
 
   // 👍 良い評価
