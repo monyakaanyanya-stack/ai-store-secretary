@@ -3413,3 +3413,65 @@ describe('Scenario 54: 学習効果の体感改善', () => {
     assert.ok(content.includes('語尾・口癖・避ける表現は厳守'), '具体的な厳守項目が列挙されている');
   });
 });
+
+// Scenario 55: core_beliefs（恒久ルール）
+describe('Scenario 55: core_beliefs（恒久ルール）', () => {
+  it('MAX_CORE_BELIEFS 定数が定義されている', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/advancedPersonalization.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('MAX_CORE_BELIEFS'), 'MAX_CORE_BELIEFS定数が存在する');
+    assert.ok(/MAX_CORE_BELIEFS\s*=\s*5/.test(content), '上限は5件');
+  });
+
+  it('analyzeFeedbackWithClaude のプロンプトに core_promotion 出力が含まれる', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/advancedPersonalization.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('core_promotion'), 'core_promotionフィールドがある');
+  });
+
+  it('updateAdvancedProfile に core_beliefs 昇格処理がある', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/advancedPersonalization.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('core_beliefs') && content.includes('core_promotion'), 'core_beliefs昇格処理がある');
+    assert.ok(content.includes('MAX_CORE_BELIEFS'), '上限チェックがある');
+  });
+
+  it('_buildPromptParts で core_beliefs が最優先で注入される', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/advancedPersonalization.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('絶対ルール（何度も修正して確立）'), 'core_beliefsの注入ラベルがある');
+    assert.ok(content.includes('例外なく毎回守ること'), '強制力のある注釈がある');
+  });
+
+  it('regeneratePersonaDefinition で core_beliefs が不可侵ルールとして渡される', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/advancedPersonalization.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('不可侵ルール'), 'persona再生成にcore_beliefsが不可侵として含まれる');
+  });
+
+  it('getLearningStatus に core_beliefs の表示セクションがある', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/personalizationEngine.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('絶対ルール'), '学習状況表示にcore_beliefsセクションがある');
+  });
+
+  it('getProfileAndPrompt が coreBeliefs を profileContext に含める', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/advancedPersonalization.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('coreBeliefs'), 'profileContextにcoreBeliefsフィールドがある');
+  });
+});

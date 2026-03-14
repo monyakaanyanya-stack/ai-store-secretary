@@ -327,6 +327,16 @@ export async function getLearningStatus(storeId, category) {
     sections.push(`【学習中の好み】\n${beliefLogs.map(b => `・${b.text}`).join('\n')}\n\nあと${Math.max(0, 5 - beliefLogs.length)}回フィードバックすると人格定義が生成されます！`);
   }
 
+  // ── 恒久ルールセクション ──
+  const coreBeliefs = profileData.core_beliefs || [];
+  if (coreBeliefs.length > 0) {
+    const coreLines = coreBeliefs
+      .sort((a, b) => (b.hit_count || 0) - (a.hit_count || 0))
+      .map(cb => `・${cb.text}`)
+      .join('\n');
+    sections.push(`🔒【絶対ルール（${coreBeliefs.length}件）】\n${coreLines}`);
+  }
+
   // ── 進化の軌跡セクション ──
   const history = profileData.persona_history || [];
   if (history.length > 0) {

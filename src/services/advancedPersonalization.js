@@ -9,6 +9,8 @@ const MAX_PERSONA_HISTORY = 5;
 const MIN_BELIEFS_FOR_PERSONA = 3;
 // persona_definition の最大文字数
 const MAX_PERSONA_LENGTH = 1000;
+// 恒久ルール（core_beliefs）の上限
+const MAX_CORE_BELIEFS = 5;
 
 /**
  * persona_definition_next のバリデーション
@@ -46,6 +48,8 @@ export async function analyzeFeedbackWithClaude(feedback, originalPost, revisedP
     if (ws.sentence_endings?.length > 0) styleParts.push(`語尾: ${ws.sentence_endings.join(', ')}`);
     if (ws.catchphrases?.length > 0) styleParts.push(`口癖: ${ws.catchphrases.join(', ')}`);
 
+    const coreBeliefs = profileContext.coreBeliefs || [];
+
     profileSection = `
 
 【現在のライティング指示集】
@@ -53,10 +57,14 @@ ${profileContext.personaDefinition || 'まだありません'}
 
 【蓄積済みの思想ログ（古い順）】
 ${logs.length > 0 ? logs.map(b => `・${b.text}`).join('\n') : 'なし'}
-${styleParts.length > 0 ? `\n【蓄積済みの文体パターン】\n${styleParts.join('\n')}` : ''}`;
+${styleParts.length > 0 ? `\n【蓄積済みの文体パターン】\n${styleParts.join('\n')}` : ''}
+
+【恒久ルール（core_beliefs）】
+${coreBeliefs.length > 0 ? coreBeliefs.map(b => `・${b.text}`).join('\n') : 'なし'}`;
 
     personaOutputInstruction = `,
-  "persona_definition_next": string`;
+  "persona_definition_next": string,
+  "core_promotion": { "text": string, "reason": string } | null`;
   }
 
   const prompt = `${diffSection}
@@ -91,7 +99,8 @@ ${revisedPost ? '修正指示は「なぜ直したか」の文脈として参照
 - avoided_words: 元の投稿にあって修正後に消された表現・単語
 - preferred_words: 修正後に新たに使われた表現・単語
 - human_readable_learnings: ユーザーに見せる「今回学習したこと」を3件以内。具体的な変化を書く（例: ["語尾を「〜だな」に統一", "最後のCTAを削除"]）${profileContext ? `
-- persona_definition_next: 今回の学習結果を反映した更新版ライティング指示集。「・」で始まる箇条書き7項目以内。「この店主は〜を好む」のような抽象的な性格描写は禁止。「〜する」「〜しない」「〜を使う」という具体的な行動指示にする。矛盾するログがあれば新しいほうを優先。語尾・口癖・避ける言葉がある場合は具体例を必ず含める` : ''}`;
+- persona_definition_next: 今回の学習結果を反映した更新版ライティング指示集。「・」で始まる箇条書き7項目以内。「この店主は〜を好む」のような抽象的な性格描写は禁止。「〜する」「〜しない」「〜を使う」という具体的な行動指示にする。矛盾するログがあれば新しいほうを優先。語尾・口癖・避ける言葉がある場合は具体例を必ず含める
+- core_promotion: 蓄積済みの思想ログの中で同じ系統の修正が3回以上出ているパターンがあれば、1つの恒久ルールにまとめる。なければnull。例: 「語尾を〜にして」系の修正が4回→ core_promotion: { "text": "語尾は「〜です」「〜ます」で統一する", "reason": "語尾に関する修正が4回出ている" }` : ''}`;
 
   try {
     const response = await askClaude(prompt, {
@@ -209,6 +218,32 @@ export async function updateAdvancedProfile(storeId, analysis) {
     profileData.latest_learnings = analysis.human_readable_learnings;
   }
 
+  // ── 4.5. core_beliefs 昇格処理 ──
+  if (analysis.core_promotion && analysis.core_promotion.text) {
+    const coreBeliefs = profileData.core_beliefs || [];
+    const promotionText = analysis.core_promotion.text.trim();
+
+    // 既存のcore_beliefsに類似があればhit_count加算
+    const existingIdx = coreBeliefs.findIndex(cb => cb.text === promotionText);
+    if (existingIdx >= 0) {
+      coreBeliefs[existingIdx].hit_count = (coreBeliefs[existingIdx].hit_count || 1) + 1;
+    } else {
+      // 新規追加
+      coreBeliefs.push({
+        text: promotionText,
+        promoted_at: new Date().toISOString(),
+        hit_count: 3,
+      });
+      // 上限超過時は最もhit_countが低いものを削除
+      if (coreBeliefs.length > MAX_CORE_BELIEFS) {
+        const minIdx = coreBeliefs.reduce((mi, cb, i, arr) => cb.hit_count < arr[mi].hit_count ? i : mi, 0);
+        coreBeliefs.splice(minIdx, 1);
+      }
+    }
+    profileData.core_beliefs = coreBeliefs;
+    console.log(`[AdvancedPersonalization] core_belief昇格: "${promotionText}" (理由: ${analysis.core_promotion.reason})`);
+  }
+
   // ── 5. ライティング指示集の即時更新（persona_definition_next がある場合はDB保存前に適用）──
   let personaUpdated = false;
   if (analysis.persona_definition_next && validatePersonaDefinition(analysis.persona_definition_next)) {
@@ -316,10 +351,15 @@ export async function regeneratePersonaDefinition(storeId, profileData, beliefLo
     ? `\n\n【抽出済みの文体パターン】\n${styleSection.join('\n')}`
     : '';
 
+  const coreBeliefs = profileData.core_beliefs || [];
+  const coreSection = coreBeliefs.length > 0
+    ? `\n\n【不可侵ルール（以下と矛盾する指示は含めないこと）】\n${coreBeliefs.map(cb => `・${cb.text}`).join('\n')}`
+    : '';
+
   const prompt = `以下はある店主がInstagram投稿文に対して出したフィードバックから抽出した思想ログです。
 
 【思想ログ（古い順）】
-${beliefLogs.map(b => `・${b.text}`).join('\n')}${styleMaterial}
+${beliefLogs.map(b => `・${b.text}`).join('\n')}${styleMaterial}${coreSection}
 
 これらの情報を元に、この店主の「具体的なライティング指示集」を作ってください。
 
@@ -536,6 +576,16 @@ ${postContent.slice(0, 500)}
 function _buildPromptParts(profileData) {
   const parts = [];
 
+  // 🔒 恒久ルール（core_beliefs）— 最優先
+  const coreBeliefs = profileData.core_beliefs || [];
+  if (coreBeliefs.length > 0) {
+    const coreRules = coreBeliefs
+      .sort((a, b) => (b.hit_count || 0) - (a.hit_count || 0))
+      .map(cb => `・${cb.text}`)
+      .join('\n');
+    parts.push(`\n🔒【絶対ルール（何度も修正して確立）】\n${coreRules}\n※ 以下のルールは店主が繰り返し修正して確立した核心ルール。例外なく毎回守ること。他のすべてのルールより優先。`);
+  }
+
   // ★ ライティング指示集（写真に合うものだけ自然に反映）
   if (profileData.persona_definition) {
     parts.push(`\n━━━━━━━━━━━━━━━━━━━━━━━━\n【この店主のライティング傾向 Ver.${profileData.persona_version || 1}】★必ず守ること\n${profileData.persona_definition}\n※ 上記は店主が自分の投稿を何度も修正して確立したルール。毎回すべての項目を反映すること。\n━━━━━━━━━━━━━━━━━━━━━━━━`);
@@ -634,6 +684,7 @@ export async function getProfileAndPrompt(storeId) {
       catchphrases: ws.catchphrases || [],
       line_break_style: ws.line_break_style || null,
     },
+    coreBeliefs: profileData.core_beliefs || [],
   };
 
   if (!profile || profile.interaction_count < 1) {
