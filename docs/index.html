@@ -365,45 +365,127 @@
     .target-card h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 6px; color: var(--white); }
     .target-card p { font-size: 0.78rem; color: rgba(255,255,255,0.5); line-height: 1.7; }
 
-    /* ─── Loop diagram ─── */
-    .loop-wrap {
+    /* ─── Dual Loop Comparison ─── */
+    .dual-loop-section { padding: 80px 40px; }
+    .dual-loop-header {
+      text-align: center; margin-bottom: 48px;
+    }
+    .dual-loop-header .data-badge {
+      display: inline-block; font-size: 0.75rem; font-weight: 600;
+      color: var(--accent); background: var(--accent-soft);
+      padding: 6px 20px; border-radius: 100px; margin-bottom: 16px;
+      border: 1px solid rgba(184,112,74,.1);
+    }
+    .dual-loop-grid {
+      display: grid; grid-template-columns: 1fr auto 1fr;
+      gap: 0; max-width: 900px; margin: 0 auto; align-items: start;
+    }
+    .loop-panel {
+      padding: 36px 28px; border-radius: var(--radius);
       position: relative;
-      width: 340px; height: 340px;
-      margin: 56px auto 0;
     }
-    .loop-circle {
-      position: absolute; inset: 0;
-      border: 2px dashed rgba(184,112,74,.25);
-      border-radius: 50%;
+    .loop-panel-stop {
+      background: rgba(120,120,120,.04);
+      border: 1px solid rgba(120,120,120,.1);
     }
-    .loop-arrow-svg {
-      position: absolute; inset: -8px;
+    .loop-panel-go {
+      background: var(--accent-soft);
+      border: 2px solid rgba(184,112,74,.2);
+      box-shadow: 0 4px 24px rgba(184,112,74,.08);
     }
-    .loop-node {
-      position: absolute;
-      display: flex; flex-direction: column; align-items: center; gap: 6px;
-      transform: translate(-50%, -50%);
+    .loop-panel-title {
+      font-size: 1.05rem; font-weight: 700; margin-bottom: 24px;
+      text-align: center;
     }
-    .loop-icon {
-      width: 56px; height: 56px; border-radius: 50%;
-      background: var(--surface-strong); border: 2px solid var(--accent);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.4rem; box-shadow: 0 4px 16px rgba(184,112,74,.15);
+    .loop-panel-stop .loop-panel-title { color: var(--gray-mid); }
+    .loop-panel-go .loop-panel-title { color: var(--accent); }
+
+    .loop-flow {
+      display: flex; flex-direction: column; align-items: center; gap: 0;
+    }
+    .loop-flow-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 16px; width: 100%;
+      border-radius: var(--radius-xs);
       transition: all var(--transition);
     }
-    .loop-icon:hover { transform: scale(1.1); box-shadow: 0 6px 24px rgba(184,112,74,.25); }
-    .loop-text {
-      font-size: 0.78rem; font-weight: 600; color: var(--text);
-      white-space: nowrap;
+    .loop-flow-item:hover { transform: translateX(4px); }
+    .loop-flow-emoji { font-size: 1.3rem; flex-shrink: 0; width: 36px; text-align: center; }
+    .loop-flow-text { font-size: 0.88rem; font-weight: 500; }
+    .loop-panel-stop .loop-flow-text { color: var(--gray-mid); }
+    .loop-panel-go .loop-flow-text { color: var(--text); }
+    .loop-flow-arrow {
+      text-align: center; font-size: 0.9rem; padding: 2px 0;
+      color: rgba(62,42,20,.2);
     }
-    .loop-sub {
-      font-size: 0.68rem; color: var(--text-muted); white-space: nowrap;
+    .loop-panel-go .loop-flow-arrow { color: var(--accent); }
+    .loop-flow-result {
+      margin-top: 8px; padding: 10px 16px;
+      border-radius: var(--radius-xs); text-align: center;
+      font-size: 0.85rem; font-weight: 600;
+    }
+    .loop-panel-stop .loop-flow-result {
+      background: rgba(120,120,120,.06); color: var(--gray-mid);
+    }
+    .loop-panel-go .loop-flow-result {
+      background: rgba(184,112,74,.08); color: var(--accent);
+    }
+
+    .dual-loop-divider {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; padding: 0 16px;
+    }
+    .dual-loop-vs {
+      font-size: 0.8rem; font-weight: 700; color: var(--gray-mid);
+      background: var(--surface-strong); border: 1px solid var(--border);
+      width: 40px; height: 40px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: var(--shadow-sm);
+    }
+    .dual-loop-bridge {
+      text-align: center; margin-top: 32px; max-width: 600px; margin-left: auto; margin-right: auto;
+    }
+    .dual-loop-bridge p {
+      font-size: 0.95rem; color: var(--text-muted); line-height: 1.9;
+    }
+    .dual-loop-bridge strong { color: var(--accent); font-weight: 700; }
+
+    /* ─── Recognition funnel ─── */
+    .recognition-section { padding: 80px 40px; text-align: center; }
+    .recognition-funnel {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 0; max-width: 480px; margin: 40px auto 0;
+    }
+    .funnel-step {
+      display: flex; align-items: center; gap: 16px;
+      padding: 18px 32px; width: 100%;
+      background: var(--surface-strong); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); box-shadow: var(--shadow-sm);
+      transition: all var(--transition);
+    }
+    .funnel-step:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+    .funnel-emoji { font-size: 1.4rem; flex-shrink: 0; }
+    .funnel-text { font-size: 0.95rem; font-weight: 600; text-align: left; }
+    .funnel-sub { font-size: 0.78rem; color: var(--text-muted); font-weight: 400; }
+    .funnel-arrow {
+      font-size: 1.2rem; color: var(--accent); padding: 6px 0;
+      opacity: 0.5;
+    }
+
+    @media (max-width: 768px) {
+      .dual-loop-grid { grid-template-columns: 1fr; gap: 24px; }
+      .dual-loop-divider {
+        flex-direction: row; padding: 0;
+      }
+      .dual-loop-section { padding: 56px 24px; }
+      .recognition-section { padding: 56px 24px; }
+      .funnel-step { padding: 14px 20px; }
     }
     @media (max-width: 480px) {
-      .loop-wrap { width: 280px; height: 280px; }
-      .loop-icon { width: 48px; height: 48px; font-size: 1.2rem; }
-      .loop-text { font-size: 0.72rem; }
-      .loop-sub { font-size: 0.62rem; }
+      .dual-loop-section { padding: 48px 16px; }
+      .loop-panel { padding: 24px 16px; }
+      .loop-flow-text { font-size: 0.82rem; }
+      .recognition-section { padding: 48px 16px; }
     }
 
     /* ─── CTA Final ─── */
@@ -528,6 +610,89 @@
     </div>
   </section>
 
+  <!-- ═══ 止まるループ vs 続くループ ═══ -->
+  <section class="dual-loop-section fade-in">
+    <div class="container">
+      <div class="dual-loop-header">
+        <p class="label">Why SNS Stops</p>
+        <h2 class="title">SNSが止まる理由は<br>「やる気」ではありません。</h2>
+        <p class="desc">投稿ネタを考える工程が負担だからです。</p>
+      </div>
+
+      <div class="dual-loop-grid">
+        <!-- 左: 止まるループ -->
+        <div class="loop-panel loop-panel-stop">
+          <p class="loop-panel-title">止まるループ</p>
+          <div class="loop-flow">
+            <div class="loop-flow-item">
+              <span class="loop-flow-emoji">📸</span>
+              <span class="loop-flow-text">写真を撮る</span>
+            </div>
+            <div class="loop-flow-arrow">↓</div>
+            <div class="loop-flow-item">
+              <span class="loop-flow-emoji">🤔</span>
+              <span class="loop-flow-text">何を書けばいい…？</span>
+            </div>
+            <div class="loop-flow-arrow">↓</div>
+            <div class="loop-flow-item">
+              <span class="loop-flow-emoji">⏰</span>
+              <span class="loop-flow-text">後でやろう</span>
+            </div>
+            <div class="loop-flow-arrow">↓</div>
+            <div class="loop-flow-item">
+              <span class="loop-flow-emoji">📅</span>
+              <span class="loop-flow-text">結局、投稿しない</span>
+            </div>
+            <div class="loop-flow-arrow">↓</div>
+            <div class="loop-flow-result">😓 SNS停止</div>
+          </div>
+        </div>
+
+        <!-- 中央: VS -->
+        <div class="dual-loop-divider">
+          <div class="dual-loop-vs">VS</div>
+        </div>
+
+        <!-- 右: 続くループ -->
+        <div class="loop-panel loop-panel-go">
+          <p class="loop-panel-title">続くループ</p>
+          <div class="loop-flow">
+            <div class="loop-flow-item">
+              <span class="loop-flow-emoji">📸</span>
+              <span class="loop-flow-text">写真を撮る</span>
+            </div>
+            <div class="loop-flow-arrow">↓</div>
+            <div class="loop-flow-item">
+              <span class="loop-flow-emoji">🧠</span>
+              <span class="loop-flow-text">AIがネタを発見</span>
+            </div>
+            <div class="loop-flow-arrow">↓</div>
+            <div class="loop-flow-item">
+              <span class="loop-flow-emoji">✍</span>
+              <span class="loop-flow-text">投稿案を3つ生成</span>
+            </div>
+            <div class="loop-flow-arrow">↓</div>
+            <div class="loop-flow-item">
+              <span class="loop-flow-emoji">📱</span>
+              <span class="loop-flow-text">選んで投稿</span>
+            </div>
+            <div class="loop-flow-arrow">↓</div>
+            <div class="loop-flow-item">
+              <span class="loop-flow-emoji">💡</span>
+              <span class="loop-flow-text">次の撮影を提案</span>
+            </div>
+            <div class="loop-flow-arrow">🔄</div>
+            <div class="loop-flow-result">✨ SNSが続く</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dual-loop-bridge">
+        <p><strong>AI店舗秘書</strong>は、この流れを変えます。</p>
+      </div>
+    </div>
+  </section>
+
   <!-- ═══ 3. 解決方法 ═══ -->
   <section class="section section-alt section-center fade-in">
     <div class="container">
@@ -567,60 +732,51 @@
     </div>
   </section>
 
-  <!-- ═══ 投稿が続くループ ═══ -->
-  <section class="section section-center fade-in">
+  <!-- ═══ 投稿→認知→来店 ═══ -->
+  <section class="recognition-section fade-in">
     <div class="container">
-      <p class="label">Growth Loop</p>
-      <h2 class="title">SNSが<em>止まらない</em>ループ</h2>
-      <p class="desc">多くのツールは「投稿を作って終わり」。<br>AI店舗秘書は次の投稿ネタまで作るので、SNSが止まりません。</p>
+      <p class="label">Why It Matters</p>
+      <h2 class="title">投稿は、小さな<em>広告</em>です。</h2>
+      <p class="desc">SNS投稿が増えるほど、お店を知る人も増えていきます。<br>月3投稿のお店と月15投稿のお店では、お客様の目に触れる回数が大きく変わります。</p>
 
-      <div class="loop-wrap">
-        <!-- 円の点線 -->
-        <div class="loop-circle"></div>
-
-        <!-- SVG矢印（円形の流れを示す） -->
-        <svg class="loop-arrow-svg" viewBox="0 0 360 360" fill="none">
-          <!-- 時計回りの矢印弧 -->
-          <path d="M 180 20 A 160 160 0 0 1 340 180" stroke="rgba(184,112,74,.3)" stroke-width="2" fill="none" stroke-dasharray="8 6"/>
-          <path d="M 340 180 A 160 160 0 0 1 180 340" stroke="rgba(184,112,74,.3)" stroke-width="2" fill="none" stroke-dasharray="8 6"/>
-          <path d="M 180 340 A 160 160 0 0 1 20 180" stroke="rgba(184,112,74,.3)" stroke-width="2" fill="none" stroke-dasharray="8 6"/>
-          <path d="M 20 180 A 160 160 0 0 1 180 20" stroke="rgba(184,112,74,.3)" stroke-width="2" fill="none" stroke-dasharray="8 6"/>
-          <!-- 矢印の三角 -->
-          <polygon points="175,22 185,22 180,12" fill="var(--accent)" opacity="0.6"/>
-          <polygon points="338,175 338,185 348,180" fill="var(--accent)" opacity="0.6"/>
-          <polygon points="185,338 175,338 180,348" fill="var(--accent)" opacity="0.6"/>
-          <polygon points="22,185 22,175 12,180" fill="var(--accent)" opacity="0.6"/>
-        </svg>
-
-        <!-- 上: 写真を撮る -->
-        <div class="loop-node" style="top:0%;left:50%;">
-          <div class="loop-icon">📸</div>
-          <span class="loop-text">写真を撮る</span>
+      <div class="recognition-funnel">
+        <div class="funnel-step">
+          <span class="funnel-emoji">📱</span>
+          <div>
+            <div class="funnel-text">投稿が増える</div>
+            <div class="funnel-sub">30秒で1投稿。続くから増える。</div>
+          </div>
         </div>
-
-        <!-- 右: AIがネタ発見 -->
-        <div class="loop-node" style="top:50%;left:100%;">
-          <div class="loop-icon">🧠</div>
-          <span class="loop-text">AIがネタ発見</span>
-          <span class="loop-sub">切り口を3つ提案</span>
+        <div class="funnel-arrow">↓</div>
+        <div class="funnel-step">
+          <span class="funnel-emoji">👀</span>
+          <div>
+            <div class="funnel-text">人の目に触れる回数が増える</div>
+            <div class="funnel-sub">タイムライン・発見タブ・保存・シェア</div>
+          </div>
         </div>
-
-        <!-- 下: 投稿する -->
-        <div class="loop-node" style="top:100%;left:50%;">
-          <div class="loop-icon">📱</div>
-          <span class="loop-text">投稿する</span>
-          <span class="loop-sub">選ぶだけで完成</span>
+        <div class="funnel-arrow">↓</div>
+        <div class="funnel-step">
+          <span class="funnel-emoji">💭</span>
+          <div>
+            <div class="funnel-text">お店を覚えてもらえる</div>
+            <div class="funnel-sub">繰り返し見かけることで記憶に残る</div>
+          </div>
         </div>
-
-        <!-- 左: 次の撮影提案 -->
-        <div class="loop-node" style="top:50%;left:0%;">
-          <div class="loop-icon">💡</div>
-          <span class="loop-text">次の撮影提案</span>
-          <span class="loop-sub">明日撮るものが決まる</span>
+        <div class="funnel-arrow">↓</div>
+        <div class="funnel-step" style="border-color:rgba(184,112,74,.2);background:var(--accent-soft);">
+          <span class="funnel-emoji">🚶</span>
+          <div>
+            <div class="funnel-text" style="color:var(--accent);">来店のきっかけになる</div>
+            <div class="funnel-sub">「SNSで見て来ました」が生まれる</div>
+          </div>
         </div>
       </div>
 
-      <p style="margin-top:48px;font-size:0.95rem;color:var(--text-muted);">撮る → 投稿する → 次を知る。<strong style="color:var(--text);">このループが回るから、続く。</strong></p>
+      <p style="margin-top:40px;font-size:0.92rem;color:var(--text-muted);max-width:520px;margin-left:auto;margin-right:auto;line-height:1.9;">
+        SNSは積み重ねです。<br>
+        <strong style="color:var(--text);">投稿が続くほど、お店の存在を知る人が増えていきます。</strong>
+      </p>
     </div>
   </section>
 
