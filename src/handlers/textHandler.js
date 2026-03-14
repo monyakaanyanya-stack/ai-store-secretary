@@ -27,6 +27,7 @@ import { handleFollowerCountResponse, getPendingFollowerRequest } from '../servi
 import { handleDataResetPrompt, handleDataResetExecution, handleStoreDeletePrompt, handleStoreDeleteExecution } from './dataResetHandler.js';
 import { handlePlanStatus, handleUpgradePrompt } from './subscriptionHandler.js';
 import { handleWeeklyPlan } from './weeklyPlanHandler.js';
+import { handleAnalysis } from './analysisHandler.js';
 import { applyFeedbackToProfile } from '../services/personalizationEngine.js';
 import {
   generateConversationalResponse,
@@ -113,7 +114,7 @@ export async function handleTextMessage(user, text, replyToken) {
     'プラン', 'アップグレード', '今週の計画', '投稿ネタ', '投稿ネタ教えて', 'ネタ', 'コマンド一覧', 'コマンド',
     'モード切替', 'モード切り替え', 'AI投稿モード', 'そのまま投稿モード', 'そのまま投稿', 'direct投稿実行', 'direct複数枚投稿',
     'ストック', 'ストック保存', 'ストック投稿', 'ストック予約', 'ストック削除', 'ストック一括削除', '予約投稿', 'これで決定', '別案', 'コピー',
-    'instagram投稿', '複数枚投稿'].includes(trimmed)
+    'instagram投稿', '複数枚投稿', '分析', '写真分析'].includes(trimmed)
     || trimmed.startsWith('切替:') || trimmed.startsWith('ストック:') || trimmed.startsWith('予約:') || trimmed.startsWith('/') || trimmed.startsWith('学習:') || trimmed.startsWith('学習：') || trimmed.startsWith('直し:') || trimmed.startsWith('直し：');
 
   // カルーセルモード中のテキスト処理（通常のpending_image_contextより先に判定）
@@ -384,6 +385,11 @@ export async function handleTextMessage(user, text, replyToken) {
   // 週間コンテンツ計画
   if (['今週の計画', '/weekly', '投稿ネタ', '投稿ネタ教えて', 'ネタ'].includes(trimmed)) {
     return await handleWeeklyPlan(user, replyToken);
+  }
+
+  // 写真分析レポート（Premium）
+  if (['分析', '/analysis', '写真分析'].includes(trimmed)) {
+    return await handleAnalysis(user, replyToken);
   }
 
   // コマンド一覧

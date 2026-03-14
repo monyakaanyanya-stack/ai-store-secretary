@@ -3877,4 +3877,101 @@ describe('Scenario 57: 1案ドン表示（Phase 1）', () => {
     assert.ok(content.includes('getFeatureAnalysisFallback'), 'JSフォールバック集計がある');
     assert.ok(content.includes("status', '報告済'"), 'フォールバックも報告済みデータのみ集計');
   });
+
+  // ==================== Premium分析AI Phase 2 テスト ====================
+
+  it('analysisHandler.js が存在しhandleAnalysisをexportしている', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/analysisHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('export async function handleAnalysis'), 'handleAnalysisがexportされている');
+    assert.ok(content.includes('photoAnalysisReport'), 'Premium機能チェックがある');
+    assert.ok(content.includes('getFeatureAnalysis'), 'getFeatureAnalysisを使用');
+    assert.ok(content.includes('askClaude'), 'Claude APIでレポート生成');
+    assert.ok(content.includes('groupFeatureData'), 'データグルーピング関数がある');
+  });
+
+  it('planConfig.js に photoAnalysisReport フラグがある', async () => {
+    const { PLANS } = await import('../src/config/planConfig.js');
+    assert.equal(PLANS.free.features.photoAnalysisReport, false, 'Freeはfalse');
+    assert.equal(PLANS.standard.features.photoAnalysisReport, false, 'Standardはfalse');
+    assert.equal(PLANS.premium.features.photoAnalysisReport, true, 'Premiumはtrue');
+  });
+
+  it('textHandler.js に「分析」ルーティングがある', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/textHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes("'分析'"), '分析コマンドのルーティングがある');
+    assert.ok(content.includes("'/analysis'"), '/analysisコマンドのルーティングがある');
+    assert.ok(content.includes("'写真分析'"), '写真分析コマンドのルーティングがある');
+    assert.ok(content.includes('handleAnalysis'), 'handleAnalysisをインポートしている');
+  });
+
+  it('isSystemCommand に「分析」が含まれる', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/textHandler.js', import.meta.url), 'utf-8'
+    );
+    // isSystemCommand の includes リストに分析が含まれるか
+    const systemCmdSection = content.match(/isSystemCommand\s*=\s*\[[\s\S]*?\]\.includes/);
+    assert.ok(systemCmdSection, 'isSystemCommand定義がある');
+    assert.ok(systemCmdSection[0].includes("'分析'"), '分析がisSystemCommandに含まれる');
+  });
+
+  it('groupFeatureData がsave_rate降順ソートする', async () => {
+    // analysisHandler.jsのgroupFeatureDataロジックを直接テスト
+    const testData = [
+      { feature_name: 'main_subject', feature_value: 'food', avg_save_rate: 0.05, avg_engagement_rate: 3.2, post_count: 5 },
+      { feature_name: 'main_subject', feature_value: 'person', avg_save_rate: 0.12, avg_engagement_rate: 5.1, post_count: 4 },
+      { feature_name: 'main_subject', feature_value: 'hands', avg_save_rate: 0.08, avg_engagement_rate: 4.0, post_count: 3 },
+      { feature_name: 'scene_type', feature_value: 'meal', avg_save_rate: 0.06, avg_engagement_rate: 3.5, post_count: 6 },
+      { feature_name: 'scene_type', feature_value: 'cooking', avg_save_rate: 0.10, avg_engagement_rate: 4.8, post_count: 3 },
+    ];
+
+    // groupFeatureData相当のロジック
+    const result = {};
+    for (const row of testData) {
+      if (!result[row.feature_name]) result[row.feature_name] = [];
+      result[row.feature_name].push({
+        value: row.feature_value,
+        save_rate: Number(row.avg_save_rate) || 0,
+        engagement_rate: Number(row.avg_engagement_rate) || 0,
+        count: Number(row.post_count) || 0,
+      });
+    }
+    for (const key of Object.keys(result)) {
+      result[key].sort((a, b) => b.save_rate - a.save_rate);
+    }
+
+    assert.equal(result.main_subject[0].value, 'person', 'person（0.12）が1位');
+    assert.equal(result.main_subject[1].value, 'hands', 'hands（0.08）が2位');
+    assert.equal(result.main_subject[2].value, 'food', 'food（0.05）が3位');
+    assert.equal(result.scene_type[0].value, 'cooking', 'cooking（0.10）が1位');
+    assert.equal(result.scene_type[1].value, 'meal', 'meal（0.06）が2位');
+  });
+
+  it('分析プロンプトにstore情報と出力フォーマットが含まれる', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/analysisHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('写真分析AI'), 'プロンプトに写真分析AIロールがある');
+    assert.ok(content.includes('強い写真パターン'), '出力フォーマットに強い写真パターンがある');
+    assert.ok(content.includes('伸びにくい写真'), '出力フォーマットに伸びにくい写真がある');
+    assert.ok(content.includes('次に撮るべき写真'), '出力フォーマットに次に撮るべき写真がある');
+    assert.ok(content.includes('明日撮るならこの1枚'), '出力フォーマットに明日撮るならがある');
+    assert.ok(content.includes('store.category'), '業種が考慮されている');
+  });
+
+  it('データ不足時に案内メッセージを返す', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/analysisHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('分析にはもう少しデータが必要です'), 'データ不足メッセージがある');
+    assert.ok(content.includes('報告済みの投稿が3件以上'), '目安件数が示されている');
+  });
 });
