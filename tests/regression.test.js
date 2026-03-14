@@ -3641,7 +3641,7 @@ describe('Scenario 57: 1案ドン表示（Phase 1）', () => {
       'regenerateBody がexportされている');
   });
 
-  it('ハッシュタグ+Photo AdviceはgenerateSupplementsで非同期生成される', async () => {
+  it('Photo AdviceはgenerateSupplementsで非同期生成される', async () => {
     const fs = await import('node:fs');
     const content = fs.readFileSync(
       new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'

@@ -86,24 +86,18 @@ export function parseCharmViewpoints(imageDescription) {
 }
 
 /**
- * 本文生成後にfire-and-forgetで実行: ハッシュタグ + Photo Advice を生成してDB更新 + Push
+ * 本文生成後にfire-and-forgetで実行: Photo Advice を生成してDB更新
+ * ※ハッシュタグは本文と一緒に生成済み
  */
 async function generateSupplements(postId, bodyText, store, blendedInsights, imageDescription, userId, lineUserId, isPremium) {
   try {
     const prompt = buildSupplementPrompt(bodyText, store, blendedInsights, imageDescription, { isPremium });
     const supplementRaw = await askClaude(prompt, { max_tokens: 512 });
 
-    // ハッシュタグ行を抽出（#で始まる行）
-    const hashtagLine = supplementRaw.split('\n').find(l => l.trim().startsWith('#'));
-    if (hashtagLine) {
-      // DB更新: 本文 + ハッシュタグ + Photo Advice
-      await updatePostContent(postId, bodyText + '\n\n' + hashtagLine.trim() + '\n\n' + supplementRaw.replace(hashtagLine, '').trim());
-
-      // ハッシュタグをPush通知
-      await pushMessage(lineUserId, [{
-        type: 'text',
-        text: `ハッシュタグ👇\n${hashtagLine.trim()}`,
-      }]);
+    // DB更新: 本文（タグ含む） + Photo Advice
+    const advicePart = supplementRaw.trim();
+    if (advicePart) {
+      await updatePostContent(postId, bodyText + '\n\n' + advicePart);
     }
     console.log(`[Image] Supplement生成完了: postId=${postId}`);
   } catch (err) {
@@ -143,9 +137,10 @@ export async function regenerateBody(user, store, ctx, lineUserId) {
       globalRules: (globalRules || '') + variationInstruction,
       mainSubject: ctx.mainSubject || null,
       supportingElements: ctx.supportingElements || [],
+      blendedInsights: ctx.blendedInsights || null,
     });
 
-    const bodyText = await askClaude(prompt, { max_tokens: 512 });
+    const bodyText = await askClaude(prompt, { max_tokens: 768 });
     const savedPost = await savePostHistory(user.id, store.id, bodyText, null, ctx.imageUrl || null);
 
     const revisionExample = getRevisionExample(store.category);
@@ -295,9 +290,10 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
       globalRules,
       mainSubject,
       supportingElements,
+      blendedInsights,
     });
 
-    const bodyText = await askClaude(prompt, { max_tokens: 512 });
+    const bodyText = await askClaude(prompt, { max_tokens: 768 });
     const savedPost = await savePostHistory(userId, store.id, bodyText, null, imageUrl || null);
 
     // pending context を 'complete' に更新（クリアしない → 「別案」で再利用）

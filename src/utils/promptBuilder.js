@@ -1454,35 +1454,11 @@ ${toneData.style_rules.map((r, i) => `${i + 1}. ${r}`).join('\n')}`;
     hintSection = `\n【投稿タイプ: ${hint}】\nこのタイプに合った本文を作成。\n`;
   }
 
-  // 出力形式（超シンプル）
-  const isXshort = postLength === 'xshort' || postLength === '超短文';
-  const outputSection = isXshort
-    ? `【出力】\n本文のみ出力。2行以内。ハッシュタグ・補足・説明は不要。`
-    : `【出力】\n本文のみ出力。${lengthInfo.range}。ハッシュタグ・補足・説明は不要。`;
-
-  return `${personalization}${globalRulesSection}
-${roleSection}
-
-${rulesSection}
-
-${structureSection}
-
-${forbiddenLine}
-
-${toneSection}
-${characterSection}${imageDescriptionSection}${detectionSection}${hintSection}
-${outputSection}`;
-}
-
-/**
- * 既に生成された本文に対して、ハッシュタグ + Photo Advice を生成するプロンプト
- */
-export function buildSupplementPrompt(bodyText, store, blendedInsights, imageDescription, options = {}) {
-  // ── ハッシュタグロジック（buildImagePostPrompt と同じ優先順位） ──
+  // ── ハッシュタグ指示 ──
+  const blendedInsights = options.blendedInsights || null;
   const templates = store.config?.templates || {};
   const templateHashtags = templates.hashtags || [];
   let dbTags = [];
-
   if (blendedInsights) {
     const { category, group } = blendedInsights;
     if (category && category.sampleSize > 0 && Array.isArray(category.topHashtags)) {
@@ -1496,18 +1472,44 @@ export function buildSupplementPrompt(bodyText, store, blendedInsights, imageDes
       dbTags.push(...staticTags.slice(0, 5));
     }
   }
-
   const categoryHint = (store.category && store.category !== '開発者テスト') ? `業種「${store.category}」` : '';
-
-  // ハッシュタグ指示の構築
   const fixedTagNote = templateHashtags.length > 0
-    ? `\n【固定ハッシュタグ（必ず先頭に含める）】\n${templateHashtags.join(' ')}\n上記の後に以下を追加:`
+    ? `固定タグ（必ず先頭）: ${templateHashtags.join(' ')}\n`
     : '';
   const collectiveTagNote = dbTags.length > 0
-    ? `\n追加可能な業種タグ（1-3個追加してよい）: ${dbTags.join(', ')}`
+    ? `\n追加可能な業種タグ（1-3個）: ${dbTags.join(', ')}`
     : '';
-  const hashtagInstruction = `${fixedTagNote}\n順番: ${templateHashtags.length > 0 ? '①固定タグ（上記）→ ' : ''}②投稿本文の内容・${categoryHint}に直結するタグ（3-5個）→ ③業種の定番タグ（1-3個）\n絶対NG：投稿本文に書かれていないもののタグ、#instagood #japan #photooftheday などの汎用タグ${collectiveTagNote}`;
+  const hashtagSection = `【ハッシュタグ】
+${fixedTagNote}順番: ${templateHashtags.length > 0 ? '①固定タグ → ' : ''}②投稿本文の内容・${categoryHint}に直結するタグ（3-5個）→ ③業種の定番タグ（1-3個）
+絶対NG: 投稿本文に書かれていないもののタグ、#instagood #japan #photooftheday などの汎用タグ${collectiveTagNote}`;
 
+  // 出力形式
+  const isXshort = postLength === 'xshort' || postLength === '超短文';
+  const outputSection = isXshort
+    ? `【出力】\n本文（2行以内）の後に改行2つ空けてハッシュタグを付ける。補足・説明は不要。`
+    : `【出力】\n本文（${lengthInfo.range}）の後に改行2つ空けてハッシュタグを付ける。補足・説明は不要。`;
+
+  return `${personalization}${globalRulesSection}
+${roleSection}
+
+${rulesSection}
+
+${structureSection}
+
+${forbiddenLine}
+
+${toneSection}
+${characterSection}${imageDescriptionSection}${detectionSection}${hintSection}
+${hashtagSection}
+
+${outputSection}`;
+}
+
+/**
+ * 既に生成された本文に対して、Photo Advice を生成するプロンプト
+ * ※ハッシュタグは buildBodyPrompt で本文と一緒に生成済み
+ */
+export function buildSupplementPrompt(bodyText, store, blendedInsights, imageDescription, options = {}) {
   // ── 戦略アドバイス（Photo Advice用） ──
   const strategicAdvice = buildStrategicAdvice(blendedInsights, store);
   const photoStyleHint = strategicAdvice?.photoStyleTip ? `\nデータ参考: ${strategicAdvice.photoStyleTip}` : '';
@@ -1544,7 +1546,7 @@ ${nextSubjectHints}
   }
 
   // ── プロンプト全体 ──
-  return `以下の投稿本文に最適なハッシュタグと撮影アドバイスを生成してください。
+  return `以下の投稿本文に対する撮影アドバイスを生成してください。
 
 【投稿本文】
 ${bodyText}
@@ -1554,15 +1556,9 @@ ${bodyText}
 【写真の観察結果】
 ${imageDescription || ''}
 
-【ハッシュタグ（必須）】
-${hashtagInstruction}
-
 ${photoAdviceSection}
 
 【出力形式】
-ハッシュタグ:
-#タグ1 #タグ2 ...
-
 ━━━━━━━━━━━━━━━━━━━━━━━━
 📸 この写真の別の撮り方
 ...
