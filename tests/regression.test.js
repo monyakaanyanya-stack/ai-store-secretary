@@ -972,19 +972,19 @@ describe('Scenario 27: 第4次監査 LOW修正（L1-L9）', async () => {
 
 // ==================== Scenario 28: Ver.4.0 Dual Trigger Model ====================
 describe('Scenario 28: Ver.4.0 Dual Trigger Model', async () => {
-  it('describeImage がJSON形式で出力する（main_subject, observations, viewpoints）', async () => {
+  it('describeImage が五感ベース5項目+Observation+Detection形式で出力する', async () => {
     const fs = await import('node:fs');
     const content = fs.readFileSync(
       new URL('../src/services/claudeService.js', import.meta.url), 'utf-8'
     );
-    assert.ok(content.includes('main_subject'),
-      'describeImage prompt should include main_subject field');
-    assert.ok(content.includes('observations'),
-      'describeImage prompt should include observations field');
-    assert.ok(content.includes('viewpoints'),
-      'describeImage prompt should include viewpoints field');
-    assert.ok(content.includes('JSON'),
-      'describeImage prompt should specify JSON format');
+    assert.ok(content.includes('五感の推測'),
+      'describeImage prompt should include 五感の推測');
+    assert.ok(content.includes('記憶を呼ぶ要素'),
+      'describeImage prompt should include 記憶を呼ぶ要素');
+    assert.ok(content.includes('Observation'),
+      'describeImage prompt should include Observation section');
+    assert.ok(content.includes('Detection'),
+      'describeImage prompt should include Detection section');
   });
 
   it('imageHandler から parseEquipmentLevel が廃止された', async () => {
@@ -2770,16 +2770,16 @@ describe('Scenario 47: 魅力発見AI', async () => {
       'parseCharmViewpoints should be exported');
   });
 
-  it('describeImageプロンプトがJSON形式でmain_subjectとviewpointsを出力する', () => {
+  it('describeImageプロンプトが五感ベース+Observation+Detection形式を使用する', () => {
     const content = fs.readFileSync(
       new URL('../src/services/claudeService.js', import.meta.url), 'utf-8'
     );
-    assert.ok(content.includes('JSON'), 'describeImage should specify JSON output');
-    assert.ok(content.includes('main_subject'), 'describeImage should include main_subject');
-    assert.ok(content.includes('supporting_elements'), 'describeImage should include supporting_elements');
-    assert.ok(content.includes('observations'), 'describeImage should include observations');
-    assert.ok(content.includes('viewpoints'), 'describeImage should include viewpoints');
-    assert.ok(content.includes('15字以内'), 'viewpoints should enforce short format rule');
+    assert.ok(content.includes('Observation'), 'describeImage should include Observation section');
+    assert.ok(content.includes('Detection'), 'describeImage should include Detection section');
+    assert.ok(content.includes('[① _]'), 'describeImage should include Detection format [① _]');
+    assert.ok(content.includes('視覚的な印象'), 'describeImage should include 視覚的な印象');
+    assert.ok(content.includes('時間帯・季節感'), 'describeImage should include 時間帯・季節感');
+    assert.ok(content.includes('15字以内'), 'Detection should enforce short format rule');
   });
 
   it('handleImageMessageの即応答に「お任せください」メッセージが含まれる', () => {
