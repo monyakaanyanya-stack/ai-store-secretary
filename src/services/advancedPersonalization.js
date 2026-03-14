@@ -630,22 +630,7 @@ function _buildPromptParts(profileData) {
     }
   }
 
-  // A/B/C選択傾向（3回以上選択後に表示）
-  const styleSelections = profileData.style_selections || {};
-  const totalSelections = styleSelections.total || 0;
-  if (totalSelections >= 3) {
-    const styleDescriptions = {
-      '時間の肖像': '日常の一瞬を切り取る静かな表現',
-      '誠実の肖像': '正直で飾らない語り口',
-      '光の肖像': '店主の独り言のような親しみやすさ',
-    };
-    const favorite = Object.entries(styleSelections)
-      .filter(([k]) => k !== 'total')
-      .sort((a, b) => b[1] - a[1])[0];
-    if (favorite && favorite[1] >= 2) {
-      parts.push(`【この店主が好む案の傾向】\n・${styleDescriptions[favorite[0]] || favorite[0]}を好む（${totalSelections}回中${favorite[1]}回選択）\n→ 3案の中でこの傾向を参考にしつつ、各案の個性は維持する`);
-    }
-  }
+  // style_selections は廃止（リライト学習に移行）。DBデータは残すが表示しない
 
   return parts;
 }

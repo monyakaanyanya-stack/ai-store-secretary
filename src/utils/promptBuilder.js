@@ -1346,3 +1346,229 @@ ${feedback}
 修正指示を100%反映してください。修正指示に書かれていないことは元の投稿をそのまま維持してください。
 修正した投稿のみを出力してください。説明・補足は一切不要です。`;
 }
+
+/**
+ * 本文のみを生成するスリムプロンプト（ハッシュタグ・撮影アドバイス・3案形式なし）
+ * buildImagePostPrompt の約1/3サイズ
+ */
+export function buildBodyPrompt(store, personalization, imageDescription, options = {}) {
+  const postLength = options.postLength || store.config?.post_length || 'xshort';
+  const lengthInfo = getPostLengthInfo(postLength);
+  const toneData = getToneData(store.tone);
+  const isInfluencer = store.category === 'インフルエンサー';
+
+  // ── インフルエンサー専用（簡易版） ──
+  if (isInfluencer) {
+    const characterSection = buildCharacterSection(store);
+    const imageDescriptionSection = imageDescription
+      ? `\n【この写真の観察結果】\n${imageDescription}\n`
+      : '';
+
+    // Detection セクション
+    const detections = options.detections || [];
+    let detectionSection = '';
+    if (detections.length > 0) {
+      detectionSection = `\n【Detection（本文の1行目に自然に溶かすこと）】\n${detections.map(d => `- ${d}`).join('\n')}\n`;
+    }
+
+    // ヒントセクション
+    const hint = options.hint || null;
+    let hintSection = '';
+    if (hint) {
+      hintSection = `\n【補足情報（投稿に自然に反映してよい）】\n${hint}\n`;
+    }
+
+    const isXshort = postLength === 'xshort' || postLength === '超短文';
+
+    return `${personalization}
+あなたはSNSインフルエンサーの投稿を代筆します。
+スマホでそのまま書いたような自然なSNS文章にしてください。
+独り言のような話し方。短文・会話口調・少し雑でも自然。
+禁止: 広告っぽい文章・「素敵」「魅力的」「おすすめ」などの宣伝語・長い説明・ポエム調・3行以上の本文
+${characterSection}${imageDescriptionSection}${detectionSection}${hintSection}
+【出力】
+投稿の本文のみ出力。${isXshort ? '2行以内。' : `${lengthInfo.range}。`}ハッシュタグ・補足・説明は不要。
+独り言＋問いかけの2行で完結させること。`;
+  }
+
+  // ── 店舗用プロンプト（フック→観察→共感 構造） ──
+
+  const globalRulesSection = options.globalRules || '';
+
+  // ロール定義（シンプル）
+  const roleSection = `あなたは「写真から自然なSNS投稿を書くアシスタント」です。`;
+
+  // main_subject の抽出（describeImage の構造化出力から）
+  const mainSubject = options.mainSubject || null;
+  const supportingElements = options.supportingElements || [];
+
+  // 重要ルール（main_subject 優先）
+  let rulesSection = `【重要ルール】
+1. 写真の主役（${mainSubject || '被写体'}）を最初に特定し、投稿の中心にする
+2. 最初の1文はフック（読み手が止まる一言）にする
+3. 写真の観察を1つだけ入れる（多すぎると散漫になる）
+4. 店主・発信者の自然な言葉で書く（説明文ではなく独り言）
+5. 投稿は1案のみ出す`;
+  if (supportingElements.length > 0) {
+    rulesSection += `\n6. ${supportingElements.join('・')} は補足として扱う（主役は${mainSubject || '被写体'}）`;
+  }
+
+  // 文章構造
+  const structureSection = `【文章構造（この順番で書く）】
+① フック — 読み手が「お？」と止まる1行。主役に触れる
+② 写真の観察や魅力 — 1つだけ具体的な観察（色・形・光・質感など）
+③ 共感・情景・軽い締め — 「つい〜してしまう」「気付いたら〜」系の体験で終わる`;
+
+  // 禁止ワード（1行にまとめる）
+  const allForbidden = [...new Set([...toneData.forbidden_words, '幻想的', '素敵', '魅力的', '素晴らしい', '完璧', '最高', '美しい', 'まじ', 'まじで', 'やばい', 'やばすぎ', '超', 'めっちゃ', '美味しい', '絶品', 'こだわり', '自慢の', '人気の', '話題の', '光の意志', '質感の物語', '沈黙のデザイン', '肖像', '独白'])];
+  const forbiddenLine = `【禁止ワード】${allForbidden.join(', ')}`;
+
+  // 口調（persona + style_rules のみ）
+  const toneSection = `【口調】
+${toneData.persona}
+${toneData.style_rules.map((r, i) => `${i + 1}. ${r}`).join('\n')}`;
+
+  // キャラクター
+  const characterSection = buildCharacterSection(store);
+
+  // 画像分析結果
+  const imageDescriptionSection = imageDescription
+    ? `\n【この写真の観察結果】\n${imageDescription}\n`
+    : '';
+
+  // Detection セクション
+  const detections = options.detections || [];
+  let detectionSection = '';
+  if (detections.length > 0) {
+    const detectionList = detections.map(d => `- ${d}`).join('\n');
+    detectionSection = `\n【Detection（フックか観察に自然に溶かすこと）】\n${detectionList}\n`;
+  }
+
+  // ヒント
+  const hint = options.hint || null;
+  const isButtonHint = hint && (POST_TYPE_BUTTONS.includes(hint) || hint === '日常感');
+  let hintSection = '';
+  if (hint && !isButtonHint) {
+    hintSection = `\n【店主からの一言（この言葉を投稿の核にすること）】\n${hint}\n`;
+  } else if (isButtonHint && hint !== '日常感') {
+    hintSection = `\n【投稿タイプ: ${hint}】\nこのタイプに合った本文を作成。\n`;
+  }
+
+  // 出力形式（超シンプル）
+  const isXshort = postLength === 'xshort' || postLength === '超短文';
+  const outputSection = isXshort
+    ? `【出力】\n本文のみ出力。2行以内。ハッシュタグ・補足・説明は不要。`
+    : `【出力】\n本文のみ出力。${lengthInfo.range}。ハッシュタグ・補足・説明は不要。`;
+
+  return `${personalization}${globalRulesSection}
+${roleSection}
+
+${rulesSection}
+
+${structureSection}
+
+${forbiddenLine}
+
+${toneSection}
+${characterSection}${imageDescriptionSection}${detectionSection}${hintSection}
+${outputSection}`;
+}
+
+/**
+ * 既に生成された本文に対して、ハッシュタグ + Photo Advice を生成するプロンプト
+ */
+export function buildSupplementPrompt(bodyText, store, blendedInsights, imageDescription, options = {}) {
+  // ── ハッシュタグロジック（buildImagePostPrompt と同じ優先順位） ──
+  const templates = store.config?.templates || {};
+  const templateHashtags = templates.hashtags || [];
+  let dbTags = [];
+
+  if (blendedInsights) {
+    const { category, group } = blendedInsights;
+    if (category && category.sampleSize > 0 && Array.isArray(category.topHashtags)) {
+      dbTags.push(...category.topHashtags.slice(0, 3));
+    }
+    if (group && group.sampleSize > 0 && Array.isArray(group.topHashtags)) {
+      dbTags.push(...group.topHashtags.slice(0, 2));
+    }
+    if (dbTags.length === 0 && store.category) {
+      const staticTags = getHashtagsForCategory(store.category);
+      dbTags.push(...staticTags.slice(0, 5));
+    }
+  }
+
+  const categoryHint = (store.category && store.category !== '開発者テスト') ? `業種「${store.category}」` : '';
+
+  // ハッシュタグ指示の構築
+  const fixedTagNote = templateHashtags.length > 0
+    ? `\n【固定ハッシュタグ（必ず先頭に含める）】\n${templateHashtags.join(' ')}\n上記の後に以下を追加:`
+    : '';
+  const collectiveTagNote = dbTags.length > 0
+    ? `\n追加可能な業種タグ（1-3個追加してよい）: ${dbTags.join(', ')}`
+    : '';
+  const hashtagInstruction = `${fixedTagNote}\n順番: ${templateHashtags.length > 0 ? '①固定タグ（上記）→ ' : ''}②投稿本文の内容・${categoryHint}に直結するタグ（3-5個）→ ③業種の定番タグ（1-3個）\n絶対NG：投稿本文に書かれていないもののタグ、#instagood #japan #photooftheday などの汎用タグ${collectiveTagNote}`;
+
+  // ── 戦略アドバイス（Photo Advice用） ──
+  const strategicAdvice = buildStrategicAdvice(blendedInsights, store);
+  const photoStyleHint = strategicAdvice?.photoStyleTip ? `\nデータ参考: ${strategicAdvice.photoStyleTip}` : '';
+
+  // ── Photo Advice セクション ──
+  let photoAdviceSection = `📸 この写真の別の撮り方
+同じ被写体を、別のアングル・光・構図・タイミングで撮る方法を1つ提案する。
+「なぜその撮り方だと反応が変わるか」を1文で添える。合計2行以内・短く。${photoStyleHint}`;
+
+  if (options.isPremium) {
+    const tomorrowHints = buildNextSubjectHints(store.category);
+    photoAdviceSection += `
+
+🎯 明日撮るべきもの
+今日の写真の延長線上で、別の切り口を1つ提案する。
+最優先: 同じ被写体の「別の瞬間・別のアングル・別の組み合わせ」
+次点: 今日の被写体と自然につながる別のもの
+${tomorrowHints ? `参考候補（写真と関連があるものだけ使ってよい）:\n${tomorrowHints}` : ''}
+ルール:
+- 「何を」「いつ」「どう撮るか」「なぜ」を1セットで具体的に書く
+- 合計2行以内。${photoStyleHint}
+- 抽象的な提案は禁止。具体物・時間帯・状態を必ず含める`;
+
+    const nextSubjectHints = buildNextSubjectHints(store.category);
+    if (nextSubjectHints) {
+      photoAdviceSection += `
+
+💡 次はこんなのも撮ってみない？
+今日の写真とは違う被写体を、以下から1つ選んで提案する（1文）。
+候補:
+${nextSubjectHints}
+なぜ反応が取れそうかを添えて。今日の写真と同じものは選ばない。`;
+    }
+  }
+
+  // ── プロンプト全体 ──
+  return `以下の投稿本文に最適なハッシュタグと撮影アドバイスを生成してください。
+
+【投稿本文】
+${bodyText}
+
+【業種】${store.category || ''}
+
+【写真の観察結果】
+${imageDescription || ''}
+
+【ハッシュタグ（必須）】
+${hashtagInstruction}
+
+${photoAdviceSection}
+
+【出力形式】
+ハッシュタグ:
+#タグ1 #タグ2 ...
+
+━━━━━━━━━━━━━━━━━━━━━━━━
+📸 この写真の別の撮り方
+...
+${options.isPremium ? `🎯 明日撮るべきもの
+...
+💡 次はこんなのも撮ってみない？
+...` : ''}
+━━━━━━━━━━━━━━━━━━━━━━━━`;
+}

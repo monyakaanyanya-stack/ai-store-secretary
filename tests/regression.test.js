@@ -972,17 +972,19 @@ describe('Scenario 27: 第4次監査 LOW修正（L1-L9）', async () => {
 
 // ==================== Scenario 28: Ver.4.0 Dual Trigger Model ====================
 describe('Scenario 28: Ver.4.0 Dual Trigger Model', async () => {
-  it('describeImage に五感ベース5項目分析がある', async () => {
+  it('describeImage がJSON形式で出力する（main_subject, observations, viewpoints）', async () => {
     const fs = await import('node:fs');
     const content = fs.readFileSync(
       new URL('../src/services/claudeService.js', import.meta.url), 'utf-8'
     );
-    assert.ok(content.includes('五感の推測'),
-      'describeImage prompt should include sensory analysis');
-    assert.ok(content.includes('記憶を呼ぶ要素'),
-      'describeImage prompt should include memory-triggering element');
-    assert.ok(content.includes('店舗写真の観察者'),
-      'describeImage should use observer perspective');
+    assert.ok(content.includes('main_subject'),
+      'describeImage prompt should include main_subject field');
+    assert.ok(content.includes('observations'),
+      'describeImage prompt should include observations field');
+    assert.ok(content.includes('viewpoints'),
+      'describeImage prompt should include viewpoints field');
+    assert.ok(content.includes('JSON'),
+      'describeImage prompt should specify JSON format');
   });
 
   it('imageHandler から parseEquipmentLevel が廃止された', async () => {
@@ -1287,18 +1289,17 @@ describe('Scenario 29: 案A/B/C選択 + スタイル学習', async () => {
     assert.equal(result, null, 'Should return null for non-proposal content');
   });
 
-  it('imageHandler の返信に案選択UIが含まれる（バックグラウンド処理で直接Push）', async () => {
+  it('imageHandler の返信に2ステップフローUI（これで決定/別案）が含まれる', async () => {
     const fs = await import('node:fs');
-    // ヒント選択ステップ廃止後、A/B/C UIは imageHandler.js のバックグラウンド処理でPush
     const image = fs.readFileSync(
       new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
     );
-    assert.ok(image.includes('どの案が理想に近いですか'),
-      'Reply should ask user to select A/B/C');
-    assert.ok(image.includes('3つの投稿案ができました'),
-      'Reply should mention 3 proposals');
-    assert.ok(!image.includes('appendTemplateFooter(rawContent'),
-      'Should NOT apply footer before selection');
+    assert.ok(image.includes('これで決定'),
+      'Push should include confirm button');
+    assert.ok(image.includes('別案'),
+      'Push should include alternative button');
+    assert.ok(image.includes('投稿ができました'),
+      'Push should include completion message');
   });
 
   it('textHandler にA/B/C ルーティングがある', async () => {
@@ -1531,9 +1532,10 @@ describe('Scenario 31: 画像「一言ヒント」機能', async () => {
     assert.ok(!content.includes('autoHint'), 'autoHint方式は廃止');
   });
 
-  it('ヒントがoptions.detectionsとして渡される（imageHandlerのバックグラウンド処理）', () => {
+  it('imageHandlerがbuildBodyPromptを使用している（buildImagePostPromptではない）', () => {
     const content = fs.readFileSync('src/handlers/imageHandler.js', 'utf8');
-    assert.ok(content.includes('isPremium, detections'), 'detectionsをoptions経由で渡す');
+    assert.ok(content.includes('buildBodyPrompt'), 'buildBodyPromptを使用している');
+    assert.ok(!content.includes('buildImagePostPrompt'), 'buildImagePostPromptは廃止');
     assert.ok(!content.includes('enrichedDescription'), '旧enrichedDescription方式は廃止');
   });
 });
@@ -2768,17 +2770,16 @@ describe('Scenario 47: 魅力発見AI', async () => {
       'parseCharmViewpoints should be exported');
   });
 
-  it('describeImageプロンプトにObservation→Detectionチェーンが含まれる', () => {
+  it('describeImageプロンプトがJSON形式でmain_subjectとviewpointsを出力する', () => {
     const content = fs.readFileSync(
       new URL('../src/services/claudeService.js', import.meta.url), 'utf-8'
     );
-    assert.ok(content.includes('Observation'), 'describeImage should include Observation section');
-    assert.ok(content.includes('Detection'), 'describeImage should include Detection section');
-    assert.ok(content.includes('視覚的事実のみ'), 'Observation should enforce visual facts only');
-    assert.ok(content.includes('15字以内が理想'), 'Detection should enforce short format rule');
-    assert.ok(content.includes('[① _]'), 'describeImage should include numbered format');
-    assert.ok(content.includes('[② _]'), 'describeImage should include numbered format');
-    assert.ok(content.includes('[③ _]'), 'describeImage should include numbered format');
+    assert.ok(content.includes('JSON'), 'describeImage should specify JSON output');
+    assert.ok(content.includes('main_subject'), 'describeImage should include main_subject');
+    assert.ok(content.includes('supporting_elements'), 'describeImage should include supporting_elements');
+    assert.ok(content.includes('observations'), 'describeImage should include observations');
+    assert.ok(content.includes('viewpoints'), 'describeImage should include viewpoints');
+    assert.ok(content.includes('15字以内'), 'viewpoints should enforce short format rule');
   });
 
   it('handleImageMessageの即応答に「お任せください」メッセージが含まれる', () => {
@@ -2791,11 +2792,12 @@ describe('Scenario 47: 魅力発見AI', async () => {
     assert.ok(content.includes('pushMessage'), 'should use pushMessage for proposals');
   });
 
-  it('Push通知で投稿案A/B/Cを送信する', () => {
+  it('Push通知で1案表示+これで決定/別案ボタンを送信する', () => {
     const content = fs.readFileSync(
       new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
     );
-    assert.ok(content.includes('3つの投稿案ができました'), 'should include proposal message in Push');
+    assert.ok(content.includes('これで決定'), 'should include confirm button in Push');
+    assert.ok(content.includes('別案'), 'should include alternative button in Push');
     assert.ok(content.includes('charmViewpoints'), 'should save viewpoints to pending_image_context');
   });
 
@@ -3569,32 +3571,35 @@ describe('Scenario 57: 1案ドン表示（Phase 1）', () => {
     assert.ok(proposalC.includes('まだ誰もいない店内'), '案Cの本文が含まれる');
   });
 
-  it('imageHandler.js が extractSelectedProposal をインポートしている', async () => {
+  it('imageHandler.js が buildBodyPrompt をインポートしている（extractSelectedProposalは不要）', async () => {
     const fs = await import('node:fs');
     const content = fs.readFileSync(
       new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
     );
-    assert.ok(content.includes("import { extractSelectedProposal } from './proposalHandler.js'"),
-      'proposalHandler から extractSelectedProposal をインポート');
+    assert.ok(content.includes('buildBodyPrompt'),
+      'promptBuilder から buildBodyPrompt をインポート');
+    assert.ok(!content.includes('extractSelectedProposal'),
+      'extractSelectedProposal は不要（1案生成のため）');
   });
 
-  it('imageHandler.js のPush通知が1案ドン表示に変更されている', async () => {
+  it('imageHandler.js のPush通知が本文のみ即表示+決定/別案ボタン', async () => {
     const fs = await import('node:fs');
     const content = fs.readFileSync(
       new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
     );
-    assert.ok(content.includes('まずはおすすめの案です'), '1案ドン表示のメッセージがある');
+    assert.ok(content.includes('投稿ができました'), '本文完成メッセージがある');
     assert.ok(content.includes('これで決定'), '「これで決定」ボタンがある');
-    assert.ok(content.includes('別の案を見る'), '「別の案を見る」ボタンがある');
+    assert.ok(content.includes('別案'), '「別案」ボタンがある');
   });
 
-  it('textHandler.js に「別案」ルーティングがある', async () => {
+  it('textHandler.js に「別案」ルーティングがある（regenerateBody使用）', async () => {
     const fs = await import('node:fs');
     const content = fs.readFileSync(
       new URL('../src/handlers/textHandler.js', import.meta.url), 'utf-8'
     );
     assert.ok(content.includes("'別案'"), '「別案」テキストのルーティングがある');
-    assert.ok(content.includes('handleShowAlternatives'), 'handleShowAlternatives への呼び出しがある');
+    assert.ok(content.includes('regenerateBody'), 'regenerateBody で再生成する');
+    assert.ok(content.includes('handleShowAlternatives'), '旧3案投稿用のフォールバックがある');
   });
 
   it('proposalHandler.js に handleShowAlternatives 関数がexportされている', async () => {
@@ -3606,46 +3611,47 @@ describe('Scenario 57: 1案ドン表示（Phase 1）', () => {
       'handleShowAlternatives がexportされている');
   });
 
-  it('proposalHandler.js に alternatives_viewed_count 記録ロジックがある', async () => {
+  it('proposalHandler.js から alternatives_viewed_count / STYLE_MAP が削除されている', async () => {
     const fs = await import('node:fs');
     const content = fs.readFileSync(
       new URL('../src/handlers/proposalHandler.js', import.meta.url), 'utf-8'
     );
-    assert.ok(content.includes('alternatives_viewed_count'), '別案閲覧回数の記録がある');
+    assert.ok(!content.includes('alternatives_viewed_count'), 'alternatives_viewed_countは削除済み');
+    assert.ok(!content.includes('STYLE_MAP'), 'STYLE_MAPは削除済み');
+    assert.ok(!content.includes('updateStylePreference'), 'updateStylePreferenceは削除済み');
   });
 
-  it('DBには3案全文が保存される（表示は1案でもDB完全性を担保）', async () => {
+  it('DBにはbodyText（本文のみ）が保存される（1案生成のため案抽出不要）', async () => {
     const fs = await import('node:fs');
     const content = fs.readFileSync(
       new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
     );
-    // savePostHistory は rawContent（3案全文）を保存している
-    assert.ok(content.includes('savePostHistory(userId, store.id, rawContent'),
-      'savePostHistory に rawContent（3案全文）を渡している');
-    // extractSelectedProposal は保存後に表示用として呼ばれている
-    assert.ok(content.includes("extractSelectedProposal(rawContent, 'A')"),
-      '表示用に案Aを抽出している');
+    assert.ok(content.includes('savePostHistory(userId, store.id, bodyText'),
+      'savePostHistory に bodyText を渡している');
+    assert.ok(!content.includes('rawContent'),
+      'rawContent（旧3案全文）は使用しない');
   });
 
-  it('案抽出失敗時は全文フォールバック表示する', async () => {
+  it('imageHandler.js が regenerateBody をエクスポートしている', async () => {
     const fs = await import('node:fs');
     const content = fs.readFileSync(
       new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
     );
-    assert.ok(content.includes('|| rawContent'), '案抽出失敗時のフォールバックがある');
+    assert.ok(content.includes('export async function regenerateBody'),
+      'regenerateBody がexportされている');
   });
 
-  it('投稿文とPhoto Adviceが分離表示される（━━━デリミタ衝突回避）', async () => {
+  it('ハッシュタグ+Photo AdviceはgenerateSupplementsで非同期生成される', async () => {
     const fs = await import('node:fs');
     const content = fs.readFileSync(
       new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
     );
-    assert.ok(content.includes('adviceSplit'), 'Photo Advice分離ロジックがある');
-    assert.ok(content.includes('postText'), '投稿文テキスト変数がある');
-    assert.ok(content.includes('photoAdvice'), 'Photo Advice変数がある');
+    assert.ok(content.includes('generateSupplements'), 'generateSupplements関数がある');
+    assert.ok(content.includes('buildSupplementPrompt'), 'buildSupplementPromptを使用している');
+    assert.ok(!content.includes('adviceSplit'), '旧adviceSplitロジックは廃止');
   });
 
-  it('💡次の被写体提案は非PremiumユーザーにはPhoto Adviceから除外される', async () => {
+  it('💡次の被写体提案のPremium制限はgenerateSupplementsとproposalHandlerで適用される', async () => {
     const fs = await import('node:fs');
     const imgContent = fs.readFileSync(
       new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
@@ -3653,9 +3659,11 @@ describe('Scenario 57: 1案ドン表示（Phase 1）', () => {
     const propContent = fs.readFileSync(
       new URL('../src/handlers/proposalHandler.js', import.meta.url), 'utf-8'
     );
-    // imageHandler: 非Premiumで💡除外
-    assert.ok(imgContent.includes('isPremium') && imgContent.includes('次はこんなのも'),
-      'imageHandler.js に💡Premium制限がある');
+    // imageHandler: generateSupplementsにisPremiumを渡す
+    assert.ok(imgContent.includes('isPremium'),
+      'imageHandler.js にisPremium判定がある');
+    assert.ok(imgContent.includes('generateSupplements'),
+      'generateSupplementsでSupplement生成を行う');
     // proposalHandler: 非Premiumで💡除外
     assert.ok(propContent.includes('isPremium') && propContent.includes('次はこんなのも'),
       'proposalHandler.js に💡Premium制限がある');
@@ -3669,5 +3677,53 @@ describe('Scenario 57: 1案ドン表示（Phase 1）', () => {
     // 💡セクションがisPremiumブロック内にあることを確認
     const premiumBlock = content.match(/options\.isPremium \? \(\(\) => \{[\s\S]*?💡 次はこんなのも/);
     assert.ok(premiumBlock, '💡次の被写体提案がisPremiumブロック内にある');
+  });
+
+  it('buildBodyPrompt がフック→観察→共感構造を使用している', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/utils/promptBuilder.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('buildBodyPrompt'), 'buildBodyPrompt関数が存在する');
+    assert.ok(content.includes('フック'), 'フック構造がある');
+    assert.ok(content.includes('観察'), '観察構造がある');
+    assert.ok(content.includes('共感'), '共感構造がある');
+  });
+
+  it('buildSupplementPrompt が存在する', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/utils/promptBuilder.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('export function buildSupplementPrompt'),
+      'buildSupplementPromptがexportされている');
+  });
+
+  it('parseCharmViewpoints がJSON形式を処理しmainSubjectを返す', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('mainSubject'), 'parseCharmViewpointsがmainSubjectを返す');
+    assert.ok(content.includes('supportingElements'), 'parseCharmViewpointsがsupportingElementsを返す');
+    assert.ok(content.includes('JSON.parse'), 'JSON形式のパース処理がある');
+  });
+
+  it('textHandler.js に「これで決定」ルーティングがある', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/textHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('これで決定'), '「これで決定」テキストのルーティングがある');
+    assert.ok(content.includes('appendTemplateFooter'), 'テンプレートフッター適用がある');
+  });
+
+  it('textHandler.js が regenerateBody をインポートして別案再生成する', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/textHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('regenerateBody'), 'regenerateBodyのインポートがある');
+    assert.ok(content.includes("import('./imageHandler.js')"), 'imageHandlerから動的インポートしている');
   });
 });

@@ -1,6 +1,6 @@
 import { replyText, replyWithQuickReply, getImageAsBase64, pushMessage } from '../services/lineService.js';
 import { describeImage, askClaude } from '../services/claudeService.js';
-import { getStore, savePendingImageContext, clearPendingImageContext, uploadImageToStorage, setPendingCommand, clearPendingCommand, savePostHistory } from '../services/supabaseService.js';
+import { getStore, savePendingImageContext, clearPendingImageContext, uploadImageToStorage, setPendingCommand, clearPendingCommand, savePostHistory, getLatestPost, updatePostContent } from '../services/supabaseService.js';
 import { getBlendedInsights, saveEngagementMetrics } from '../services/collectiveIntelligence.js';
 import { getPersonalizationPromptAddition } from '../services/personalizationEngine.js';
 import { getAdvancedPersonalizationPrompt, autoRegeneratePersonaIfNeeded } from '../services/advancedPersonalization.js';
@@ -10,21 +10,49 @@ import { applyEngagementMetrics, getRecentPostHistory } from './reportHandler.js
 import { detectContentCategory } from '../utils/contentCategoryDetector.js';
 import { checkGenerationLimit, isFeatureEnabled } from '../services/subscriptionService.js';
 import { isDevTestStore } from './adminHandler.js';
-import { buildImagePostPrompt, buildStrategicAdvice } from '../utils/promptBuilder.js';
+import { buildBodyPrompt, buildSupplementPrompt, buildStrategicAdvice } from '../utils/promptBuilder.js';
 import { getGlobalPromptRules } from '../services/promptTuningService.js';
 import { getRevisionExample } from '../utils/categoryExamples.js';
-import { extractSelectedProposal } from './proposalHandler.js';
 
 
 /**
- * describeImage出力から観察視点（[① カテゴリ] 内容）をパースし、5項目観察と分離する
- * @param {string} imageDescription - describeImageの出力テキスト
- * @returns {{ cleanDescription: string, viewpoints: string[], viewpointLabels: string[] }}
+ * describeImage出力（JSON or 旧テキスト）をパースして構造化データを返す
+ * @param {string} imageDescription - describeImageの出力テキスト（JSON形式を想定）
+ * @returns {{ cleanDescription: string, viewpoints: string[], viewpointLabels: string[], mainSubject: string|null, supportingElements: string[] }}
  */
 export function parseCharmViewpoints(imageDescription) {
-  if (!imageDescription) return { cleanDescription: '', viewpoints: [], viewpointLabels: [] };
+  if (!imageDescription) return { cleanDescription: '', viewpoints: [], viewpointLabels: [], mainSubject: null, supportingElements: [] };
 
-  // フォーマット: [① _] 内容（旧: [① カテゴリ名] 内容 も互換）
+  // ── JSON形式を試みる（新フォーマット） ──
+  try {
+    // JSONブロックを抽出（```json ... ``` or 直接JSON）
+    const jsonMatch = imageDescription.match(/```json\s*([\s\S]*?)```/) || imageDescription.match(/(\{[\s\S]*\})/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[1]);
+      const mainSubject = parsed.main_subject || null;
+      const supportingElements = Array.isArray(parsed.supporting_elements) ? parsed.supporting_elements : [];
+      const description = parsed.description || '';
+      const observations = Array.isArray(parsed.observations) ? parsed.observations : [];
+      const viewpoints = Array.isArray(parsed.viewpoints) ? parsed.viewpoints : [];
+
+      // cleanDescription = description + observations（投稿生成プロンプトに渡す用）
+      const obsText = observations.length > 0 ? '\n観察:\n' + observations.map(o => `- ${o}`).join('\n') : '';
+      const cleanDescription = `主役: ${mainSubject || '不明'}\n${description}${obsText}`;
+
+      return {
+        cleanDescription,
+        viewpoints: viewpoints.length >= 3 ? viewpoints.slice(0, 3) : viewpoints,
+        viewpointLabels: [],
+        mainSubject,
+        supportingElements,
+      };
+    }
+  } catch {
+    // JSONパース失敗 → 旧フォーマットにフォールバック
+    console.log('[Image] JSON解析失敗、旧フォーマットで処理');
+  }
+
+  // ── 旧フォーマットフォールバック ──
   const newFormatRegex = /\[([①②③])\s*(.+?)\]\s*(.+)/g;
   const viewpoints = [];
   const viewpointLabels = [];
@@ -42,7 +70,7 @@ export function parseCharmViewpoints(imageDescription) {
     }
   }
 
-  // Observation・Detectionセクション（6. 【Observation / 写真の観察 / 投稿の切り口〜末尾）を除去して5項目のみ残す
+  // Observation・Detectionセクション除去
   const cleanDescription = imageDescription
     .replace(/\n*6\.\s*(?:【?Observation|写真の観察|投稿の切り口)[\s\S]*$/m, '')
     .replace(/\[(?:[①②③]\s*.+?|視点[ABC])\]\s*.+\n?/g, '')
@@ -52,12 +80,90 @@ export function parseCharmViewpoints(imageDescription) {
     cleanDescription: cleanDescription || imageDescription,
     viewpoints: viewpoints.length === 3 ? viewpoints : [],
     viewpointLabels: viewpointLabels.length === 3 ? viewpointLabels : [],
+    mainSubject: null,
+    supportingElements: [],
   };
 }
 
 /**
- * バックグラウンドで画像分析→投稿生成まで一気に実行し、結果をPush通知で送信
- * ヒント選択ステップなし — 写真を送るだけで3案が届く
+ * 本文生成後にfire-and-forgetで実行: ハッシュタグ + Photo Advice を生成してDB更新 + Push
+ */
+async function generateSupplements(postId, bodyText, store, blendedInsights, imageDescription, userId, lineUserId, isPremium) {
+  try {
+    const prompt = buildSupplementPrompt(bodyText, store, blendedInsights, imageDescription, { isPremium });
+    const supplementRaw = await askClaude(prompt, { max_tokens: 512 });
+
+    // ハッシュタグ行を抽出（#で始まる行）
+    const hashtagLine = supplementRaw.split('\n').find(l => l.trim().startsWith('#'));
+    if (hashtagLine) {
+      // DB更新: 本文 + ハッシュタグ + Photo Advice
+      await updatePostContent(postId, bodyText + '\n\n' + hashtagLine.trim() + '\n\n' + supplementRaw.replace(hashtagLine, '').trim());
+
+      // ハッシュタグをPush通知
+      await pushMessage(lineUserId, [{
+        type: 'text',
+        text: `ハッシュタグ👇\n${hashtagLine.trim()}`,
+      }]);
+    }
+    console.log(`[Image] Supplement生成完了: postId=${postId}`);
+  } catch (err) {
+    console.error('[Image] Supplement生成エラー（本文は保存済み）:', err.message);
+  }
+}
+
+/**
+ * 「別案」用: pending_image_context から再生成
+ */
+export async function regenerateBody(user, store, ctx, lineUserId) {
+  try {
+    const isPremium = await isFeatureEnabled(user.id, 'enhancedPhotoAdvice');
+    const storeForPrompt = isDevTestStore(store) && ctx.effectiveCategory
+      ? { ...store, category: ctx.effectiveCategory }
+      : store;
+
+    const globalRules = await getGlobalPromptRules();
+    const prompt = buildBodyPrompt(storeForPrompt, ctx.personalization || '', ctx.imageDescription, {
+      detections: ctx.charmViewpoints || [],
+      globalRules,
+      mainSubject: ctx.mainSubject || null,
+      supportingElements: ctx.supportingElements || [],
+    });
+
+    const bodyText = await askClaude(prompt, { max_tokens: 512 });
+    const savedPost = await savePostHistory(user.id, store.id, bodyText, null, ctx.imageUrl || null);
+
+    const revisionExample = getRevisionExample(store.category);
+    const hasLearning = (ctx.personalization || '') !== '';
+    const learningNote = hasLearning ? '\n🧠 これまでの学習を反映しています' : '';
+
+    await pushMessage(lineUserId, [{
+      type: 'text',
+      text: `別の案です！${learningNote}\n━━━━━━━━━━━\n${bodyText}\n━━━━━━━━━━━\n\n📝「学習: ${revisionExample}」で修正＋今後にも反映`,
+      quickReply: {
+        items: [
+          { type: 'action', action: { type: 'message', label: '✅ これで決定', text: 'これで決定' } },
+          { type: 'action', action: { type: 'message', label: '🔄 別案', text: '別案' } },
+          { type: 'action', action: { type: 'message', label: '📝 学習', text: '学習:' } },
+        ],
+      },
+    }]);
+
+    // fire-and-forget: Supplement生成
+    generateSupplements(savedPost.id, bodyText, store, ctx.blendedInsights, ctx.imageDescription, user.id, lineUserId, isPremium)
+      .catch(e => console.error('[Image] 再生成Supplement エラー:', e.message));
+
+  } catch (err) {
+    console.error('[Image] 再生成エラー:', err.message);
+    await pushMessage(lineUserId, [{
+      type: 'text',
+      text: 'うまくいきませんでした...もう一度お試しください',
+    }]);
+  }
+}
+
+/**
+ * バックグラウンドで画像分析→本文生成→Push通知、その後タグ+Adviceを非同期生成
+ * 2ステップフロー: ①本文のみ即Push ②ハッシュタグ+Adviceは裏で生成
  */
 async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, imageUrl, messageId) {
   try {
@@ -74,7 +180,7 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
     const [
       canAdvanced,
       canSeasonal,
-      imageDescription,
+      imageDescriptionRaw,
       basicPersonalization,
     ] = await Promise.all([
       isFeatureEnabled(userId, 'advancedPersonalization'),
@@ -93,7 +199,7 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
         : '',
     ]);
 
-    if (!imageDescription) {
+    if (!imageDescriptionRaw) {
       console.error('[Image] バックグラウンド分析: imageDescription が空');
       await savePendingImageContext(userId, {
         messageId,
@@ -110,16 +216,18 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
       return;
     }
 
-    // 観察視点をパース（5項目観察と分離）
-    const { cleanDescription, viewpoints, viewpointLabels } = parseCharmViewpoints(imageDescription);
-    if (viewpoints.length === 3) {
-      const labelInfo = viewpointLabels.length === 3 ? viewpointLabels.join('/') : 'ラベルなし';
-      console.log(`[Image] 観察視点抽出成功: [${labelInfo}] ${viewpoints.map((v, i) => `${i + 1}="${v}"`).join(', ')}`);
+    // 構造化パース（JSON形式 or 旧テキスト形式）
+    const { cleanDescription, viewpoints, mainSubject, supportingElements } = parseCharmViewpoints(imageDescriptionRaw);
+    if (mainSubject) {
+      console.log(`[Image] main_subject: "${mainSubject}", supporting: [${supportingElements.join(', ')}]`);
+    }
+    if (viewpoints.length > 0) {
+      console.log(`[Image] 観察視点抽出成功: ${viewpoints.map((v, i) => `${i + 1}="${v}"`).join(', ')}`);
     } else {
       console.log('[Image] 観察視点パース失敗（ヒントなしで生成続行）');
     }
 
-    // 被写体カテゴリー検出 → 集合知取得（cleanDescriptionで検出）
+    // 被写体カテゴリー検出 → 集合知取得
     const contentCategory = detectContentCategory(cleanDescription);
     const effectiveCategory = isDevTestStore(store)
       ? (contentCategory || store.category)
@@ -139,12 +247,13 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
     const personalization = (basicPersonalization || '') + (advancedPersonalization || '') + (seasonalMemory || '');
     const hasLearning = (advancedPersonalization || '') !== '';
 
-    // ── 分析完了 → そのまま投稿生成へ ──
-    // DB状態を 'generating' に更新（ユーザーがテキスト送信した場合の判定用）
+    // ── 分析完了 → 本文生成へ ──
     await savePendingImageContext(userId, {
       messageId,
       imageDescription: cleanDescription,
       charmViewpoints: viewpoints,
+      mainSubject: mainSubject || null,
+      supportingElements: supportingElements || [],
       storeId: store.id,
       blendedInsights: blendedInsights ?? null,
       personalization,
@@ -156,34 +265,41 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
     });
 
     const analysisElapsed = ((Date.now() - startMs) / 1000).toFixed(1);
-    console.log(`[Image] 分析完了 (${analysisElapsed}s) → 投稿生成開始: store=${store.name}`);
+    console.log(`[Image] 分析完了 (${analysisElapsed}s) → 本文生成開始: store=${store.name}`);
 
-    // ── 投稿生成 ──
+    // ── Step 1: 本文のみ生成（スリムプロンプト） ──
     const isPremium = await isFeatureEnabled(userId, 'enhancedPhotoAdvice');
-
-    // 開発者テスト店舗: 検出カテゴリーで store を一時的にオーバーライド
     const storeForPrompt = isDevTestStore(store) && effectiveCategory
       ? { ...store, category: effectiveCategory }
       : store;
 
-    // PDCA自動チューニング: グローバルルールを取得
     const globalRules = await getGlobalPromptRules();
+    const prompt = buildBodyPrompt(storeForPrompt, personalization, cleanDescription, {
+      detections: viewpoints,
+      globalRules,
+      mainSubject,
+      supportingElements,
+    });
 
-    // Detection（観察視点）を内部処理としてプロンプトに渡す
-    const prompt = buildImagePostPrompt(
-      storeForPrompt,
-      null,
-      blendedInsights ?? null,
+    const bodyText = await askClaude(prompt, { max_tokens: 512 });
+    const savedPost = await savePostHistory(userId, store.id, bodyText, null, imageUrl || null);
+
+    // pending context を 'complete' に更新（クリアしない → 「別案」で再利用）
+    await savePendingImageContext(userId, {
+      messageId,
+      imageDescription: cleanDescription,
+      charmViewpoints: viewpoints,
+      mainSubject: mainSubject || null,
+      supportingElements: supportingElements || [],
+      storeId: store.id,
+      blendedInsights: blendedInsights ?? null,
       personalization,
-      cleanDescription,
-      { isPremium, detections: viewpoints, globalRules },
-    );
-
-    const rawContent = await askClaude(prompt);
-    const savedPost = await savePostHistory(userId, store.id, rawContent, null, imageUrl || null);
-
-    // pending context クリア（生成完了）
-    await clearPendingImageContext(userId);
+      imageUrl,
+      hasLearning,
+      effectiveCategory: effectiveCategory || null,
+      analysisStatus: 'complete',
+      createdAt: new Date().toISOString(),
+    });
 
     // persona自動更新チェック（fire-and-forget）
     autoRegeneratePersonaIfNeeded(store.id).catch(e =>
@@ -194,7 +310,7 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
       try {
         await saveEngagementMetrics(store.id, store.category, {
           post_id: savedPost.id,
-          content: rawContent,
+          content: bodyText,
         });
       } catch (metricsErr) {
         console.error('[Image] メトリクス初期保存エラー（投稿は成功）:', metricsErr.message);
@@ -202,73 +318,30 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
     }
 
     const totalElapsed = ((Date.now() - startMs) / 1000).toFixed(1);
+    console.log(`[Image] 本文生成完了: store=${store.name} (${totalElapsed}s)`);
 
-    // ── Push通知で1案ドン表示（内部3案からA案を抽出） ──
+    // ── Push通知: 本文のみ即表示 ──
     const genLimit = await checkGenerationLimit(userId);
     const revisionExample = getRevisionExample(store.category);
     const learningNote = hasLearning ? '\n🧠 これまでの学習を反映しています' : '';
     const remaining = Number.isFinite(genLimit.limit) ? genLimit.limit - (genLimit.used + 1) : null;
     const remainingNote = remaining !== null && remaining <= 3 ? `\n📊 今月の残り: ${remaining}回` : '';
 
-    // ランダムに1案を抽出して表示（DB には3案全文を保存済み）
-    const selections = ['A', 'B', 'C'];
-    const randomPick = selections[Math.floor(Math.random() * selections.length)];
-    const pickedProposal = extractSelectedProposal(rawContent, randomPick);
-    // 抽出失敗時は他の案を試す → 全滅なら全文フォールバック
-    const displayContent = pickedProposal
-      || extractSelectedProposal(rawContent, 'A')
-      || extractSelectedProposal(rawContent, 'B')
-      || extractSelectedProposal(rawContent, 'C')
-      || rawContent;
-    const isOneProposal = !!pickedProposal;
-    const pickedLabel = pickedProposal ? randomPick : null;
-
-    const hasAdviceInRaw = /📸/.test(rawContent) || /[━─―]{5,}/.test(rawContent);
-    console.log(`[Image] 分析+生成完了: store=${store.name} (${totalElapsed}s), 表示案=${pickedLabel || '全文'}, PhotoAdvice=${hasAdviceInRaw ? '有' : '無'}`);
-
-    // 投稿文とPhoto Adviceを分離（━━━区切り or 📸マーカーで検出）
-    const adviceSplit = displayContent.match(/^([\s\S]*?)(\n\n[━─―]{5,}[\s\S]*[━─―]{5,})\s*$/)
-      || displayContent.match(/^([\s\S]*?)(\n\n📸[\s\S]*)$/);
-    const postText = adviceSplit ? adviceSplit[1].trim() : displayContent;
-    // 非Premiumユーザーは💡次の被写体提案と🎯明日撮るべきものを除外
-    const rawPhotoAdvice = adviceSplit ? adviceSplit[2] : '';
-    const photoAdvice = isPremium
-      ? rawPhotoAdvice
-      : rawPhotoAdvice.replace(/\n💡 次はこんなのも[\s\S]*?(?=\n[━─―]|$)/, '').replace(/\n🎯 明日撮るべきもの[\s\S]*?(?=\n[━─―]|$)/, '');
-
-    const formattedReply = isOneProposal
-      ? `まずはおすすめの案です！${learningNote}
-━━━━━━━━━━━
-${postText}
-━━━━━━━━━━━
-
-このまま投稿できます。
-📝「学習: ${revisionExample}」で修正＋今後にも反映${remainingNote}${photoAdvice}`
-      : `3つの投稿案ができました！どの案が理想に近いですか？👇${learningNote}
-━━━━━━━━━━━
-${rawContent}
-━━━━━━━━━━━
-
-A・B・C を選んだあと「学習: ${revisionExample}」で修正もできます${remainingNote}`;
-
-    const quickReplyItems = isOneProposal
-      ? [
-          { type: 'action', action: { type: 'message', label: '✅ これで決定', text: pickedLabel } },
-          { type: 'action', action: { type: 'message', label: '🔄 別の案を見る', text: '別案' } },
-          { type: 'action', action: { type: 'message', label: '📝 学習', text: '学習:' } },
-        ]
-      : [
-          { type: 'action', action: { type: 'message', label: '✅ A案', text: 'A' } },
-          { type: 'action', action: { type: 'message', label: '✅ B案', text: 'B' } },
-          { type: 'action', action: { type: 'message', label: '✅ C案', text: 'C' } },
-          { type: 'action', action: { type: 'message', label: '📝 学習', text: '学習:' } },
-        ];
-
     await pushMessage(lineUserId, [{
       type: 'text',
-      text: formattedReply,
-      quickReply: { items: quickReplyItems },
+      text: `投稿ができました！👇${learningNote}\n━━━━━━━━━━━\n${bodyText}\n━━━━━━━━━━━\n\n📝「学習: ${revisionExample}」で修正＋今後にも反映${remainingNote}`,
+      quickReply: {
+        items: [
+          { type: 'action', action: { type: 'message', label: '✅ これで決定', text: 'これで決定' } },
+          { type: 'action', action: { type: 'message', label: '🔄 別案', text: '別案' } },
+          { type: 'action', action: { type: 'message', label: '📝 学習', text: '学習:' } },
+        ],
+      },
     }]);
+
+    // ── Step 2: ハッシュタグ + Photo Advice（fire-and-forget） ──
+    generateSupplements(savedPost.id, bodyText, store, blendedInsights, cleanDescription, userId, lineUserId, isPremium)
+      .catch(e => console.error('[Image] Supplement生成エラー:', e.message));
 
     // 戦略アドバイス（投稿タイミング等）をTipsとして送信
     try {

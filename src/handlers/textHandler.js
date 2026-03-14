@@ -112,7 +112,7 @@ export async function handleTextMessage(user, text, replyToken) {
     '店舗一覧', '店舗切り替え', '店舗切替', '店舗削除', 'ヘルプ', 'help', '学習状況', '問い合わせ', '登録',
     'プラン', 'アップグレード', '今週の計画', '投稿ネタ', '投稿ネタ教えて', 'ネタ', 'コマンド一覧', 'コマンド',
     'モード切替', 'モード切り替え', 'AI投稿モード', 'そのまま投稿モード', 'そのまま投稿', 'direct投稿実行', 'direct複数枚投稿',
-    'ストック', 'ストック保存', 'ストック投稿', 'ストック予約', 'ストック削除', 'ストック一括削除', '予約投稿'].includes(trimmed)
+    'ストック', 'ストック保存', 'ストック投稿', 'ストック予約', 'ストック削除', 'ストック一括削除', '予約投稿', 'これで決定', '別案'].includes(trimmed)
     || trimmed.startsWith('切替:') || trimmed.startsWith('ストック:') || trimmed.startsWith('予約:') || trimmed.startsWith('/');
 
   // カルーセルモード中のテキスト処理（通常のpending_image_contextより先に判定）
@@ -661,28 +661,79 @@ ${contactEmail}
     }
   }
 
-  // 🔄 別案を見る（1案ドン表示からの別案リクエスト）
+  // 🔄 別案（再生成）
   if (trimmed === '別案' || trimmed === '別の案' || trimmed === '別案を見る') {
     if (user.current_store_id) {
       const store = await getStore(user.current_store_id);
       if (store) {
-        const { data: latestPost, error: postError } = await supabase
-          .from('post_history')
-          .select('*')
-          .eq('store_id', store.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
-        if (postError) {
-          console.error('[TextHandler] 別案: DB取得エラー:', postError.message);
-          return await replyText(replyToken, 'うまくいきませんでした。もう一度お試しください');
+        // 生成回数チェック
+        const genLimit = await checkGenerationLimit(user.id);
+        if (!genLimit.allowed) {
+          return await replyText(replyToken, `⚠️ 今月の生成上限（${genLimit.limit}回）に達しました。\n「アップグレード」で上限を増やすことができます。`);
         }
-        if (latestPost?.content && /\[\s*案B[：:]/.test(latestPost.content)) {
-          const { handleShowAlternatives } = await import('./proposalHandler.js');
-          return await handleShowAlternatives(user, store, latestPost, replyToken);
-        } else {
-          return await replyText(replyToken, '別の案が見つかりません。もう一度写真を送ってみてください');
+
+        // pending_image_context から前回の素材を取得
+        const ctx = user.pending_image_context;
+        if (!ctx || !ctx.imageDescription || ctx.analysisStatus === 'pending' || ctx.analysisStatus === 'generating') {
+          // 旧3案投稿の場合はフォールバック
+          const { data: latestPost } = await supabase
+            .from('post_history')
+            .select('*')
+            .eq('store_id', store.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+          if (latestPost?.content && /\[\s*案B[：:]/.test(latestPost.content)) {
+            const { handleShowAlternatives } = await import('./proposalHandler.js');
+            return await handleShowAlternatives(user, store, latestPost, replyToken);
+          }
+          return await replyText(replyToken, '写真を送ってからお試しください');
         }
+
+        await replyText(replyToken, '別の案を考えています...');
+
+        // バックグラウンドで再生成
+        const { regenerateBody } = await import('./imageHandler.js');
+        regenerateBody(user, store, ctx, user.line_user_id).catch(e =>
+          console.error('[TextHandler] 別案再生成エラー:', e.message));
+        return;
+      }
+    }
+  }
+
+  // ✅ これで決定
+  if (trimmed === 'これで決定') {
+    if (user.current_store_id) {
+      const store = await getStore(user.current_store_id);
+      if (store) {
+        const latestPost = await getLatestPost(store.id);
+        if (!latestPost) {
+          return await replyText(replyToken, 'まだ投稿がありません。写真を送ってみてください！');
+        }
+
+        // テンプレートフッター（住所・営業時間）を適用
+        const finalContent = appendTemplateFooter(latestPost.content, store);
+        if (finalContent !== latestPost.content) {
+          const { updatePostContent } = await import('../services/supabaseService.js');
+          await updatePostContent(latestPost.id, finalContent);
+        }
+
+        // Instagram連携チェック
+        const { getInstagramAccount } = await import('../services/instagramService.js');
+        const igAccount = await getInstagramAccount(store.id).catch(() => null);
+        const hasImageUrl = !!latestPost.image_url;
+
+        if (igAccount && hasImageUrl) {
+          return await replyWithQuickReply(replyToken,
+            '✅ 投稿が確定しました！\n\nInstagramに投稿しますか？',
+            [
+              { type: 'action', action: { type: 'message', label: '📸 Instagram投稿', text: 'instagram投稿' } },
+              { type: 'action', action: { type: 'message', label: '📋 コピーして使う', text: 'コピー' } },
+            ]
+          );
+        }
+
+        return await replyText(replyToken, '✅ 投稿が確定しました！\n\n上のテキストをコピーしてSNSに貼り付けてください📋');
       }
     }
   }
