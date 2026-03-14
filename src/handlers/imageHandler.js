@@ -98,6 +98,9 @@ async function generateSupplements(postId, bodyText, store, blendedInsights, ima
     const advicePart = supplementRaw.trim();
     if (advicePart) {
       await updatePostContent(postId, bodyText + '\n\n' + advicePart);
+
+      // Photo AdviceをLINEにPush通知（本文とは別メッセージ）
+      await pushMessage(lineUserId, `━━━━━━━━━━━\n${advicePart}`);
     }
     console.log(`[Image] Supplement生成完了: postId=${postId}`);
   } catch (err) {
