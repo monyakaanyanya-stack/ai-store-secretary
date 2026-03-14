@@ -1,6 +1,6 @@
 import { replyText, replyWithQuickReply, getImageAsBase64, pushMessage } from '../services/lineService.js';
 import { describeImage, askClaude } from '../services/claudeService.js';
-import { getStore, savePendingImageContext, clearPendingImageContext, uploadImageToStorage, setPendingCommand, clearPendingCommand, savePostHistory, getLatestPost, updatePostContent } from '../services/supabaseService.js';
+import { getStore, savePendingImageContext, clearPendingImageContext, uploadImageToStorage, setPendingCommand, clearPendingCommand, savePostHistory, getLatestPost, updatePostContent, savePostFeatures } from '../services/supabaseService.js';
 import { getBlendedInsights, saveEngagementMetrics } from '../services/collectiveIntelligence.js';
 import { getPersonalizationPromptAddition } from '../services/personalizationEngine.js';
 import { getAdvancedPersonalizationPrompt, autoRegeneratePersonaIfNeeded } from '../services/advancedPersonalization.js';
@@ -22,7 +22,7 @@ import { getInstagramAccount } from '../services/instagramService.js';
  * @returns {{ cleanDescription: string, viewpoints: string[], viewpointLabels: string[], mainSubject: string|null, supportingElements: string[] }}
  */
 export function parseCharmViewpoints(imageDescription) {
-  if (!imageDescription) return { cleanDescription: '', viewpoints: [], viewpointLabels: [], mainSubject: null, supportingElements: [] };
+  if (!imageDescription) return { cleanDescription: '', viewpoints: [], viewpointLabels: [], mainSubject: null, supportingElements: [], features: null };
 
   // ── JSON形式を試みる（新フォーマット） ──
   try {
@@ -40,12 +40,23 @@ export function parseCharmViewpoints(imageDescription) {
       const obsText = observations.length > 0 ? '\n観察:\n' + observations.map(o => `- ${o}`).join('\n') : '';
       const cleanDescription = `主役: ${mainSubject || '不明'}\n${description}${obsText}`;
 
+      // 構造化特徴タグ（Premium分析AI用）
+      const features = {
+        main_subject_tag: parsed.main_subject_tag || 'other',
+        scene_type: parsed.scene_type || 'other',
+        has_person: parsed.has_person === true,
+        action_type: parsed.action_type || 'none',
+        lighting_type: parsed.lighting_type || 'natural_soft',
+        camera_angle: parsed.camera_angle || 'eye_level',
+      };
+
       return {
         cleanDescription,
         viewpoints: viewpoints.length >= 3 ? viewpoints.slice(0, 3) : viewpoints,
         viewpointLabels: [],
         mainSubject,
         supportingElements,
+        features,
       };
     }
   } catch {
@@ -83,6 +94,7 @@ export function parseCharmViewpoints(imageDescription) {
     viewpointLabels: viewpointLabels.length === 3 ? viewpointLabels : [],
     mainSubject: null,
     supportingElements: [],
+    features: null, // 旧フォーマットでは特徴タグなし
   };
 }
 
@@ -178,6 +190,12 @@ export async function regenerateBody(user, store, ctx, lineUserId) {
     const bodyText = await askClaude(prompt, { max_tokens: 768 });
     const savedPost = await savePostHistory(user.id, store.id, bodyText, null, ctx.imageUrl || null);
 
+    // 前回と同じ写真特徴を新しいpostIdに保存
+    if (ctx.features) {
+      savePostFeatures(store.id, savedPost.id, ctx.features)
+        .catch(e => console.error('[Image] 再生成PostFeatures保存エラー:', e.message));
+    }
+
     const revisionExample = getRevisionExample(store.category);
     const hasLearning = (ctx.personalization || '') !== '';
     const learningNote = hasLearning ? '\n🧠 これまでの学習を反映しています' : '';
@@ -259,7 +277,10 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
     }
 
     // 構造化パース（JSON形式 or 旧テキスト形式）
-    const { cleanDescription, viewpoints, mainSubject, supportingElements } = parseCharmViewpoints(imageDescriptionRaw);
+    const { cleanDescription, viewpoints, mainSubject, supportingElements, features } = parseCharmViewpoints(imageDescriptionRaw);
+    if (features) {
+      console.log(`[Image] 写真特徴: subject=${features.main_subject_tag}, scene=${features.scene_type}, person=${features.has_person}, angle=${features.camera_angle}`);
+    }
     if (mainSubject) {
       console.log(`[Image] main_subject: "${mainSubject}", supporting: [${supportingElements.join(', ')}]`);
     }
@@ -296,6 +317,7 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
       charmViewpoints: viewpoints,
       mainSubject: mainSubject || null,
       supportingElements: supportingElements || [],
+      features: features || null,
       storeId: store.id,
       blendedInsights: blendedInsights ?? null,
       personalization,
@@ -327,6 +349,12 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
     const bodyText = await askClaude(prompt, { max_tokens: 768 });
     const savedPost = await savePostHistory(userId, store.id, bodyText, null, imageUrl || null);
 
+    // 写真特徴を保存（Premium分析AI Phase 1）
+    if (features) {
+      savePostFeatures(store.id, savedPost.id, features)
+        .catch(e => console.error('[Image] PostFeatures保存エラー（投稿は成功）:', e.message));
+    }
+
     // pending context を 'complete' に更新（クリアしない → 「別案」で再利用）
     await savePendingImageContext(userId, {
       messageId,
@@ -334,6 +362,7 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
       charmViewpoints: viewpoints,
       mainSubject: mainSubject || null,
       supportingElements: supportingElements || [],
+      features: features || null,
       storeId: store.id,
       blendedInsights: blendedInsights ?? null,
       personalization,

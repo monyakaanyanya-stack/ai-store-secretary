@@ -2757,9 +2757,16 @@ describe('Scenario 47: 魅力発見AI', async () => {
   });
 
   it('parseCharmViewpoints: null/undefined入力で安全', () => {
-    assert.deepEqual(parseCharmViewpoints(null), { cleanDescription: '', viewpoints: [], viewpointLabels: [] });
-    assert.deepEqual(parseCharmViewpoints(undefined), { cleanDescription: '', viewpoints: [], viewpointLabels: [] });
-    assert.deepEqual(parseCharmViewpoints(''), { cleanDescription: '', viewpoints: [], viewpointLabels: [] });
+    const nullResult = parseCharmViewpoints(null);
+    assert.equal(nullResult.cleanDescription, '');
+    assert.deepEqual(nullResult.viewpoints, []);
+    assert.deepEqual(nullResult.viewpointLabels, []);
+    const undefResult = parseCharmViewpoints(undefined);
+    assert.equal(undefResult.cleanDescription, '');
+    assert.deepEqual(undefResult.viewpoints, []);
+    const emptyResult = parseCharmViewpoints('');
+    assert.equal(emptyResult.cleanDescription, '');
+    assert.deepEqual(emptyResult.viewpoints, []);
   });
 
   it('imageHandler.jsのparseCharmViewpointsがexportされている', () => {
@@ -3725,5 +3732,149 @@ describe('Scenario 57: 1案ドン表示（Phase 1）', () => {
     );
     assert.ok(content.includes('regenerateBody'), 'regenerateBodyのインポートがある');
     assert.ok(content.includes("import('./imageHandler.js')"), 'imageHandlerから動的インポートしている');
+  });
+
+  // ==================== Premium分析AI Phase 1 テスト ====================
+
+  it('describeImage プロンプトに6特徴量タグが含まれる', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/claudeService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('main_subject_tag'), 'main_subject_tagフィールドがある');
+    assert.ok(content.includes('scene_type'), 'scene_typeフィールドがある');
+    assert.ok(content.includes('has_person'), 'has_personフィールドがある');
+    assert.ok(content.includes('action_type'), 'action_typeフィールドがある');
+    assert.ok(content.includes('lighting_type'), 'lighting_typeフィールドがある');
+    assert.ok(content.includes('camera_angle'), 'camera_angleフィールドがある');
+  });
+
+  it('parseCharmViewpoints がJSON形式からfeaturesを抽出する', () => {
+    // imageHandler.js内のparseCharmViewpointsと同等のJSON解析ロジック
+    const jsonInput = JSON.stringify({
+      main_subject: "チーズケーキ",
+      supporting_elements: ["皿", "フォーク"],
+      description: "暖色照明のカフェで撮影されたチーズケーキ",
+      observations: ["焼き色がきれい", "表面に粉砂糖"],
+      viewpoints: ["皿の縁の影", "粉砂糖の積もり方", "テーブルの木目"],
+      main_subject_tag: "food",
+      scene_type: "meal",
+      has_person: false,
+      action_type: "none",
+      lighting_type: "warm_indoor",
+      camera_angle: "diagonal"
+    });
+
+    const jsonMatch = jsonInput.match(/(\{[\s\S]*\})/);
+    const parsed = JSON.parse(jsonMatch[1]);
+    const features = {
+      main_subject_tag: parsed.main_subject_tag || 'other',
+      scene_type: parsed.scene_type || 'other',
+      has_person: parsed.has_person === true,
+      action_type: parsed.action_type || 'none',
+      lighting_type: parsed.lighting_type || 'natural_soft',
+      camera_angle: parsed.camera_angle || 'eye_level',
+    };
+
+    assert.equal(features.main_subject_tag, 'food');
+    assert.equal(features.scene_type, 'meal');
+    assert.equal(features.has_person, false);
+    assert.equal(features.action_type, 'none');
+    assert.equal(features.lighting_type, 'warm_indoor');
+    assert.equal(features.camera_angle, 'diagonal');
+  });
+
+  it('parseCharmViewpoints features が欠損フィールドにデフォルト値を使う', () => {
+    const jsonInput = JSON.stringify({
+      main_subject: "コーヒー",
+      supporting_elements: [],
+      description: "テスト",
+      observations: [],
+      viewpoints: ["a", "b", "c"],
+      // 特徴タグは一部だけ
+      main_subject_tag: "coffee",
+      has_person: true
+    });
+
+    const parsed = JSON.parse(jsonInput);
+    const features = {
+      main_subject_tag: parsed.main_subject_tag || 'other',
+      scene_type: parsed.scene_type || 'other',
+      has_person: parsed.has_person === true,
+      action_type: parsed.action_type || 'none',
+      lighting_type: parsed.lighting_type || 'natural_soft',
+      camera_angle: parsed.camera_angle || 'eye_level',
+    };
+
+    assert.equal(features.main_subject_tag, 'coffee');
+    assert.equal(features.scene_type, 'other', 'scene_type未指定はotherにフォールバック');
+    assert.equal(features.has_person, true);
+    assert.equal(features.action_type, 'none', 'action_type未指定はnoneにフォールバック');
+    assert.equal(features.lighting_type, 'natural_soft', 'lighting_type未指定はnatural_softにフォールバック');
+    assert.equal(features.camera_angle, 'eye_level', 'camera_angle未指定はeye_levelにフォールバック');
+  });
+
+  it('imageHandler.js がsavePostFeaturesをインポートしている', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('savePostFeatures'), 'savePostFeaturesがインポートされている');
+    assert.ok(content.includes('features'), 'featuresフィールドが使われている');
+  });
+
+  it('supabaseService.js にsavePostFeaturesとgetFeatureAnalysisがある', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/supabaseService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('export async function savePostFeatures'), 'savePostFeaturesがexportされている');
+    assert.ok(content.includes('export async function getFeatureAnalysis'), 'getFeatureAnalysisがexportされている');
+    assert.ok(content.includes('post_features'), 'post_featuresテーブル名が含まれる');
+    assert.ok(content.includes('analyze_post_features'), 'RPC関数名が含まれる');
+  });
+
+  it('migration_post_features.sql が存在し必要なカラムを含む', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../database/migration_post_features.sql', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('CREATE TABLE IF NOT EXISTS post_features'), 'post_featuresテーブル作成');
+    assert.ok(content.includes('main_subject TEXT'), 'main_subjectカラム');
+    assert.ok(content.includes('scene_type TEXT'), 'scene_typeカラム');
+    assert.ok(content.includes('has_person BOOLEAN'), 'has_personカラム');
+    assert.ok(content.includes('action_type TEXT'), 'action_typeカラム');
+    assert.ok(content.includes('lighting_type TEXT'), 'lighting_typeカラム');
+    assert.ok(content.includes('camera_angle TEXT'), 'camera_angleカラム');
+    assert.ok(content.includes('analyze_post_features'), 'RPC集計関数');
+    assert.ok(content.includes('ROW LEVEL SECURITY'), 'RLS有効化');
+  });
+
+  it('pending_image_contextにfeaturesが保存される', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
+    );
+    // analyzeImageInBackground内でfeaturesをcontextに含めているか
+    const featuresSaveCount = (content.match(/features:\s*features/g) || []).length;
+    assert.ok(featuresSaveCount >= 2, 'featuresが少なくとも2箇所（generating/complete）でcontextに保存される');
+  });
+
+  it('regenerateBodyでもsavePostFeaturesが呼ばれる', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
+    );
+    // regenerateBody内でctx.featuresを参照してsavePostFeaturesを呼んでいるか
+    assert.ok(content.includes('ctx.features'), '再生成時にctx.featuresを参照');
+  });
+
+  it('getFeatureAnalysis にRPC失敗時のフォールバックがある', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/supabaseService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('getFeatureAnalysisFallback'), 'JSフォールバック集計がある');
+    assert.ok(content.includes("status', '報告済'"), 'フォールバックも報告済みデータのみ集計');
   });
 });

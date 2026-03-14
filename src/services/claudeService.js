@@ -97,7 +97,7 @@ export async function describeImage(imageBase64, mediaType = 'image/jpeg') {
   try {
     const response = await client.messages.create({
       model: MODEL,
-      max_tokens: 800,
+      max_tokens: 1000,
       messages: [
         {
           role: 'user',
@@ -127,7 +127,13 @@ export async function describeImage(imageBase64, mediaType = 'image/jpeg') {
     "発見1: 店主も気づいていない魅力（15字以内。モノ系）",
     "発見2: 店主も気づいていない魅力（15字以内。細部系）",
     "発見3: 店主も気づいていない魅力（15字以内。場の要素系）"
-  ]
+  ],
+  "main_subject_tag": "food|person|hands|workspace|interior|coffee|drink|product|other のいずれか1つ",
+  "scene_type": "meal|cooking|cafe_work|portrait|conversation|empty_space|display|other のいずれか1つ",
+  "has_person": true または false,
+  "action_type": "eating|kneading|holding|drinking|talking|looking_out|arranging|serving|none のいずれか1つ",
+  "lighting_type": "natural_soft|warm_indoor|hard_backlight|low_light|bright_daylight のいずれか1つ",
+  "camera_angle": "eye_level|top_down|side|diagonal|close_crop のいずれか1つ"
 }
 
 ルール:
@@ -137,6 +143,12 @@ export async function describeImage(imageBase64, mediaType = 'image/jpeg') {
 - viewpoints: 3つは必ず別々の対象（①モノ ②細部 ③場の要素）。感情・比喩・分析語は禁止。「〜がいい」「〜が効いてる」くらいの軽さ
 - 写真に写っていないものを創作しない
 - 人数を推測しない（皿が2つでも「二人」と書かない。見えているモノだけ記述する）
+- main_subject_tag: main_subjectの英語分類タグ。必ず指定の選択肢から1つ選ぶ
+- scene_type: 写真のシーン分類。必ず指定の選択肢から1つ選ぶ
+- has_person: 人物が写っているかどうか（true/false）
+- action_type: 写っている人物や手の動作。人物なしならnone
+- lighting_type: 光の種類。必ず指定の選択肢から1つ選ぶ
+- camera_angle: カメラアングル。必ず指定の選択肢から1つ選ぶ
 - JSONのみ出力。説明や前置きは不要`,
             },
           ],

@@ -220,6 +220,127 @@ export async function getLatestPost(storeId) {
   return data;
 }
 
+// ==================== 写真特徴（Premium分析AI） ====================
+
+/**
+ * 写真の構造化特徴タグを保存（post_features テーブル）
+ * @param {string} storeId - 店舗ID
+ * @param {string} postId - 投稿ID（post_history.id）
+ * @param {object} features - 構造化特徴タグ
+ */
+export async function savePostFeatures(storeId, postId, features) {
+  if (!features || !postId) return null;
+  try {
+    const { data, error } = await supabase
+      .from('post_features')
+      .upsert({
+        store_id: storeId,
+        post_id: postId,
+        main_subject: features.main_subject_tag || 'other',
+        scene_type: features.scene_type || 'other',
+        has_person: features.has_person === true,
+        action_type: features.action_type || 'none',
+        lighting_type: features.lighting_type || 'natural_soft',
+        camera_angle: features.camera_angle || 'eye_level',
+      }, { onConflict: 'post_id' });
+
+    if (error) {
+      console.error('[PostFeatures] Save error:', error.message);
+      return null;
+    }
+    return data;
+  } catch (err) {
+    console.error('[PostFeatures] Unexpected error:', err.message);
+    return null;
+  }
+}
+
+/**
+ * 写真特徴 × エンゲージメント集計（RPC関数経由）
+ * @param {string} storeId - 店舗ID
+ * @param {number} days - 集計期間（日数）
+ * @returns {Array} 特徴別の平均保存率・エンゲージメント率
+ */
+export async function getFeatureAnalysis(storeId, days = 30) {
+  try {
+    const { data, error } = await supabase.rpc('analyze_post_features', {
+      p_store_id: storeId,
+      p_days: days,
+    });
+    if (error) {
+      // RPC関数未作成の場合はフォールバック
+      if (error.message.includes('function') || error.code === '42883') {
+        console.warn('[PostFeatures] RPC関数未作成、JSフォールバックで集計');
+        return getFeatureAnalysisFallback(storeId, days);
+      }
+      console.error('[PostFeatures] Analysis error:', error.message);
+      return [];
+    }
+    return data || [];
+  } catch (err) {
+    console.error('[PostFeatures] Analysis unexpected error:', err.message);
+    return [];
+  }
+}
+
+/**
+ * RPC関数が使えない場合のJSフォールバック集計
+ */
+async function getFeatureAnalysisFallback(storeId, days) {
+  try {
+    const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+    const { data: features, error } = await supabase
+      .from('post_features')
+      .select('post_id, main_subject, scene_type, has_person, action_type, lighting_type, camera_angle')
+      .eq('store_id', storeId)
+      .gte('created_at', cutoff);
+
+    if (error || !features || features.length === 0) return [];
+
+    // engagement_metricsと結合
+    const postIds = features.map(f => f.post_id).filter(Boolean);
+    const { data: metrics } = await supabase
+      .from('engagement_metrics')
+      .select('post_id, save_intensity, engagement_rate')
+      .in('post_id', postIds)
+      .eq('status', '報告済');
+
+    if (!metrics || metrics.length === 0) return [];
+
+    const metricsMap = new Map(metrics.map(m => [m.post_id, m]));
+    const results = [];
+
+    // 各特徴量で集計
+    const featureKeys = ['main_subject', 'scene_type', 'has_person', 'action_type', 'lighting_type', 'camera_angle'];
+    for (const key of featureKeys) {
+      const groups = {};
+      for (const f of features) {
+        const m = metricsMap.get(f.post_id);
+        if (!m) continue;
+        const val = String(f[key] ?? 'unknown');
+        if (!groups[val]) groups[val] = { saves: [], engagements: [] };
+        groups[val].saves.push(m.save_intensity || 0);
+        groups[val].engagements.push(m.engagement_rate || 0);
+      }
+      for (const [val, data] of Object.entries(groups)) {
+        if (data.saves.length < 3) continue;
+        const avg = arr => arr.reduce((a, b) => a + b, 0) / arr.length;
+        results.push({
+          feature_name: key,
+          feature_value: val,
+          avg_save_rate: Math.round(avg(data.saves) * 10000) / 10000,
+          avg_engagement_rate: Math.round(avg(data.engagements) * 10000) / 10000,
+          post_count: data.saves.length,
+        });
+      }
+    }
+    return results;
+  } catch (err) {
+    console.error('[PostFeatures] Fallback analysis error:', err.message);
+    return [];
+  }
+}
+
 // ==================== 投稿ストック ====================
 
 /**
