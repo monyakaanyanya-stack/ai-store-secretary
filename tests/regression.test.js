@@ -3475,3 +3475,36 @@ describe('Scenario 55: core_beliefs（恒久ルール）', () => {
     assert.ok(content.includes('coreBeliefs'), 'profileContextにcoreBeliefsフィールドがある');
   });
 });
+
+// ============================================================
+// Scenario 56: エンゲージメント学習の構造カテゴリ制限
+// ============================================================
+describe('Scenario 56: エンゲージメント学習の構造カテゴリ制限', () => {
+  it('analyzeEngagementWithClaude のプロンプトが構造カテゴリに絞られている', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/advancedPersonalization.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('投稿の構造'), '構造カテゴリの観点で分析する指示がある');
+    assert.ok(content.includes('構造カテゴリの例'), '構造カテゴリの具体例が提示されている');
+    assert.ok(content.includes('具体的な語尾・口癖・表現そのものは書かない'), '具体的な文体を拾わない制約がある');
+  });
+
+  it('core_promotion でengagement_autoは構造パターンのみ昇格可の制約がある', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/advancedPersonalization.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('engagement_auto') && content.includes('構造パターン'), 'engagement_autoの構造パターン制約がcore_promotionプロンプトに含まれる');
+  });
+
+  it('分析プロンプトに冒頭・締め方・説明量の構造例がある', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/advancedPersonalization.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('冒頭の長さ'), '冒頭パターンの例がある');
+    assert.ok(content.includes('締め方'), '締め方パターンの例がある');
+    assert.ok(content.includes('説明量'), '説明量パターンの例がある');
+  });
+});
