@@ -254,10 +254,89 @@ export async function handleStockDelete(user, replyToken) {
   }
 }
 
-// ==================== 予約投稿: 時間選択 ====================
+// ==================== 予約投稿: 直接予約（A/B/C選択後） ====================
 
 /**
- * 予約投稿の時間選択画面を表示
+ * A/B/C選択後に「⏰ 予約投稿」ボタンから直接予約
+ * 最新投稿をdraftに変更→日時入力待ちへ
+ */
+export async function handleDirectSchedulePrompt(user, replyToken) {
+  try {
+    if (!user.current_store_id) {
+      return await replyText(replyToken, '店舗が選択されていません。先に店舗を登録してください。');
+    }
+
+    // 予約投稿機能の権限チェック
+    const canSchedule = await isFeatureEnabled(user.current_store_id, 'scheduledPost');
+    if (!canSchedule) {
+      return await replyText(replyToken, '⏰ 予約投稿はスタンダードプラン以上で利用できます。\n\n「アップグレード」でプラン変更できます。');
+    }
+
+    const store = await getStore(user.current_store_id);
+    if (!store) {
+      return await replyText(replyToken, '店舗が見つかりません。');
+    }
+
+    // Instagram連携チェック
+    const igAccount = await getInstagramAccount(store.id).catch(() => null);
+    if (!igAccount) {
+      return await replyText(replyToken, 'Instagram未連携です。先に「インスタ連携」で連携してください。');
+    }
+
+    const latestPost = await getLatestPost(store.id);
+    if (!latestPost || !latestPost.image_url) {
+      return await replyText(replyToken, '投稿する画像がありません。先に画像を送って投稿を作成してください。');
+    }
+
+    // 3案未選択チェック
+    if (/\[\s*案A[：:]/.test(latestPost.content)) {
+      return await replyText(replyToken, '先にA / B / C を選択してから予約してください。');
+    }
+
+    // ストック上限チェック
+    const stockCount = await getStockCount(store.id);
+    if (stockCount >= MAX_STOCK) {
+      return await replyText(replyToken, `📦 ストックが上限（${MAX_STOCK}件）に達しています。\n古いストックを投稿または削除してください。`);
+    }
+
+    // 最新投稿をdraftに変更して予約対象にする
+    await updatePostStatus(latestPost.id, 'draft');
+
+    // 予約対象を pending_image_context に保存
+    await savePendingImageContext(user.id, {
+      stock_mode: true,
+      stock_post_id: latestPost.id,
+      storeId: store.id,
+    });
+
+    // 日時入力待ちへ
+    await setPendingCommand(user.id, 'awaiting_schedule_time');
+
+    return await replyText(replyToken, SCHEDULE_INPUT_MESSAGE);
+  } catch (err) {
+    console.error('[Stock] 直接予約プロンプトエラー:', err);
+    return await replyText(replyToken, '❌ エラーが発生しました。');
+  }
+}
+
+// ==================== 予約投稿: 時間入力 ====================
+
+/** 日時入力の案内メッセージ */
+const SCHEDULE_INPUT_MESSAGE = `⏰ いつ投稿しますか？
+
+日時を入力してください👇
+
+【書き方の例】
+・3/15 18:00
+・3/15 18時
+・2026/3/15 18:00
+・明日 18:00
+・明後日 12:00
+
+※ 日本時間（JST）で指定してください`;
+
+/**
+ * ストック一覧から予約投稿の日時入力画面を表示
  */
 export async function handleSchedulePrompt(user, replyToken) {
   try {
@@ -266,10 +345,10 @@ export async function handleSchedulePrompt(user, replyToken) {
       return await replyText(replyToken, '先に「ストック」から投稿を選んでください。');
     }
 
-    // 予約投稿機能の権限チェック（Light+）
+    // 予約投稿機能の権限チェック
     const canSchedule = await isFeatureEnabled(user.current_store_id, 'scheduledPost');
     if (!canSchedule) {
-      return await replyText(replyToken, '⏰ 予約投稿はライトプラン以上で利用できます。\n\n「アップグレード」でプラン変更できます。');
+      return await replyText(replyToken, '⏰ 予約投稿はスタンダードプラン以上で利用できます。\n\n「アップグレード」でプラン変更できます。');
     }
 
     const post = await getStockPostById(ctx.stock_post_id);
@@ -284,69 +363,118 @@ export async function handleSchedulePrompt(user, replyToken) {
       return await replyText(replyToken, 'Instagram未連携です。先に「インスタ連携」で連携してください。');
     }
 
-    // 時間候補を生成（JST）
-    const now = getNowJst();
-    const options = generateTimeOptions(now);
+    // 日時入力待ちへ
+    await setPendingCommand(user.id, 'awaiting_schedule_time');
 
-    const quickReplies = options.map(opt => ({
-      type: 'action',
-      action: { type: 'message', label: opt.label, text: `予約:${opt.iso}` },
-    }));
-
-    return await replyWithQuickReply(
-      replyToken,
-      '⏰ いつ投稿しますか？',
-      quickReplies
-    );
+    return await replyText(replyToken, SCHEDULE_INPUT_MESSAGE);
   } catch (err) {
     console.error('[Stock] 予約投稿プロンプトエラー:', err);
     return await replyText(replyToken, '❌ エラーが発生しました。');
   }
 }
 
-/**
- * 時間候補を生成（今日/明日の定番時間帯）
- */
-function generateTimeOptions(nowJst) {
-  const options = [];
-  const todayBase = new Date(Date.UTC(
-    nowJst.getUTCFullYear(), nowJst.getUTCMonth(), nowJst.getUTCDate()
-  ));
+// ==================== 日時パーサー ====================
 
-  // 今日の候補: 12:00, 18:00, 21:00（まだ過ぎていない時間のみ）
-  const todayHours = [12, 18, 21];
-  for (const h of todayHours) {
-    const candidate = new Date(todayBase.getTime() + h * 60 * 60 * 1000);
-    // JSTで候補を作ったが、ISO変換時はUTCに戻す（JST = UTC+9）
-    const utcTime = new Date(candidate.getTime() - 9 * 60 * 60 * 1000);
-    if (utcTime.getTime() > Date.now() + 10 * 60 * 1000) { // 10分後以降
-      options.push({
-        label: `今日${h}:00`,
-        iso: utcTime.toISOString(),
-      });
+/**
+ * 自由記述の日時テキストをUTC Dateオブジェクトに変換
+ * 対応フォーマット:
+ *   - "3/15 18:00" / "3/15 18時"
+ *   - "2026/3/15 18:00"
+ *   - "3月15日 18:00" / "3月15日 18時"
+ *   - "明日 18:00" / "明後日 12:00"
+ * @param {string} input - ユーザー入力テキスト
+ * @returns {Date|null} UTC Date or null（パース失敗時）
+ */
+export function parseJapaneseDateTime(input) {
+  const cleaned = input.trim()
+    .replace(/　/g, ' ')  // 全角スペース→半角
+    .replace(/：/g, ':')  // 全角コロン→半角
+    .replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)); // 全角数字→半角
+
+  const nowJst = getNowJst();
+  const todayYear = nowJst.getUTCFullYear();
+  const todayMonth = nowJst.getUTCMonth(); // 0-indexed
+  const todayDate = nowJst.getUTCDate();
+
+  let year, month, day, hour, minute = 0;
+
+  // パターン1: "明日 18:00" / "明後日 12:00" / "明日 18時"
+  const relMatch = cleaned.match(/^(明日|明後日)\s*(\d{1,2})[:時](\d{2})?/);
+  if (relMatch) {
+    const daysAhead = relMatch[1] === '明日' ? 1 : 2;
+    const base = new Date(Date.UTC(todayYear, todayMonth, todayDate + daysAhead));
+    year = base.getUTCFullYear();
+    month = base.getUTCMonth();
+    day = base.getUTCDate();
+    hour = parseInt(relMatch[2], 10);
+    minute = relMatch[3] ? parseInt(relMatch[3], 10) : 0;
+  }
+
+  // パターン2: "2026/3/15 18:00" / "2026/3/15 18時"
+  if (hour == null) {
+    const fullMatch = cleaned.match(/^(\d{4})[/\-](\d{1,2})[/\-](\d{1,2})\s+(\d{1,2})[:時](\d{2})?/);
+    if (fullMatch) {
+      year = parseInt(fullMatch[1], 10);
+      month = parseInt(fullMatch[2], 10) - 1;
+      day = parseInt(fullMatch[3], 10);
+      hour = parseInt(fullMatch[4], 10);
+      minute = fullMatch[5] ? parseInt(fullMatch[5], 10) : 0;
     }
   }
 
-  // 明日の候補: 12:00, 18:00
-  const tomorrowBase = new Date(todayBase.getTime() + 24 * 60 * 60 * 1000);
-  const tomorrowHours = [12, 18];
-  for (const h of tomorrowHours) {
-    const candidate = new Date(tomorrowBase.getTime() + h * 60 * 60 * 1000);
-    const utcTime = new Date(candidate.getTime() - 9 * 60 * 60 * 1000);
-    options.push({
-      label: `明日${h}:00`,
-      iso: utcTime.toISOString(),
-    });
+  // パターン3: "3/15 18:00" / "3/15 18時"
+  if (hour == null) {
+    const shortMatch = cleaned.match(/^(\d{1,2})[/\-](\d{1,2})\s+(\d{1,2})[:時](\d{2})?/);
+    if (shortMatch) {
+      month = parseInt(shortMatch[1], 10) - 1;
+      day = parseInt(shortMatch[2], 10);
+      hour = parseInt(shortMatch[3], 10);
+      minute = shortMatch[4] ? parseInt(shortMatch[4], 10) : 0;
+      // 年を推定（過去の日付なら来年）
+      year = todayYear;
+      const candidate = new Date(Date.UTC(year, month, day, hour - 9, minute));
+      if (candidate.getTime() < Date.now() - 24 * 60 * 60 * 1000) {
+        year = todayYear + 1;
+      }
+    }
   }
 
-  // 最低2つは表示
-  return options.slice(0, 4);
+  // パターン4: "3月15日 18:00" / "3月15日 18時"
+  if (hour == null) {
+    const jpMatch = cleaned.match(/^(\d{1,2})月(\d{1,2})日\s*(\d{1,2})[:時](\d{2})?/);
+    if (jpMatch) {
+      month = parseInt(jpMatch[1], 10) - 1;
+      day = parseInt(jpMatch[2], 10);
+      hour = parseInt(jpMatch[3], 10);
+      minute = jpMatch[4] ? parseInt(jpMatch[4], 10) : 0;
+      year = todayYear;
+      const candidate = new Date(Date.UTC(year, month, day, hour - 9, minute));
+      if (candidate.getTime() < Date.now() - 24 * 60 * 60 * 1000) {
+        year = todayYear + 1;
+      }
+    }
+  }
+
+  if (hour == null) return null;
+
+  // 時間の基本バリデーション
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+  if (month < 0 || month > 11 || day < 1 || day > 31) return null;
+
+  // JST → UTC（JST = UTC+9）
+  const utcDate = new Date(Date.UTC(year, month, day, hour - 9, minute));
+
+  // 日付が存在するかチェック（2/30等の防止）
+  if (utcDate.getUTCDate() !== new Date(Date.UTC(year, month, day)).getUTCDate()) return null;
+
+  return utcDate;
 }
 
 // ==================== 予約投稿: 確定 ====================
 
 /**
  * 予約時間を確定してスケジュール設定
+ * @param {string} timeStr - 自由記述テキスト（"3/15 18:00" 等）またはISO文字列
  */
 export async function handleScheduleConfirm(user, timeStr, replyToken) {
   try {
@@ -361,15 +489,28 @@ export async function handleScheduleConfirm(user, timeStr, replyToken) {
       return await replyText(replyToken, 'この投稿は既に削除されています。');
     }
 
-    // ISO文字列をパース
-    const scheduledAt = new Date(timeStr);
-    if (isNaN(scheduledAt.getTime())) {
-      return await replyText(replyToken, '⚠️ 日時の形式が正しくありません。ボタンから選んでください。');
+    // 自由記述テキストをパース（ISO文字列もフォールバックで対応）
+    let scheduledAt = parseJapaneseDateTime(timeStr);
+    if (!scheduledAt) {
+      // ISO文字列フォールバック（旧フォーマット互換）
+      const isoDate = new Date(timeStr);
+      if (!isNaN(isoDate.getTime())) {
+        scheduledAt = isoDate;
+      }
+    }
+
+    if (!scheduledAt) {
+      return await replyText(replyToken, `⚠️ 日時を読み取れませんでした。\n\n【書き方の例】\n・3/15 18:00\n・3/15 18時\n・明日 18:00\n・明後日 12:00\n\nもう一度入力してください。`);
     }
 
     // 過去の日時チェック
     if (scheduledAt.getTime() <= Date.now()) {
-      return await replyText(replyToken, '⚠️ 過去の時間は指定できません。');
+      return await replyText(replyToken, '⚠️ 過去の時間は指定できません。未来の日時を入力してください。');
+    }
+
+    // 30日以上先はブロック
+    if (scheduledAt.getTime() > Date.now() + 30 * 24 * 60 * 60 * 1000) {
+      return await replyText(replyToken, '⚠️ 30日以上先の予約はできません。');
     }
 
     // ステータスを scheduled に更新

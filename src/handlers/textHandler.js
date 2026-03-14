@@ -111,7 +111,7 @@ export async function handleTextMessage(user, text, replyToken) {
     '店舗一覧', '店舗切り替え', '店舗切替', '店舗削除', 'ヘルプ', 'help', '学習状況', '問い合わせ', '登録',
     'プラン', 'アップグレード', '今週の計画', '投稿ネタ', '投稿ネタ教えて', 'ネタ', 'コマンド一覧', 'コマンド',
     'モード切替', 'モード切り替え', 'AI投稿モード', 'そのまま投稿モード', 'direct投稿実行', 'direct複数枚投稿',
-    'ストック', 'ストック保存', 'ストック投稿', 'ストック予約', 'ストック削除'].includes(trimmed)
+    'ストック', 'ストック保存', 'ストック投稿', 'ストック予約', 'ストック削除', '予約投稿'].includes(trimmed)
     || trimmed.startsWith('切替:') || trimmed.startsWith('ストック:') || trimmed.startsWith('予約:') || trimmed.startsWith('/');
 
   // カルーセルモード中のテキスト処理（通常のpending_image_contextより先に判定）
@@ -158,6 +158,11 @@ export async function handleTextMessage(user, text, replyToken) {
     }
     if (cmd === 'style_learning') {
       return await handleStyleLearning(user, trimmed, replyToken);
+    }
+    if (cmd === 'awaiting_schedule_time') {
+      // 予約投稿の日時入力待ち
+      const { handleScheduleConfirm } = await import('./stockHandler.js');
+      return await handleScheduleConfirm(user, trimmed, replyToken);
     }
     if (cmd === 'awaiting_post_selection') {
       // インサイトスクショ後の投稿選択
@@ -449,7 +454,9 @@ ${contactEmail}
   // キャンセル（データリセット・店舗削除・入力待ち・カルーセル共通）
   if (trimmed === 'キャンセル' || trimmed === 'cancel') {
     if (user.pending_command) await clearPendingCommand(user.id);
-    if (user.pending_image_context?.carousel_mode) await clearPendingImageContext(user.id);
+    if (user.pending_image_context?.carousel_mode || user.pending_image_context?.stock_mode) {
+      await clearPendingImageContext(user.id);
+    }
     return await replyText(replyToken, 'キャンセルしました！');
   }
 
@@ -483,6 +490,12 @@ ${contactEmail}
   if (trimmed === '複数枚投稿') {
     const { handleCarouselStart } = await import('./instagramHandler.js');
     return await handleCarouselStart(user, replyToken);
+  }
+
+  // 予約投稿（A/B/C選択後のクイックリプライから）
+  if (trimmed === '予約投稿') {
+    const { handleDirectSchedulePrompt } = await import('./stockHandler.js');
+    return await handleDirectSchedulePrompt(user, replyToken);
   }
 
   // ==================== 投稿ストック ====================

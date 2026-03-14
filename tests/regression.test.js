@@ -3239,15 +3239,16 @@ describe('Scenario 51: 予約投稿', async () => {
     );
     assert.ok(content.includes("isFeatureEnabled"), 'isFeatureEnabled呼び出し');
     assert.ok(content.includes("'scheduledPost'"), 'scheduledPostフラグチェック');
-    assert.ok(content.includes('ライトプラン以上'), 'プラン制限メッセージ');
+    assert.ok(content.includes('スタンダードプラン以上'), 'プラン制限メッセージ');
   });
 
-  it('stockHandler に時間候補生成ロジックがある', () => {
+  it('stockHandler に日時パーサーがある', () => {
     const content = fs.readFileSync(
       new URL('../src/handlers/stockHandler.js', import.meta.url), 'utf-8'
     );
-    assert.ok(content.includes('generateTimeOptions'), '時間候補生成関数');
-    assert.ok(content.includes('今日'), '今日の候補');
-    assert.ok(content.includes('明日'), '明日の候補');
+    assert.ok(content.includes('parseJapaneseDateTime'), '日時パーサー関数');
+    assert.ok(content.includes('明日'), '明日対応');
+    assert.ok(content.includes('明後日'), '明後日対応');
+    assert.ok(content.includes('SCHEDULE_INPUT_MESSAGE'), '入力案内メッセージ');
   });
 });

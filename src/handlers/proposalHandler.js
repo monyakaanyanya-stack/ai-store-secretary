@@ -63,6 +63,7 @@ export async function handleProposalSelection(user, store, latestPost, input, re
       quickReplies.unshift(
         { type: 'action', action: { type: 'message', label: '📸 Instagram投稿', text: 'instagram投稿' } },
         { type: 'action', action: { type: 'message', label: '📸 複数枚投稿', text: '複数枚投稿' } },
+        { type: 'action', action: { type: 'message', label: '⏰ 予約投稿', text: '予約投稿' } },
       );
     }
 
