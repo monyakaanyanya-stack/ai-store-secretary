@@ -202,7 +202,6 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
     }
 
     const totalElapsed = ((Date.now() - startMs) / 1000).toFixed(1);
-    console.log(`[Image] 分析+生成完了: store=${store.name} (${totalElapsed}s), 表示案=${pickedLabel || '全文'}`);
 
     // ── Push通知で1案ドン表示（内部3案からA案を抽出） ──
     const genLimit = await checkGenerationLimit(userId);
@@ -223,6 +222,8 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
       || rawContent;
     const isOneProposal = !!pickedProposal;
     const pickedLabel = pickedProposal ? randomPick : null;
+
+    console.log(`[Image] 分析+生成完了: store=${store.name} (${totalElapsed}s), 表示案=${pickedLabel || '全文'}`);
 
     // 投稿文とPhoto Adviceを分離（投稿文だけ外枠で囲む）
     const adviceSplit = displayContent.match(/^([\s\S]*?)(\n\n━{5,}[\s\S]*━{5,})$/);
