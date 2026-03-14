@@ -13,6 +13,7 @@ import { isDevTestStore } from './adminHandler.js';
 import { buildBodyPrompt, buildSupplementPrompt, buildStrategicAdvice } from '../utils/promptBuilder.js';
 import { getGlobalPromptRules } from '../services/promptTuningService.js';
 import { getRevisionExample } from '../utils/categoryExamples.js';
+import { getInstagramAccount } from '../services/instagramService.js';
 
 
 /**
@@ -86,10 +87,34 @@ export function parseCharmViewpoints(imageDescription) {
 }
 
 /**
+ * Instagram連携済みの場合にIG系ボタンを追加したクイックリプライを構築
+ */
+async function buildQuickReplyItems(storeId, hasImageUrl) {
+  const baseItems = [
+    { type: 'action', action: { type: 'message', label: '✅ これで決定', text: 'これで決定' } },
+    { type: 'action', action: { type: 'message', label: '🔄 別案', text: '別案' } },
+    { type: 'action', action: { type: 'message', label: '📝 学習', text: '学習:' } },
+  ];
+
+  const igAccount = await getInstagramAccount(storeId).catch(() => null);
+  if (igAccount && hasImageUrl) {
+    // Instagram系ボタンを先頭に追加
+    baseItems.unshift(
+      { type: 'action', action: { type: 'message', label: '📸 Instagram投稿', text: 'instagram投稿' } },
+      { type: 'action', action: { type: 'message', label: '📸 複数枚投稿', text: '複数枚投稿' } },
+      { type: 'action', action: { type: 'message', label: '⏰ 予約投稿', text: '予約投稿' } },
+      { type: 'action', action: { type: 'message', label: '💾 ストック', text: 'ストック保存' } },
+    );
+  }
+
+  return baseItems;
+}
+
+/**
  * 本文生成後にfire-and-forgetで実行: Photo Advice を生成してDB更新
  * ※ハッシュタグは本文と一緒に生成済み
  */
-async function generateSupplements(postId, bodyText, store, blendedInsights, imageDescription, userId, lineUserId, isPremium) {
+async function generateSupplements(postId, bodyText, store, blendedInsights, imageDescription, userId, lineUserId, isPremium, hasImageUrl = false) {
   try {
     const prompt = buildSupplementPrompt(bodyText, store, blendedInsights, imageDescription, { isPremium });
     const supplementRaw = await askClaude(prompt, { max_tokens: 512 });
@@ -100,16 +125,11 @@ async function generateSupplements(postId, bodyText, store, blendedInsights, ima
       await updatePostContent(postId, bodyText + '\n\n' + advicePart);
 
       // Photo AdviceをLINEにPush通知（本文とは別メッセージ・クイックリプライ付き）
+      const qrItems = await buildQuickReplyItems(store.id, hasImageUrl);
       await pushMessage(lineUserId, [{
         type: 'text',
         text: `━━━━━━━━━━━\n${advicePart}`,
-        quickReply: {
-          items: [
-            { type: 'action', action: { type: 'message', label: '✅ これで決定', text: 'これで決定' } },
-            { type: 'action', action: { type: 'message', label: '🔄 別案', text: '別案' } },
-            { type: 'action', action: { type: 'message', label: '📝 学習', text: '学習:' } },
-          ],
-        },
+        quickReply: { items: qrItems },
       }]);
     }
     console.log(`[Image] Supplement生成完了: postId=${postId}`);
@@ -160,20 +180,16 @@ export async function regenerateBody(user, store, ctx, lineUserId) {
     const hasLearning = (ctx.personalization || '') !== '';
     const learningNote = hasLearning ? '\n🧠 これまでの学習を反映しています' : '';
 
+    const hasImageUrl = !!(ctx.imageUrl || savedPost.image_url);
+    const regenQrItems = await buildQuickReplyItems(store.id, hasImageUrl);
     await pushMessage(lineUserId, [{
       type: 'text',
       text: `別の案です！${learningNote}\n━━━━━━━━━━━\n${bodyText}\n━━━━━━━━━━━\n\n📝「学習: ${revisionExample}」で修正＋今後にも反映`,
-      quickReply: {
-        items: [
-          { type: 'action', action: { type: 'message', label: '✅ これで決定', text: 'これで決定' } },
-          { type: 'action', action: { type: 'message', label: '🔄 別案', text: '別案' } },
-          { type: 'action', action: { type: 'message', label: '📝 学習', text: '学習:' } },
-        ],
-      },
+      quickReply: { items: regenQrItems },
     }]);
 
     // fire-and-forget: Supplement生成
-    generateSupplements(savedPost.id, bodyText, store, ctx.blendedInsights, ctx.imageDescription, user.id, lineUserId, isPremium)
+    generateSupplements(savedPost.id, bodyText, store, ctx.blendedInsights, ctx.imageDescription, user.id, lineUserId, isPremium, hasImageUrl)
       .catch(e => console.error('[Image] 再生成Supplement エラー:', e.message));
 
   } catch (err) {
@@ -352,20 +368,15 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
     const remaining = Number.isFinite(genLimit.limit) ? genLimit.limit - (genLimit.used + 1) : null;
     const remainingNote = remaining !== null && remaining <= 3 ? `\n📊 今月の残り: ${remaining}回` : '';
 
+    const initialQrItems = await buildQuickReplyItems(store.id, !!imageUrl);
     await pushMessage(lineUserId, [{
       type: 'text',
       text: `投稿ができました！👇${learningNote}\n━━━━━━━━━━━\n${bodyText}\n━━━━━━━━━━━\n\n📝「学習: ${revisionExample}」で修正＋今後にも反映${remainingNote}`,
-      quickReply: {
-        items: [
-          { type: 'action', action: { type: 'message', label: '✅ これで決定', text: 'これで決定' } },
-          { type: 'action', action: { type: 'message', label: '🔄 別案', text: '別案' } },
-          { type: 'action', action: { type: 'message', label: '📝 学習', text: '学習:' } },
-        ],
-      },
+      quickReply: { items: initialQrItems },
     }]);
 
     // ── Step 2: ハッシュタグ + Photo Advice（fire-and-forget） ──
-    generateSupplements(savedPost.id, bodyText, store, blendedInsights, cleanDescription, userId, lineUserId, isPremium)
+    generateSupplements(savedPost.id, bodyText, store, blendedInsights, cleanDescription, userId, lineUserId, isPremium, !!imageUrl)
       .catch(e => console.error('[Image] Supplement生成エラー:', e.message));
 
     // 戦略アドバイス（投稿タイミング等）をTipsとして送信
