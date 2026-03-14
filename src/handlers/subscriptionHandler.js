@@ -65,8 +65,13 @@ export async function handleUpgradePrompt(user, replyToken) {
         const features = [
           `月間${p.monthlyGenerations === Infinity ? '無制限' : p.monthlyGenerations + '回'}生成`,
           `${p.maxStores === Infinity ? '無制限' : p.maxStores + '店舗'}登録`,
-          p.features.collectiveIntelligence ? '集合知データ ✅' : '',
-          p.features.seasonalMemory         ? '季節記憶 ✅'     : '',
+          p.features.instagramPost          ? 'Instagram投稿 ✅' : '',
+          p.features.dailyPhotoNudge        ? '撮影提案ナッジ ✅' : '',
+          p.features.seasonalMemory         ? '季節記憶 ✅'       : '',
+          p.features.advancedPersonalization ? '人格学習 ✅'       : '',
+          p.features.engagementPrescription  ? 'エンゲージメント分析 ✅' : '',
+          p.features.weeklyContentPlan       ? '週間コンテンツ計画 ✅'   : '',
+          p.features.enhancedPhotoAdvice     ? '強化版撮影アドバイス ✅' : '',
         ].filter(Boolean).join('\n  ');
 
         // Stripe Payment Link は Stripe ダッシュボードで作成後に .env に追加

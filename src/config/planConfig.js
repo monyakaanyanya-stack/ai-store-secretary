@@ -42,6 +42,28 @@ export const PLANS = {
     stripePriceId: null,
   },
 
+  light: {
+    name: 'ライトプラン',
+    monthlyGenerations: 10,
+    maxStores: 1,
+    features: {
+      collectiveIntelligence: true,
+      seasonalMemory: false,
+      advancedPersonalization: false,
+      proposalABC: true,
+      engagementHealthCheck: true,
+      engagementPrescription: false,
+      engagementAutoLearn: false,
+      instagramPost: true,
+      weeklyContentPlan: false,
+      enhancedPhotoAdvice: false,
+      dailyPhotoNudge: true,
+      dataCollection: true,
+    },
+    price: 500,
+    stripePriceId: process.env.STRIPE_LIGHT_PRICE_ID || null,
+  },
+
   standard: {
     name: 'スタンダードプラン',
     monthlyGenerations: 60,
