@@ -704,6 +704,7 @@ ${buildCategoryRules(store.category)}
 - ⚠️ 「想起の一言」を独立した行で書かない。五感要素は本文の中に自然に含めること
 `}
 
+${personalization ? `\n⚠️ 最終チェック: 上部の【ライティング傾向】【文体ルール】を必ず反映してから出力すること。特に語尾・口癖・避ける表現は厳守。\n` : ''}
 ${buildOutputFormat(hint, hashtagInstruction, postLength)}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1063,6 +1064,7 @@ ${templateInfo}${characterSection}${collectiveIntelligenceSection}${industryPatt
 【今回伝えたい内容】
 ${userText}
 
+${personalization ? `⚠️ 最終チェック: 上部の【ライティング傾向】【文体ルール】を必ず反映してから出力すること。特に語尾・口癖・避ける表現は厳守。\n` : ''}
 【出力構成（厳守）】
 上記の内容をもとにInstagram投稿文を3案作成してください。
 余計な挨拶や解説は不要です。以下の形式のみで出力してください。

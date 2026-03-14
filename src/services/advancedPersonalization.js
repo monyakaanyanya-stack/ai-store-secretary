@@ -536,7 +536,7 @@ function _buildPromptParts(profileData) {
 
   // ★ ライティング指示集（写真に合うものだけ自然に反映）
   if (profileData.persona_definition) {
-    parts.push(`\n━━━━━━━━━━━━━━━━━━━━━━━━\n【この店主のライティング傾向 Ver.${profileData.persona_version || 1}】\n${profileData.persona_definition}\n※ 上記は店主のフィードバックから学んだ傾向。写真や文脈に合う項目だけ自然に取り入れること。全部を毎回入れる必要はない。\n━━━━━━━━━━━━━━━━━━━━━━━━`);
+    parts.push(`\n━━━━━━━━━━━━━━━━━━━━━━━━\n【この店主のライティング傾向 Ver.${profileData.persona_version || 1}】★必ず守ること\n${profileData.persona_definition}\n※ 上記は店主が自分の投稿を何度も修正して確立したルール。毎回すべての項目を反映すること。\n━━━━━━━━━━━━━━━━━━━━━━━━`);
   }
 
   // 語尾・口癖
@@ -552,20 +552,20 @@ function _buildPromptParts(profileData) {
     styleParts.push('・改行を多めに使って縦に展開する');
   }
   if (styleParts.length > 0) {
-    parts.push(`【文体ルール】\n${styleParts.join('\n')}`);
+    parts.push(`【文体ルール】★絶対厳守\n${styleParts.join('\n')}\n※ 語尾・口癖は店主のアイデンティティ。必ず毎回使うこと。`);
   }
 
   // 避ける表現
   const avoided = profileData.avoided_words || [];
   if (avoided.length > 0) {
-    parts.push(`・避ける表現: ${avoided.join(', ')}`);
+    parts.push(`・避ける表現（使用禁止）: ${avoided.join(', ')}`);
   }
 
   // ライティング指示集がまだ生成されていない場合、belief_logsをそのまま表示
   if (!profileData.persona_definition) {
     const beliefLogs = profileData.belief_logs || [];
     if (beliefLogs.length > 0) {
-      parts.push(`【この店主のライティング傾向】\n${beliefLogs.map(b => `・${b.text}`).join('\n')}\n※ 上記は店主の修正から学んだ傾向。写真や文脈に合うものだけ自然に反映すること。`);
+      parts.push(`【この店主のライティング傾向】★必ず守ること\n${beliefLogs.map(b => `・${b.text}`).join('\n')}\n※ 上記は店主が自分の投稿を修正して確立したルール。毎回すべて反映すること。`);
     }
   }
 
