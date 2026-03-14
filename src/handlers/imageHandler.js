@@ -99,8 +99,18 @@ async function generateSupplements(postId, bodyText, store, blendedInsights, ima
     if (advicePart) {
       await updatePostContent(postId, bodyText + '\n\n' + advicePart);
 
-      // Photo AdviceをLINEにPush通知（本文とは別メッセージ）
-      await pushMessage(lineUserId, [{ type: 'text', text: `━━━━━━━━━━━\n${advicePart}` }]);
+      // Photo AdviceをLINEにPush通知（本文とは別メッセージ・クイックリプライ付き）
+      await pushMessage(lineUserId, [{
+        type: 'text',
+        text: `━━━━━━━━━━━\n${advicePart}`,
+        quickReply: {
+          items: [
+            { type: 'action', action: { type: 'message', label: '✅ これで決定', text: 'これで決定' } },
+            { type: 'action', action: { type: 'message', label: '🔄 別案', text: '別案' } },
+            { type: 'action', action: { type: 'message', label: '📝 学習', text: '学習:' } },
+          ],
+        },
+      }]);
     }
     console.log(`[Image] Supplement生成完了: postId=${postId}`);
   } catch (err) {
