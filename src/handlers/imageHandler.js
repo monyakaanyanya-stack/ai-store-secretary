@@ -224,13 +224,22 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
     const isOneProposal = !!pickedProposal;
     const pickedLabel = pickedProposal ? randomPick : null;
 
+    // 投稿文とPhoto Adviceを分離（投稿文だけ外枠で囲む）
+    const adviceSplit = displayContent.match(/^([\s\S]*?)(\n\n━{5,}[\s\S]*━{5,})$/);
+    const postText = adviceSplit ? adviceSplit[1].trim() : displayContent;
+    // 非Premiumユーザーは💡次の被写体提案と🎯明日撮るべきものを除外
+    const rawPhotoAdvice = adviceSplit ? adviceSplit[2] : '';
+    const photoAdvice = isPremium
+      ? rawPhotoAdvice
+      : rawPhotoAdvice.replace(/\n💡 次はこんなのも[\s\S]*?(?=\n━|$)/, '').replace(/\n🎯 明日撮るべきもの[\s\S]*?(?=\n━|$)/, '');
+
     const formattedReply = isOneProposal
       ? `まずはおすすめの案です！${learningNote}
 ━━━━━━━━━━━
-${displayContent}
+${postText}
 ━━━━━━━━━━━
 
-このまま投稿できます。「直し: ${revisionExample}」で微調整も◎${remainingNote}`
+このまま投稿できます。「直し: ${revisionExample}」で微調整も◎${remainingNote}${photoAdvice}`
       : `3つの投稿案ができました！どの案が理想に近いですか？👇${learningNote}
 ━━━━━━━━━━━
 ${rawContent}

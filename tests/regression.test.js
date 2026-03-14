@@ -3634,4 +3634,40 @@ describe('Scenario 57: 1案ドン表示（Phase 1）', () => {
     );
     assert.ok(content.includes('|| rawContent'), '案抽出失敗時のフォールバックがある');
   });
+
+  it('投稿文とPhoto Adviceが分離表示される（━━━デリミタ衝突回避）', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('adviceSplit'), 'Photo Advice分離ロジックがある');
+    assert.ok(content.includes('postText'), '投稿文テキスト変数がある');
+    assert.ok(content.includes('photoAdvice'), 'Photo Advice変数がある');
+  });
+
+  it('💡次の被写体提案は非PremiumユーザーにはPhoto Adviceから除外される', async () => {
+    const fs = await import('node:fs');
+    const imgContent = fs.readFileSync(
+      new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
+    );
+    const propContent = fs.readFileSync(
+      new URL('../src/handlers/proposalHandler.js', import.meta.url), 'utf-8'
+    );
+    // imageHandler: 非Premiumで💡除外
+    assert.ok(imgContent.includes('isPremium') && imgContent.includes('次はこんなのも'),
+      'imageHandler.js に💡Premium制限がある');
+    // proposalHandler: 非Premiumで💡除外
+    assert.ok(propContent.includes('isPremium') && propContent.includes('次はこんなのも'),
+      'proposalHandler.js に💡Premium制限がある');
+  });
+
+  it('promptBuilder.js の💡次の被写体提案がPremium条件に含まれている', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/utils/promptBuilder.js', import.meta.url), 'utf-8'
+    );
+    // 💡セクションがisPremiumブロック内にあることを確認
+    const premiumBlock = content.match(/options\.isPremium \? \(\(\) => \{[\s\S]*?💡 次はこんなのも/);
+    assert.ok(premiumBlock, '💡次の被写体提案がisPremiumブロック内にある');
+  });
 });

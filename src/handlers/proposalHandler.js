@@ -7,6 +7,7 @@ import { updatePostContent, supabase } from '../services/supabaseService.js';
 import { appendTemplateFooter } from '../utils/promptBuilder.js';
 import { addSimpleBelief } from '../services/advancedPersonalization.js';
 import { getInstagramAccount } from '../services/instagramService.js';
+import { isFeatureEnabled } from '../services/subscriptionService.js';
 
 // スタイル名マッピング（Ver.17.0）
 const STYLE_MAP = { A: '時間の肖像', B: '誠実の肖像', C: '光の肖像' };
@@ -273,7 +274,12 @@ export async function handleShowAlternatives(user, store, latestPost, replyToken
     // Photo Advice を抽出（どの案からでもOK、全案共通）
     const firstProposal = proposalA || proposalB || proposalC;
     const adviceMatch = firstProposal ? firstProposal.match(/\n\n(━{5,}[\s\S]*━{5,})/) : null;
-    const photoAdvice = adviceMatch ? '\n\n' + adviceMatch[1] : '';
+    let photoAdvice = adviceMatch ? '\n\n' + adviceMatch[1] : '';
+    // 非Premiumユーザーは💡次の被写体提案と🎯明日撮るべきものを除外
+    const isPremium = await isFeatureEnabled(user.id, 'enhancedPhotoAdvice');
+    if (!isPremium && photoAdvice) {
+      photoAdvice = photoAdvice.replace(/\n💡 次はこんなのも[\s\S]*?(?=\n━|$)/, '').replace(/\n🎯 明日撮るべきもの[\s\S]*?(?=\n━|$)/, '');
+    }
 
     const parts = [];
     if (proposalA) parts.push(`[ 案A ]\n${stripAdvice(proposalA)}`);

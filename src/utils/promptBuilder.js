@@ -833,17 +833,16 @@ ${hashtagInstruction ? '上記のハッシュタグルールに従うこと。' 
 ━━━━━━━━━━━━━━━━━━━━━━━━
 📸 この写真の別の撮り方
 同じ被写体を、別のアングル・光・構図・タイミングで撮る方法を1つ。合計2行以内。
-${(() => {
+${options.isPremium ? (() => {
   const subjectHints = buildNextSubjectHints(category);
-  return subjectHints ? `
+  const nextSubject = subjectHints ? `
 💡 次はこんなのも撮ってみない？
 今日の写真とは違う被写体を、以下から1つ選んで提案する（1文）。
 候補:
 ${subjectHints}
 なぜ反応が取れそうかを添えて。今日の写真と同じものは選ばない。` : '';
-})()}${options.isPremium ? (() => {
   const tomorrowHints = buildNextSubjectHints(category);
-  return `
+  const tomorrow = `
 🎯 明日撮るべきもの
 今日の写真の延長線上で、別の切り口を1つ提案する。
 最優先: 同じ被写体の「別の瞬間・別のアングル・別の組み合わせ」
@@ -854,6 +853,7 @@ ${tomorrowHints}` : ''}
 - 「何を」「いつ」「どう撮るか」「なぜ」を1セットで具体的に書く
 - 合計2行以内
 - 抽象的な提案は禁止。具体物・時間帯・状態を必ず含める`;
+  return nextSubject + tomorrow;
 })() : ''}
 ━━━━━━━━━━━━━━━━━━━━━━━━
 
