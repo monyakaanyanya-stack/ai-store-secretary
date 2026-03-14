@@ -8,6 +8,7 @@ import { sendWeeklyPlansToAllPremium } from './weeklyPlanService.js';
 import { sendDailyPhotoNudges } from './dailyNudgeService.js';
 import { runNightlyEngagementSync } from './nightlyEngagementService.js';
 import { processScheduledPosts } from '../handlers/stockHandler.js';
+import { analyzeGlobalFeedbackPatterns } from './promptTuningService.js';
 
 // H18修正: cron ジョブの重複実行防止ロック
 const jobLocks = new Map();
@@ -106,6 +107,13 @@ export function startScheduler() {
     timezone: 'UTC'
   });
 
+  // PDCA自動チューニング: JST 22:00 日曜 = UTC 13:00 日曜
+  cron.schedule('0 13 * * 0', () => {
+    runWithLock('PDCA自動チューニング', analyzeGlobalFeedbackPatterns);
+  }, {
+    timezone: 'UTC'
+  });
+
   console.log('[Scheduler] スケジューラー起動完了');
   console.log('  - デイリーリマインダー: 毎日 UTC 1:00 (JST 10:00)');
   console.log('  - デイリー撮影ナッジ: 毎日 UTC 8:00 (JST 17:00)');
@@ -113,5 +121,6 @@ export function startScheduler() {
   console.log('  - カテゴリー昇格チェック: 毎週月曜 UTC 0:00 (JST 9:00)');
   console.log('  - 夜間エンゲージメント同期: 毎日 UTC 17:00 (JST 2:00)');
   console.log('  - 週間コンテンツ計画: 毎週月曜 UTC 0:30 (JST 9:30)');
+  console.log('  - PDCA自動チューニング: 毎週日曜 UTC 13:00 (JST 22:00)');
   console.log('  - 予約投稿チェック: 5分ごと');
 }

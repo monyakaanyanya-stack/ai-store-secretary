@@ -36,6 +36,7 @@ import {
   classifyIntent,
 } from '../services/conversationService.js';
 import { buildStoreParsePrompt, buildTextPostPrompt, POST_LENGTH_MAP, appendTemplateFooter } from '../utils/promptBuilder.js';
+import { getGlobalPromptRules } from '../services/promptTuningService.js';
 import { normalizeInput } from '../utils/inputNormalizer.js';
 import { normalizeCategory } from '../config/categoryDictionary.js';
 import { getBlendedInsights, saveEngagementMetrics } from '../services/collectiveIntelligence.js';
@@ -1230,7 +1231,8 @@ async function handleTextPostGenerationWithLength(user, text, replyToken, length
     const seasonalMemory = canSeasonal ? await getSeasonalMemoryPromptAddition(store.id) : '';
     const personalization = basicPersonalization + advancedPersonalization + seasonalMemory;
 
-    const prompt = buildTextPostPrompt(store, text, lengthOverride, blendedInsights, personalization);
+    const globalRules = await getGlobalPromptRules();
+    const prompt = buildTextPostPrompt(store, text, lengthOverride, blendedInsights, personalization, { globalRules });
     const rawContent = await askClaude(prompt);
 
     // テンプレートの住所・営業時間などを末尾に固定追記（AIにアレンジさせない）

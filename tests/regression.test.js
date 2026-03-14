@@ -3273,3 +3273,104 @@ describe('Scenario 52: ストック一括削除', async () => {
     assert.ok(content.includes("'ストック一括削除'"), 'isSystemCommandにストック一括削除');
   });
 });
+
+// ═══════════════════════════════════════════════════════════════
+// Scenario 53: PDCA自動チューニング + プロンプト品質改善
+// ═══════════════════════════════════════════════════════════════
+describe('Scenario 53: PDCA自動チューニング + プロンプト品質改善', () => {
+
+  it('promptTuningService が存在し、analyzeGlobalFeedbackPatterns と getGlobalPromptRules をexportする', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/promptTuningService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('export async function analyzeGlobalFeedbackPatterns'), 'analyzeGlobalFeedbackPatternsがexportされている');
+    assert.ok(content.includes('export async function getGlobalPromptRules'), 'getGlobalPromptRulesがexportされている');
+    assert.ok(content.includes('global_prompt_rules'), 'global_prompt_rulesテーブルを参照');
+    assert.ok(content.includes('CACHE_TTL_MS'), 'キャッシュ機構がある');
+  });
+
+  it('promptTuningService がbelief_logsの共通パターン分析ロジックを持つ', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/promptTuningService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('learning_profiles'), 'learning_profilesテーブルを参照');
+    assert.ok(content.includes('belief_logs'), 'belief_logsを処理');
+    assert.ok(content.includes('askClaude'), 'Claude APIで分析');
+    assert.ok(content.includes('.slice(0, 5)'), '最大5件制限');
+  });
+
+  it('scheduler.js にPDCA自動チューニングのcronジョブがある', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/scheduler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('analyzeGlobalFeedbackPatterns'), 'analyzeGlobalFeedbackPatternsがインポートされている');
+    assert.ok(content.includes('PDCA自動チューニング'), 'PDCA自動チューニングジョブが登録されている');
+    assert.ok(content.includes("'0 13 * * 0'"), '毎週日曜 UTC 13:00 (JST 22:00) のcron式');
+  });
+
+  it('imageHandler がglobalRulesを取得してpromptBuilderに渡す', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('getGlobalPromptRules'), 'getGlobalPromptRulesがインポートされている');
+    assert.ok(content.includes('globalRules'), 'globalRulesを取得してoptionsに渡している');
+  });
+
+  it('textHandler がglobalRulesを取得してpromptBuilderに渡す', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/textHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('getGlobalPromptRules'), 'getGlobalPromptRulesがインポートされている');
+    assert.ok(content.includes('globalRules'), 'globalRulesを取得してoptionsに渡している');
+  });
+
+  it('promptBuilder が options.globalRules をプロンプトに注入する', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/utils/promptBuilder.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('options.globalRules'), 'options.globalRulesを参照');
+    assert.ok(content.includes('globalRulesSection'), 'globalRulesSectionとしてプロンプトに注入');
+  });
+
+  it('プロンプトに事実誤認防止ルールがある', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/utils/promptBuilder.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('人数・人の行動・持ち物は写真に写っている範囲のみ記述する'), '人数事実誤認防止ルール');
+    assert.ok(content.includes('カフェだから二人'), '具体的なNG例');
+  });
+
+  it('プロンプトに「一番強い掛け合わせ」指示がある', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/utils/promptBuilder.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('一番強い掛け合わせ'), '掛け合わせ指示がある');
+    assert.ok(content.includes('バラバラに列挙しない'), 'バラバラ禁止');
+  });
+
+  it('撮影提案に「何を」「いつ」「どう撮るか」「なぜ」の4要素が求められている', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/utils/promptBuilder.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('「何を」「いつ」「どう撮るか」「なぜ」を1セット'), '4要素セット指示');
+  });
+
+  it('migration_global_prompt_rules.sql が存在する', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../database/migration_global_prompt_rules.sql', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('CREATE TABLE IF NOT EXISTS global_prompt_rules'), 'テーブル作成SQL');
+    assert.ok(content.includes('rules JSONB'), 'rules列がJSONB');
+    assert.ok(content.includes('analyzed_store_count'), '分析店舗数カラム');
+  });
+});

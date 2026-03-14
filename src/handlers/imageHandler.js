@@ -11,6 +11,7 @@ import { detectContentCategory } from '../utils/contentCategoryDetector.js';
 import { checkGenerationLimit, isFeatureEnabled } from '../services/subscriptionService.js';
 import { isDevTestStore } from './adminHandler.js';
 import { buildImagePostPrompt, buildStrategicAdvice } from '../utils/promptBuilder.js';
+import { getGlobalPromptRules } from '../services/promptTuningService.js';
 import { getRevisionExample } from '../utils/categoryExamples.js';
 
 
@@ -164,6 +165,9 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
       ? { ...store, category: effectiveCategory }
       : store;
 
+    // PDCA自動チューニング: グローバルルールを取得
+    const globalRules = await getGlobalPromptRules();
+
     // Detection（観察視点）を内部処理としてプロンプトに渡す
     const prompt = buildImagePostPrompt(
       storeForPrompt,
@@ -171,7 +175,7 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
       blendedInsights ?? null,
       personalization,
       cleanDescription,
-      { isPremium, detections: viewpoints },
+      { isPremium, detections: viewpoints, globalRules },
     );
 
     const rawContent = await askClaude(prompt);
