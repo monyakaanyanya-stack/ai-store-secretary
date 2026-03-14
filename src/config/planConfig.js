@@ -1,73 +1,54 @@
 /**
- * サブスクリプションプラン定義
+ * サブスクリプションプラン定義（3プラン構造）
  *
  * 有効化手順: SUBSCRIPTION_HOWTO.md を参照
  * ※ このファイルは変更不要。Stripe Price ID は .env で管理。
  *
+ * プラン設計:
+ *   Free     - プレミアム体験（全機能5回）→ 全機能ON
+ *   Standard - SNSを続ける（¥2,980/月・60回）
+ *   Premium  - SNS運用を任せる（¥5,980/月・200回）
+ *
  * 機能フラグ説明:
  *   collectiveIntelligence    - 集合知データ（同業種ベスト参照）→ 全プラン
- *   seasonalMemory            - 季節記憶（前年同月投稿参照）
- *   advancedPersonalization   - 高度なパーソナライゼーション（人格学習）
+ *   seasonalMemory            - 季節記憶（前年同月投稿参照）→ 全プラン
+ *   advancedPersonalization   - 高度なパーソナライゼーション（人格学習）→ 全プラン
  *   proposalABC               - A/B/C 案選択 → 全プラン
  *   engagementHealthCheck     - 健康診断（数字だけ見れる）→ 全プラン
- *   engagementPrescription    - 処方箋（因果分析・業界比較・勝ちパターン）
- *   engagementAutoLearn       - エンゲージメント→プロンプト自動反映
- *   instagramPost             - Instagram投稿（API経由）→ Standard以上
+ *   engagementPrescription    - 処方箋（因果分析・業界比較・勝ちパターン）→ 全プラン
+ *   engagementAutoLearn       - エンゲージメント→プロンプト自動反映 → 全プラン
+ *   instagramPost             - Instagram投稿（API経由）→ 全プラン
  *   weeklyContentPlan         - 週間コンテンツ計画（月曜自動送信）→ Premium
  *   enhancedPhotoAdvice       - 強化版撮影アドバイス（明日撮るべきもの+理由）→ Premium
  *   dailyPhotoNudge            - 毎日17時の撮影提案ナッジ → Standard以上
  *   postStock                 - 投稿ストック（下書き保存）→ 全プラン
- *   scheduledPost             - 予約投稿（日時指定で自動投稿）→ Light以上
+ *   scheduledPost             - 予約投稿（日時指定で自動投稿）→ 全プラン
  *   dataCollection            - エンゲージメントデータ裏収集（集合知貢献）→ 全プラン
  */
 
 export const PLANS = {
   free: {
     name: 'フリープラン',
-    monthlyGenerations: 10,
+    monthlyGenerations: 5,
     maxStores: 1,
     features: {
       collectiveIntelligence: true,
-      seasonalMemory: false,
-      advancedPersonalization: false,
+      seasonalMemory: true,
+      advancedPersonalization: true,
       proposalABC: true,
       engagementHealthCheck: true,
-      engagementPrescription: false,
-      engagementAutoLearn: false,
-      instagramPost: false,
+      engagementPrescription: true,
+      engagementAutoLearn: true,
+      instagramPost: true,
       weeklyContentPlan: false,
       enhancedPhotoAdvice: false,
       dailyPhotoNudge: false,
       postStock: true,
-      scheduledPost: false,
+      scheduledPost: true,
       dataCollection: true,
     },
     price: 0,
     stripePriceId: null,
-  },
-
-  light: {
-    name: 'ライトプラン',
-    monthlyGenerations: 10,
-    maxStores: 1,
-    features: {
-      collectiveIntelligence: true,
-      seasonalMemory: false,
-      advancedPersonalization: false,
-      proposalABC: true,
-      engagementHealthCheck: true,
-      engagementPrescription: false,
-      engagementAutoLearn: false,
-      instagramPost: true,
-      weeklyContentPlan: false,
-      enhancedPhotoAdvice: false,
-      dailyPhotoNudge: true,
-      postStock: true,
-      scheduledPost: true,
-      dataCollection: true,
-    },
-    price: 500,
-    stripePriceId: process.env.STRIPE_LIGHT_PRICE_ID || null,
   },
 
   standard: {

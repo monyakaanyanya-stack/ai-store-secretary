@@ -127,13 +127,8 @@ export async function handleTextMessage(user, text, replyToken) {
     if (handled) return;
   }
 
-  if (user.pending_image_context && !isSystemCommand) {
-    const handled = await handlePendingImageResponse(user, trimmed, replyToken);
-    if (handled) return;
-  }
-
-  // 「直し」「学習」ボタン後の入力待ち状態の処理
-  // ボタンを押した後の次のメッセージをそれぞれのコマンドとして処理
+  // pending_command を pending_image_context より先に処理
+  // （stock_mode中のpending_image_contextが予約日時入力を横取りしないため）
   if (user.pending_command && !isSystemCommand) {
     const cmd = user.pending_command;
     await clearPendingCommand(user.id);
@@ -187,6 +182,12 @@ export async function handleTextMessage(user, text, replyToken) {
       }
       return await applyEngagementMetrics(user, store, ctx.insightsData, selectedPost, replyToken);
     }
+  }
+
+  // 画像「一言ヒント」待ち状態の処理（pending_commandより後に判定）
+  if (user.pending_image_context && !isSystemCommand) {
+    const handled = await handlePendingImageResponse(user, trimmed, replyToken);
+    if (handled) return;
   }
 
   // 重要なコマンドはオンボーディング中でも優先処理

@@ -1542,84 +1542,45 @@ describe('Scenario 31: 画像「一言ヒント」機能', async () => {
 describe('Scenario 32: プラン制限・機能ゲーティング', async () => {
   const { PLANS, getPlanConfig, PAID_PLANS } = await import('../src/config/planConfig.js');
 
-  // --- プラン定義の整合性 ---
-  it('4つのプランが定義されている（free/light/standard/premium）', () => {
+  // --- プラン定義の整合性（3プラン構造） ---
+  it('3つのプランが定義されている（free/standard/premium）', () => {
     assert.ok(PLANS.free, 'free プランが存在する');
-    assert.ok(PLANS.light, 'light プランが存在する');
     assert.ok(PLANS.standard, 'standard プランが存在する');
     assert.ok(PLANS.premium, 'premium プランが存在する');
-    assert.equal(Object.keys(PLANS).length, 4, 'プランは4つ');
+    assert.equal(Object.keys(PLANS).length, 3, 'プランは3つ');
   });
 
-  it('月間生成回数: free=10, light=10, standard=60, premium=200', () => {
-    assert.equal(PLANS.free.monthlyGenerations, 10);
-    assert.equal(PLANS.light.monthlyGenerations, 10);
+  it('月間生成回数: free=5, standard=60, premium=200', () => {
+    assert.equal(PLANS.free.monthlyGenerations, 5);
     assert.equal(PLANS.standard.monthlyGenerations, 60);
     assert.equal(PLANS.premium.monthlyGenerations, 200);
   });
 
-  it('店舗数上限: free=1, light=1, standard=1, premium=5', () => {
+  it('店舗数上限: free=1, standard=1, premium=5', () => {
     assert.equal(PLANS.free.maxStores, 1);
-    assert.equal(PLANS.light.maxStores, 1);
     assert.equal(PLANS.standard.maxStores, 1);
     assert.equal(PLANS.premium.maxStores, 5);
   });
 
-  // --- 全プラン共通機能 ---
-  it('集合知エンジンは全プランで有効', () => {
+  // --- Free はプレミアム体験（全機能ON） ---
+  it('Free はプレミアム体験（主要機能が全てON）', () => {
     assert.equal(PLANS.free.features.collectiveIntelligence, true);
-    assert.equal(PLANS.light.features.collectiveIntelligence, true);
-    assert.equal(PLANS.standard.features.collectiveIntelligence, true);
-    assert.equal(PLANS.premium.features.collectiveIntelligence, true);
-  });
-
-  it('3案提案は全プランで有効', () => {
+    assert.equal(PLANS.free.features.seasonalMemory, true);
+    assert.equal(PLANS.free.features.advancedPersonalization, true);
     assert.equal(PLANS.free.features.proposalABC, true);
-    assert.equal(PLANS.light.features.proposalABC, true);
-    assert.equal(PLANS.standard.features.proposalABC, true);
-    assert.equal(PLANS.premium.features.proposalABC, true);
-  });
-
-  it('報告（数値）は全プランで有効', () => {
     assert.equal(PLANS.free.features.engagementHealthCheck, true);
-    assert.equal(PLANS.light.features.engagementHealthCheck, true);
-    assert.equal(PLANS.standard.features.engagementHealthCheck, true);
-    assert.equal(PLANS.premium.features.engagementHealthCheck, true);
-  });
-
-  it('データ収集（裏）は全プランで有効', () => {
+    assert.equal(PLANS.free.features.engagementPrescription, true);
+    assert.equal(PLANS.free.features.engagementAutoLearn, true);
+    assert.equal(PLANS.free.features.instagramPost, true);
+    assert.equal(PLANS.free.features.postStock, true);
+    assert.equal(PLANS.free.features.scheduledPost, true);
     assert.equal(PLANS.free.features.dataCollection, true);
-    assert.equal(PLANS.light.features.dataCollection, true);
-    assert.equal(PLANS.standard.features.dataCollection, true);
-    assert.equal(PLANS.premium.features.dataCollection, true);
   });
 
-  // --- Free で制限される機能 ---
-  it('Free では分析・自動学習・季節記憶・人格学習・Instagram投稿が無効', () => {
-    assert.equal(PLANS.free.features.engagementPrescription, false, '分析はFreeで無効');
-    assert.equal(PLANS.free.features.engagementAutoLearn, false, '自動学習はFreeで無効');
-    assert.equal(PLANS.free.features.seasonalMemory, false, '季節記憶はFreeで無効');
-    assert.equal(PLANS.free.features.advancedPersonalization, false, '人格学習はFreeで無効');
-    assert.equal(PLANS.free.features.instagramPost, false, 'Instagram投稿はFreeで無効');
-  });
-
-  // --- Light プラン ---
-  it('Light はInstagram投稿・撮影ナッジが有効、高度機能は無効', () => {
-    assert.equal(PLANS.light.features.instagramPost, true, 'Light: Instagram投稿 有効');
-    assert.equal(PLANS.light.features.dailyPhotoNudge, true, 'Light: 撮影ナッジ 有効');
-    assert.equal(PLANS.light.features.seasonalMemory, false, 'Light: 季節記憶 無効');
-    assert.equal(PLANS.light.features.advancedPersonalization, false, 'Light: 人格学習 無効');
-    assert.equal(PLANS.light.features.engagementPrescription, false, 'Light: 分析 無効');
-    assert.equal(PLANS.light.features.engagementAutoLearn, false, 'Light: 自動学習 無効');
-    assert.equal(PLANS.light.features.weeklyContentPlan, false, 'Light: 週間計画 無効');
-    assert.equal(PLANS.light.features.enhancedPhotoAdvice, false, 'Light: 強化版アドバイス 無効');
-  });
-
-  it('Light プラン: 価格¥500, 生成10回, 1店舗', () => {
-    assert.equal(PLANS.light.price, 500);
-    assert.equal(PLANS.light.monthlyGenerations, 10);
-    assert.equal(PLANS.light.maxStores, 1);
-    assert.equal(PLANS.light.name, 'ライトプラン');
+  it('Free では週間計画・強化版アドバイス・撮影ナッジは無効', () => {
+    assert.equal(PLANS.free.features.weeklyContentPlan, false);
+    assert.equal(PLANS.free.features.enhancedPhotoAdvice, false);
+    assert.equal(PLANS.free.features.dailyPhotoNudge, false);
   });
 
   // --- Standard で有効になる機能 ---
@@ -1630,11 +1591,10 @@ describe('Scenario 32: プラン制限・機能ゲーティング', async () => 
     assert.equal(PLANS.standard.features.advancedPersonalization, true);
   });
 
-  it('Light以上でInstagram投稿が有効', () => {
-    assert.equal(PLANS.light.features.instagramPost, true);
+  it('全プランでInstagram投稿が有効', () => {
+    assert.equal(PLANS.free.features.instagramPost, true);
     assert.equal(PLANS.standard.features.instagramPost, true);
     assert.equal(PLANS.premium.features.instagramPost, true);
-    assert.equal(PLANS.free.features.instagramPost, false);
   });
 
   // --- Premium 限定機能 ---
@@ -1651,7 +1611,7 @@ describe('Scenario 32: プラン制限・機能ゲーティング', async () => 
   it('不明なプラン名は free にフォールバック', () => {
     const config = getPlanConfig('unknown');
     assert.equal(config.name, 'フリープラン');
-    assert.equal(config.monthlyGenerations, 10);
+    assert.equal(config.monthlyGenerations, 5);
   });
 
   it('null/undefined は free にフォールバック', () => {
@@ -1663,15 +1623,13 @@ describe('Scenario 32: プラン制限・機能ゲーティング', async () => 
   it('PAID_PLANS に free が含まれない', () => {
     const keys = PAID_PLANS.map(p => p.key);
     assert.ok(!keys.includes('free'), 'free は有料プランに含まれない');
-    assert.ok(keys.includes('light'), 'light が含まれる');
     assert.ok(keys.includes('standard'), 'standard が含まれる');
     assert.ok(keys.includes('premium'), 'premium が含まれる');
   });
 
   // --- 価格 ---
-  it('価格: free=0, light=500, standard=2980, premium=5980', () => {
+  it('価格: free=0, standard=2980, premium=5980', () => {
     assert.equal(PLANS.free.price, 0);
-    assert.equal(PLANS.light.price, 500);
     assert.equal(PLANS.standard.price, 2980);
     assert.equal(PLANS.premium.price, 5980);
   });
@@ -1844,7 +1802,7 @@ describe('Scenario 35: サブスクリプション planConfig', async () => {
   });
 
   it('各プランに正しい月間生成数が設定されている', () => {
-    assert.equal(PLANS.free.monthlyGenerations, 10, 'free: 10回');
+    assert.equal(PLANS.free.monthlyGenerations, 5, 'free: 5回');
     assert.equal(PLANS.standard.monthlyGenerations, 60, 'standard: 60回');
     assert.equal(PLANS.premium.monthlyGenerations, 200, 'premium: 200回');
   });
@@ -1855,10 +1813,10 @@ describe('Scenario 35: サブスクリプション planConfig', async () => {
     assert.equal(PLANS.premium.maxStores, 5, 'premium: 5店舗');
   });
 
-  it('free プランでは処方箋・自動学習・人格学習が無効', () => {
-    assert.equal(PLANS.free.features.engagementPrescription, false, '処方箋は無効');
-    assert.equal(PLANS.free.features.engagementAutoLearn, false, '自動学習は無効');
-    assert.equal(PLANS.free.features.advancedPersonalization, false, '人格学習は無効');
+  it('free プランはプレミアム体験（処方箋・自動学習・人格学習が有効）', () => {
+    assert.equal(PLANS.free.features.engagementPrescription, true, '処方箋は有効');
+    assert.equal(PLANS.free.features.engagementAutoLearn, true, '自動学習は有効');
+    assert.equal(PLANS.free.features.advancedPersonalization, true, '人格学習は有効');
   });
 
   it('standard プランでは処方箋・自動学習・人格学習が有効', () => {
@@ -1896,7 +1854,7 @@ describe('Scenario 35: サブスクリプション planConfig', async () => {
   it('PAID_PLANS に free が含まれない', () => {
     const freeInPaid = PAID_PLANS.find(p => p.key === 'free');
     assert.equal(freeInPaid, undefined, 'free は有料プラン一覧に含まれない');
-    assert.equal(PAID_PLANS.length, 3, '有料プランは3つ（light/standard/premium）');
+    assert.equal(PAID_PLANS.length, 2, '有料プランは2つ（standard/premium）');
   });
 });
 
@@ -3197,10 +3155,9 @@ describe('Scenario 51: 予約投稿', async () => {
     assert.ok(content.includes('scheduledPost'), 'scheduledPostフラグ');
   });
 
-  it('scheduledPost はFree=false, Light+=true', async () => {
+  it('scheduledPost は全プラン=true', async () => {
     const { PLANS } = await import('../src/config/planConfig.js');
-    assert.strictEqual(PLANS.free.features.scheduledPost, false, 'Free: scheduledPost=false');
-    assert.strictEqual(PLANS.light.features.scheduledPost, true, 'Light: scheduledPost=true');
+    assert.strictEqual(PLANS.free.features.scheduledPost, true, 'Free: scheduledPost=true');
     assert.strictEqual(PLANS.standard.features.scheduledPost, true, 'Standard: scheduledPost=true');
     assert.strictEqual(PLANS.premium.features.scheduledPost, true, 'Premium: scheduledPost=true');
   });
@@ -3208,7 +3165,6 @@ describe('Scenario 51: 予約投稿', async () => {
   it('postStock は全プラン=true', async () => {
     const { PLANS } = await import('../src/config/planConfig.js');
     assert.strictEqual(PLANS.free.features.postStock, true, 'Free: postStock=true');
-    assert.strictEqual(PLANS.light.features.postStock, true, 'Light: postStock=true');
     assert.strictEqual(PLANS.standard.features.postStock, true, 'Standard: postStock=true');
     assert.strictEqual(PLANS.premium.features.postStock, true, 'Premium: postStock=true');
   });

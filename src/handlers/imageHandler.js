@@ -1,6 +1,6 @@
 import { replyText, replyWithQuickReply, getImageAsBase64, pushMessage } from '../services/lineService.js';
 import { describeImage, askClaude } from '../services/claudeService.js';
-import { getStore, savePendingImageContext, clearPendingImageContext, uploadImageToStorage, setPendingCommand, savePostHistory } from '../services/supabaseService.js';
+import { getStore, savePendingImageContext, clearPendingImageContext, uploadImageToStorage, setPendingCommand, clearPendingCommand, savePostHistory } from '../services/supabaseService.js';
 import { getBlendedInsights, saveEngagementMetrics } from '../services/collectiveIntelligence.js';
 import { getPersonalizationPromptAddition } from '../services/personalizationEngine.js';
 import { getAdvancedPersonalizationPrompt, autoRegeneratePersonaIfNeeded } from '../services/advancedPersonalization.js';
@@ -269,6 +269,11 @@ export async function handleImageMessage(user, messageId, replyToken) {
     return await replyText(replyToken,
       'まだ店舗が登録されていないみたいです。「登録」で始められます！'
     );
+  }
+
+  // 予約投稿やストック操作中の pending_command をクリア（新しい画像フローを優先）
+  if (user.pending_command) {
+    await clearPendingCommand(user.id);
   }
 
   try {
