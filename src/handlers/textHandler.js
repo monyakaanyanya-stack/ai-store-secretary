@@ -110,7 +110,7 @@ export async function handleTextMessage(user, text, replyToken) {
   const isSystemCommand = ['キャンセル', 'cancel', 'リセット', 'データリセット',
     '店舗一覧', '店舗切り替え', '店舗切替', '店舗削除', 'ヘルプ', 'help', '学習状況', '問い合わせ', '登録',
     'プラン', 'アップグレード', '今週の計画', '投稿ネタ', '投稿ネタ教えて', 'ネタ', 'コマンド一覧', 'コマンド',
-    'モード切替', 'モード切り替え', 'AI投稿モード', 'そのまま投稿モード', 'direct投稿実行', 'direct複数枚投稿',
+    'モード切替', 'モード切り替え', 'AI投稿モード', 'そのまま投稿モード', 'そのまま投稿', 'direct投稿実行', 'direct複数枚投稿',
     'ストック', 'ストック保存', 'ストック投稿', 'ストック予約', 'ストック削除', 'ストック一括削除', '予約投稿'].includes(trimmed)
     || trimmed.startsWith('切替:') || trimmed.startsWith('ストック:') || trimmed.startsWith('予約:') || trimmed.startsWith('/');
 
@@ -562,6 +562,16 @@ ${contactEmail}
   // モード切替（AI投稿 ↔ そのまま投稿）
   if (trimmed === 'モード切替' || trimmed === 'モード切り替え') {
     return await handlePostModeSwitch(user, replyToken);
+  }
+  // 「そのまま投稿」単体で聞かれたら説明+切替ボタン
+  if (trimmed === 'そのまま投稿') {
+    return await replyWithQuickReply(
+      replyToken,
+      '📷 そのまま投稿モードとは？\n\nAIを使わず、写真＋自分で書いたテキストをそのままInstagramに投稿できるモードです。\n\n使い方:\n1.「モード切替」→「📷 そのまま投稿」を選択\n2. 写真を送る\n3. テキストを入力 → そのまま投稿\n\n※ Standard プラン以上 + Instagram連携が必要です',
+      [
+        { type: 'action', action: { type: 'message', label: '🔄 モード切替', text: 'モード切替' } },
+      ]
+    );
   }
   if (trimmed === 'AI投稿モード') {
     return await handlePostModeSet(user, 'ai', replyToken);

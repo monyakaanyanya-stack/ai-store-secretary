@@ -1029,10 +1029,10 @@ describe('Scenario 28: Ver.4.0 Dual Trigger Model', async () => {
     const store = { name: 'テスト店', tone: 'フレンドリー', config: {} };
     const prompt = buildImagePostPrompt(store, null, null, '', 'テスト画像');
 
-    assert.ok(prompt.includes('[ 案A：記憶に残る日常 ]'),
-      'Output format should include [ 案A：記憶に残る日常 ]');
-    assert.ok(prompt.includes('[ 案B：さりげない誘い ]'),
-      'Output format should include [ 案B：さりげない誘い ]');
+    assert.ok(prompt.includes('[ 案A：視覚で伝える ]'),
+      'Output format should include [ 案A：視覚で伝える ]');
+    assert.ok(prompt.includes('[ 案B：ストーリーを添える ]'),
+      'Output format should include [ 案B：ストーリーを添える ]');
     assert.ok(prompt.includes('[ 案C：店主のひとりごと ]'),
       'Output format should include [ 案C：店主のひとりごと ]');
     assert.ok(prompt.includes('3案作成'),
