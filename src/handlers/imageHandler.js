@@ -90,24 +90,26 @@ export function parseCharmViewpoints(imageDescription) {
  * Instagram連携済みの場合にIG系ボタンを追加したクイックリプライを構築
  */
 async function buildQuickReplyItems(storeId, hasImageUrl) {
-  const baseItems = [
-    { type: 'action', action: { type: 'message', label: '✅ これで決定', text: 'これで決定' } },
-    { type: 'action', action: { type: 'message', label: '🔄 別案', text: '別案' } },
-    { type: 'action', action: { type: 'message', label: '📝 学習', text: '学習:' } },
-  ];
-
   const igAccount = await getInstagramAccount(storeId).catch(() => null);
+
   if (igAccount && hasImageUrl) {
-    // Instagram系ボタンを先頭に追加
-    baseItems.unshift(
+    // IG連携済み: 投稿系ボタン + 別案 + 学習（「これで決定」は不要）
+    return [
       { type: 'action', action: { type: 'message', label: '📸 Instagram投稿', text: 'instagram投稿' } },
       { type: 'action', action: { type: 'message', label: '📸 複数枚投稿', text: '複数枚投稿' } },
       { type: 'action', action: { type: 'message', label: '⏰ 予約投稿', text: '予約投稿' } },
       { type: 'action', action: { type: 'message', label: '💾 ストック', text: 'ストック保存' } },
-    );
+      { type: 'action', action: { type: 'message', label: '🔄 別案', text: '別案' } },
+      { type: 'action', action: { type: 'message', label: '📝 学習', text: '学習:' } },
+    ];
   }
 
-  return baseItems;
+  // IG未連携: コピー + 別案 + 学習
+  return [
+    { type: 'action', action: { type: 'message', label: '📋 コピーして使う', text: 'コピー' } },
+    { type: 'action', action: { type: 'message', label: '🔄 別案', text: '別案' } },
+    { type: 'action', action: { type: 'message', label: '📝 学習', text: '学習:' } },
+  ];
 }
 
 /**
