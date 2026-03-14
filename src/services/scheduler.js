@@ -7,6 +7,7 @@ import { detectPopularOtherCategories } from './collectiveIntelligence.js';
 import { sendWeeklyPlansToAllPremium } from './weeklyPlanService.js';
 import { sendDailyPhotoNudges } from './dailyNudgeService.js';
 import { runNightlyEngagementSync } from './nightlyEngagementService.js';
+import { processScheduledPosts } from '../handlers/stockHandler.js';
 
 // H18修正: cron ジョブの重複実行防止ロック
 const jobLocks = new Map();
@@ -98,6 +99,13 @@ export function startScheduler() {
     timezone: 'UTC'
   });
 
+  // 予約投稿チェック: 10分ごと
+  cron.schedule('*/10 * * * *', () => {
+    runWithLock('予約投稿チェック', processScheduledPosts);
+  }, {
+    timezone: 'UTC'
+  });
+
   console.log('[Scheduler] スケジューラー起動完了');
   console.log('  - デイリーリマインダー: 毎日 UTC 1:00 (JST 10:00)');
   console.log('  - デイリー撮影ナッジ: 毎日 UTC 8:00 (JST 17:00)');
@@ -105,4 +113,5 @@ export function startScheduler() {
   console.log('  - カテゴリー昇格チェック: 毎週月曜 UTC 0:00 (JST 9:00)');
   console.log('  - 夜間エンゲージメント同期: 毎日 UTC 17:00 (JST 2:00)');
   console.log('  - 週間コンテンツ計画: 毎週月曜 UTC 0:30 (JST 9:30)');
+  console.log('  - 予約投稿チェック: 10分ごと');
 }

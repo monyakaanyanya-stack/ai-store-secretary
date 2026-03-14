@@ -49,8 +49,9 @@ export async function handleProposalSelection(user, store, latestPost, input, re
 
     console.log(`[Proposal] 案${selection}（${styleName}）を選択: store=${store.name}`);
 
-    // 5. クイックリプライ構成（直し・学習 + Instagram投稿ボタン）
+    // 5. クイックリプライ構成（直し・学習 + ストック + Instagram投稿ボタン）
     const quickReplies = [
+      { type: 'action', action: { type: 'message', label: '💾 ストック', text: 'ストック保存' } },
       { type: 'action', action: { type: 'message', label: '✏️ 直し', text: '直し:' } },
       { type: 'action', action: { type: 'message', label: '📝 学習', text: '学習:' } },
     ];

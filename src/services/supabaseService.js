@@ -211,12 +211,112 @@ export async function getLatestPost(storeId) {
     .from('post_history')
     .select('*')
     .eq('store_id', storeId)
+    .in('post_status', ['active', 'posted'])
     .order('created_at', { ascending: false })
     .limit(1)
     .single();
 
   if (error) return null;
   return data;
+}
+
+// ==================== 投稿ストック ====================
+
+/**
+ * 投稿のpost_statusを更新
+ * @param {string} postId
+ * @param {string} status - 'active' | 'draft' | 'scheduled' | 'posted'
+ * @param {string|null} scheduledAt - ISO 8601 timestamp（'scheduled'の場合のみ）
+ */
+export async function updatePostStatus(postId, status, scheduledAt = null) {
+  const updateData = { post_status: status };
+  if (scheduledAt) updateData.scheduled_at = scheduledAt;
+  if (status !== 'scheduled') updateData.scheduled_at = null;
+
+  const { data, error } = await supabase
+    .from('post_history')
+    .update(updateData)
+    .eq('id', postId)
+    .select()
+    .single();
+
+  if (error) throw new Error(`投稿ステータス更新失敗: ${error.message}`);
+  return data;
+}
+
+/**
+ * 店舗のストック一覧を取得（draft + scheduled）
+ * @param {string} storeId
+ * @param {number} limit - 最大件数（デフォルト10）
+ */
+export async function getStockPosts(storeId, limit = 10) {
+  const { data, error } = await supabase
+    .from('post_history')
+    .select('*')
+    .eq('store_id', storeId)
+    .in('post_status', ['draft', 'scheduled'])
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) return [];
+  return data || [];
+}
+
+/**
+ * ストック投稿を1件取得
+ */
+export async function getStockPostById(postId) {
+  const { data, error } = await supabase
+    .from('post_history')
+    .select('*')
+    .eq('id', postId)
+    .in('post_status', ['draft', 'scheduled'])
+    .single();
+
+  if (error) return null;
+  return data;
+}
+
+/**
+ * ストック投稿を削除
+ */
+export async function deleteStockPost(postId) {
+  const { error } = await supabase
+    .from('post_history')
+    .delete()
+    .eq('id', postId)
+    .in('post_status', ['draft', 'scheduled']);
+
+  if (error) throw new Error(`ストック削除失敗: ${error.message}`);
+}
+
+/**
+ * 予約投稿の期限が来たものを取得
+ */
+export async function getDueScheduledPosts() {
+  const { data, error } = await supabase
+    .from('post_history')
+    .select('*')
+    .eq('post_status', 'scheduled')
+    .lte('scheduled_at', new Date().toISOString())
+    .order('scheduled_at', { ascending: true });
+
+  if (error) return [];
+  return data || [];
+}
+
+/**
+ * 店舗のストック件数を取得
+ */
+export async function getStockCount(storeId) {
+  const { count, error } = await supabase
+    .from('post_history')
+    .select('id', { count: 'exact', head: true })
+    .eq('store_id', storeId)
+    .in('post_status', ['draft', 'scheduled']);
+
+  if (error) return 0;
+  return count || 0;
 }
 
 // ==================== 学習データ ====================

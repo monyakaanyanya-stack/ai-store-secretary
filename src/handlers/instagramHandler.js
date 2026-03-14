@@ -1,5 +1,5 @@
 import { replyText, replyWithQuickReply } from '../services/lineService.js';
-import { getStore, getLatestPost } from '../services/supabaseService.js';
+import { getStore, getLatestPost, updatePostStatus } from '../services/supabaseService.js';
 import {
   connectInstagramAccount,
   getInstagramConnectionStatus,
@@ -202,6 +202,11 @@ async function handleInstagramPublish(user, replyToken) {
     const caption = latestPost.content.split(/\n━{3,}/)[0].trim();
 
     const result = await publishToInstagram(store.id, latestPost.image_url, caption);
+
+    // 投稿済みステータスに更新
+    await updatePostStatus(latestPost.id, 'posted').catch(err => {
+      console.warn('[Instagram] post_status更新失敗（続行）:', err.message);
+    });
 
     await replyText(replyToken, `✅ Instagramに投稿しました！\n\n📱 投稿ID: ${result.id}\n\nInstagramアプリで確認してみてください。`);
   } catch (err) {

@@ -110,8 +110,9 @@ export async function handleTextMessage(user, text, replyToken) {
   const isSystemCommand = ['キャンセル', 'cancel', 'リセット', 'データリセット',
     '店舗一覧', '店舗切り替え', '店舗切替', '店舗削除', 'ヘルプ', 'help', '学習状況', '問い合わせ', '登録',
     'プラン', 'アップグレード', '今週の計画', '投稿ネタ', '投稿ネタ教えて', 'ネタ', 'コマンド一覧', 'コマンド',
-    'モード切替', 'モード切り替え', 'AI投稿モード', 'そのまま投稿モード', 'direct投稿実行', 'direct複数枚投稿'].includes(trimmed)
-    || trimmed.startsWith('切替:') || trimmed.startsWith('/');
+    'モード切替', 'モード切り替え', 'AI投稿モード', 'そのまま投稿モード', 'direct投稿実行', 'direct複数枚投稿',
+    'ストック', 'ストック保存', 'ストック投稿', 'ストック予約', 'ストック削除'].includes(trimmed)
+    || trimmed.startsWith('切替:') || trimmed.startsWith('ストック:') || trimmed.startsWith('予約:') || trimmed.startsWith('/');
 
   // カルーセルモード中のテキスト処理（通常のpending_image_contextより先に判定）
   if (user.pending_image_context?.carousel_mode && !isSystemCommand) {
@@ -482,6 +483,55 @@ ${contactEmail}
   if (trimmed === '複数枚投稿') {
     const { handleCarouselStart } = await import('./instagramHandler.js');
     return await handleCarouselStart(user, replyToken);
+  }
+
+  // ==================== 投稿ストック ====================
+
+  // ストック保存（A/B/C選択後のクイックリプライから）
+  if (trimmed === 'ストック保存') {
+    const { handleStockSave } = await import('./stockHandler.js');
+    return await handleStockSave(user, replyToken);
+  }
+
+  // ストック一覧
+  if (trimmed === 'ストック') {
+    const { handleStockList } = await import('./stockHandler.js');
+    return await handleStockList(user, replyToken);
+  }
+
+  // ストック番号選択（ストック:1, ストック:2, etc.）
+  if (trimmed.startsWith('ストック:')) {
+    const rest = trimmed.replace('ストック:', '');
+    const idx = parseInt(rest, 10);
+    if (!isNaN(idx)) {
+      const { handleStockAction } = await import('./stockHandler.js');
+      return await handleStockAction(user, idx, replyToken);
+    }
+  }
+
+  // ストックから即時投稿
+  if (trimmed === 'ストック投稿') {
+    const { handleStockPublish } = await import('./stockHandler.js');
+    return await handleStockPublish(user, replyToken);
+  }
+
+  // ストック予約時間選択画面
+  if (trimmed === 'ストック予約') {
+    const { handleSchedulePrompt } = await import('./stockHandler.js');
+    return await handleSchedulePrompt(user, replyToken);
+  }
+
+  // 予約時間確定（予約:ISOタイムスタンプ）
+  if (trimmed.startsWith('予約:')) {
+    const timeStr = trimmed.replace('予約:', '');
+    const { handleScheduleConfirm } = await import('./stockHandler.js');
+    return await handleScheduleConfirm(user, timeStr, replyToken);
+  }
+
+  // ストック削除
+  if (trimmed === 'ストック削除') {
+    const { handleStockDelete } = await import('./stockHandler.js');
+    return await handleStockDelete(user, replyToken);
   }
 
   // モード切替（AI投稿 ↔ そのまま投稿）

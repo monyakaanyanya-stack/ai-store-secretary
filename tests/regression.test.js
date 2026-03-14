@@ -3067,3 +3067,187 @@ describe('Scenario 49: direct_mode（そのまま投稿モード）', async () =
       'updateStorePostMode がimportされている');
   });
 });
+
+// ==================== Scenario 50: 投稿ストック ====================
+describe('Scenario 50: 投稿ストック', async () => {
+  const fs = await import('node:fs');
+
+  it('stockHandler.js が存在し必要な関数をexportしている', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/stockHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('export async function handleStockSave'), 'handleStockSave');
+    assert.ok(content.includes('export async function handleStockList'), 'handleStockList');
+    assert.ok(content.includes('export async function handleStockAction'), 'handleStockAction');
+    assert.ok(content.includes('export async function handleStockPublish'), 'handleStockPublish');
+    assert.ok(content.includes('export async function handleStockDelete'), 'handleStockDelete');
+    assert.ok(content.includes('export async function handleSchedulePrompt'), 'handleSchedulePrompt');
+    assert.ok(content.includes('export async function handleScheduleConfirm'), 'handleScheduleConfirm');
+    assert.ok(content.includes('export async function processScheduledPosts'), 'processScheduledPosts');
+  });
+
+  it('supabaseService にストック関連の関数がある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/supabaseService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('export async function updatePostStatus'), 'updatePostStatus');
+    assert.ok(content.includes('export async function getStockPosts'), 'getStockPosts');
+    assert.ok(content.includes('export async function getStockPostById'), 'getStockPostById');
+    assert.ok(content.includes('export async function deleteStockPost'), 'deleteStockPost');
+    assert.ok(content.includes('export async function getDueScheduledPosts'), 'getDueScheduledPosts');
+    assert.ok(content.includes('export async function getStockCount'), 'getStockCount');
+  });
+
+  it('getLatestPost が draft/scheduled を除外している', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/supabaseService.js', import.meta.url), 'utf-8'
+    );
+    // getLatestPost が post_status でフィルタしていることを確認
+    const latestPostMatch = content.match(/getLatestPost[\s\S]*?\.in\('post_status',\s*\['active',\s*'posted'\]\)/);
+    assert.ok(latestPostMatch, 'getLatestPost が active/posted のみ取得するフィルタがある');
+  });
+
+  it('proposalHandler に💾ストックボタンがある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/proposalHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('ストック保存'), 'ストック保存ボタンのテキスト');
+    assert.ok(content.includes('💾 ストック'), 'ストックボタンのラベル');
+  });
+
+  it('textHandler にストック関連コマンドのルーティングがある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/textHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes("'ストック保存'"), 'ストック保存ルーティング');
+    assert.ok(content.includes("'ストック'"), 'ストック一覧ルーティング');
+    assert.ok(content.includes("'ストック投稿'"), 'ストック投稿ルーティング');
+    assert.ok(content.includes("'ストック予約'"), 'ストック予約ルーティング');
+    assert.ok(content.includes("'ストック削除'"), 'ストック削除ルーティング');
+    assert.ok(content.includes("startsWith('予約:')"), '予約時間確定ルーティング');
+    assert.ok(content.includes("startsWith('ストック:')"), 'ストック番号選択ルーティング');
+  });
+
+  it('textHandler の isSystemCommand にストック関連コマンドが含まれる', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/textHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes("'ストック'") && content.includes("'ストック保存'"),
+      'ストック系コマンドが isSystemCommand に含まれる');
+    assert.ok(content.includes("startsWith('ストック:')"),
+      'ストック:N が isSystemCommand に含まれる');
+    assert.ok(content.includes("startsWith('予約:')"),
+      '予約: が isSystemCommand に含まれる');
+  });
+
+  it('stockHandler にストック上限チェック（MAX_STOCK=10）がある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/stockHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('MAX_STOCK'), 'MAX_STOCK定数');
+    assert.ok(content.includes('getStockCount'), 'ストック件数チェック');
+    assert.ok(content.includes('stockCount >= MAX_STOCK'), '上限到達チェック');
+  });
+
+  it('stockHandler に3案未選択チェックがある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/stockHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('案A'), 'ストック保存前の3案未選択チェック');
+  });
+
+  it('stockHandler の予約投稿にInstagram連携チェックがある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/stockHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('getInstagramAccount'), 'Instagram連携チェック');
+    assert.ok(content.includes('Instagram未連携'), '未連携時のエラーメッセージ');
+  });
+
+  it('stockHandler のprocessScheduledPostsが失敗時にdraftに戻す', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/stockHandler.js', import.meta.url), 'utf-8'
+    );
+    // 失敗時に draft に戻すロジック
+    assert.ok(content.includes("updatePostStatus(post.id, 'draft')"),
+      '失敗時にdraftステータスに戻す');
+    assert.ok(content.includes('notifyUser'),
+      'ユーザーへの通知');
+  });
+});
+
+// ==================== Scenario 51: 予約投稿 ====================
+describe('Scenario 51: 予約投稿', async () => {
+  const fs = await import('node:fs');
+
+  it('scheduler.js に予約投稿cronジョブがある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/scheduler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('processScheduledPosts'), 'processScheduledPostsのインポート');
+    assert.ok(content.includes('*/10 * * * *'), '10分ごとのcronスケジュール');
+    assert.ok(content.includes('予約投稿チェック'), 'ジョブ名');
+  });
+
+  it('planConfig に postStock と scheduledPost フラグがある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/config/planConfig.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('postStock'), 'postStockフラグ');
+    assert.ok(content.includes('scheduledPost'), 'scheduledPostフラグ');
+  });
+
+  it('scheduledPost はFree=false, Light+=true', async () => {
+    const { PLANS } = await import('../src/config/planConfig.js');
+    assert.strictEqual(PLANS.free.features.scheduledPost, false, 'Free: scheduledPost=false');
+    assert.strictEqual(PLANS.light.features.scheduledPost, true, 'Light: scheduledPost=true');
+    assert.strictEqual(PLANS.standard.features.scheduledPost, true, 'Standard: scheduledPost=true');
+    assert.strictEqual(PLANS.premium.features.scheduledPost, true, 'Premium: scheduledPost=true');
+  });
+
+  it('postStock は全プラン=true', async () => {
+    const { PLANS } = await import('../src/config/planConfig.js');
+    assert.strictEqual(PLANS.free.features.postStock, true, 'Free: postStock=true');
+    assert.strictEqual(PLANS.light.features.postStock, true, 'Light: postStock=true');
+    assert.strictEqual(PLANS.standard.features.postStock, true, 'Standard: postStock=true');
+    assert.strictEqual(PLANS.premium.features.postStock, true, 'Premium: postStock=true');
+  });
+
+  it('instagramHandler で投稿成功時にstatus更新がある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/instagramHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes("updatePostStatus"), 'updatePostStatus呼び出し');
+    assert.ok(content.includes("'posted'"), "posted ステータス");
+  });
+
+  it('migration_post_stock.sql が正しい構造を持つ', () => {
+    const content = fs.readFileSync(
+      new URL('../database/migration_post_stock.sql', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('post_status'), 'post_statusカラム');
+    assert.ok(content.includes('scheduled_at'), 'scheduled_atカラム');
+    assert.ok(content.includes('timestamptz'), 'timestamptz型');
+    assert.ok(content.includes("DEFAULT 'active'"), "デフォルト値 active");
+    assert.ok(content.includes('idx_post_history_scheduled'), '予約投稿インデックス');
+    assert.ok(content.includes('idx_post_history_draft'), 'ストックインデックス');
+  });
+
+  it('stockHandler の予約投稿にプランチェックがある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/stockHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes("isFeatureEnabled"), 'isFeatureEnabled呼び出し');
+    assert.ok(content.includes("'scheduledPost'"), 'scheduledPostフラグチェック');
+    assert.ok(content.includes('ライトプラン以上'), 'プラン制限メッセージ');
+  });
+
+  it('stockHandler に時間候補生成ロジックがある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/stockHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('generateTimeOptions'), '時間候補生成関数');
+    assert.ok(content.includes('今日'), '今日の候補');
+    assert.ok(content.includes('明日'), '明日の候補');
+  });
+});

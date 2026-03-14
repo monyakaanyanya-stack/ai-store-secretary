@@ -16,6 +16,8 @@
  *   weeklyContentPlan         - 週間コンテンツ計画（月曜自動送信）→ Premium
  *   enhancedPhotoAdvice       - 強化版撮影アドバイス（明日撮るべきもの+理由）→ Premium
  *   dailyPhotoNudge            - 毎日17時の撮影提案ナッジ → Standard以上
+ *   postStock                 - 投稿ストック（下書き保存）→ 全プラン
+ *   scheduledPost             - 予約投稿（日時指定で自動投稿）→ Light以上
  *   dataCollection            - エンゲージメントデータ裏収集（集合知貢献）→ 全プラン
  */
 
@@ -36,6 +38,8 @@ export const PLANS = {
       weeklyContentPlan: false,
       enhancedPhotoAdvice: false,
       dailyPhotoNudge: false,
+      postStock: true,
+      scheduledPost: false,
       dataCollection: true,
     },
     price: 0,
@@ -58,6 +62,8 @@ export const PLANS = {
       weeklyContentPlan: false,
       enhancedPhotoAdvice: false,
       dailyPhotoNudge: true,
+      postStock: true,
+      scheduledPost: true,
       dataCollection: true,
     },
     price: 500,
@@ -80,6 +86,8 @@ export const PLANS = {
       weeklyContentPlan: false,
       enhancedPhotoAdvice: false,
       dailyPhotoNudge: true,
+      postStock: true,
+      scheduledPost: true,
       dataCollection: true,
     },
     price: 2980,
@@ -102,6 +110,8 @@ export const PLANS = {
       weeklyContentPlan: true,
       enhancedPhotoAdvice: true,
       dailyPhotoNudge: true,
+      postStock: true,
+      scheduledPost: true,
       dataCollection: true,
     },
     price: 5980,
