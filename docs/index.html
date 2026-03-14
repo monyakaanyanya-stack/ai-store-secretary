@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI店舗秘書 — 写真を送るだけで投稿ネタが見つかるAI｜個人店のSNSが止まらなくなる</title>
-  <meta name="description" content="写真を送るだけで、AIが投稿ネタ・投稿文・次の撮影アイデアまで。個人店のSNSが止まらなくなる仕組みです。LINE完結・アプリ不要。">
+  <title>AI店舗秘書 — 写真を送るだけで投稿が続くAI｜個人店のSNSが止まらなくなる</title>
+  <meta name="description" content="写真を送るだけで、AIが投稿ネタを発見・投稿文を生成・次の撮影アイデアまで。個人店のSNS投稿が続く仕組みです。LINE完結・アプリ不要。">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -375,76 +375,77 @@
     .target-card p { font-size: 0.78rem; color: rgba(255,255,255,0.5); line-height: 1.7; }
 
     /* ─── Dual Loop Comparison ─── */
+    /* ─── Ring chart (loop comparison) ─── */
     .dual-loop-section { padding: 80px 40px; }
-    .dual-loop-header {
-      text-align: center; margin-bottom: 48px;
-    }
-    .dual-loop-header .data-badge {
-      display: inline-block; font-size: 0.75rem; font-weight: 600;
-      color: var(--accent); background: var(--accent-soft);
-      padding: 6px 20px; border-radius: 100px; margin-bottom: 16px;
-      border: 1px solid rgba(184,112,74,.1);
-    }
-    .dual-loop-grid {
+    .dual-loop-header { text-align: center; margin-bottom: 48px; }
+    .ring-grid {
       display: grid; grid-template-columns: 1fr auto 1fr;
-      gap: 0; max-width: 900px; margin: 0 auto; align-items: start;
+      gap: 0; max-width: 1200px; margin: 0 auto; align-items: center;
+      justify-items: center;
     }
-    .loop-panel {
-      padding: 36px 28px; border-radius: var(--radius);
-      position: relative;
-    }
-    .loop-panel-stop {
-      background: rgba(120,120,120,.04);
-      border: 1px solid rgba(120,120,120,.1);
-    }
-    .loop-panel-go {
-      background: var(--accent-soft);
-      border: 2px solid rgba(184,112,74,.2);
-      box-shadow: 0 4px 24px rgba(184,112,74,.08);
-    }
-    .loop-panel-title {
-      font-size: 1.05rem; font-weight: 700; margin-bottom: 24px;
-      text-align: center;
-    }
-    .loop-panel-stop .loop-panel-title { color: var(--gray-mid); }
-    .loop-panel-go .loop-panel-title { color: var(--accent); }
-
-    .loop-flow {
-      display: flex; flex-direction: column; align-items: center; gap: 0;
-    }
-    .loop-flow-item {
-      display: flex; align-items: center; gap: 12px;
-      padding: 12px 16px; width: 100%;
-      border-radius: var(--radius-xs);
-      transition: all var(--transition);
-    }
-    .loop-flow-item:hover { transform: translateX(4px); }
-    .loop-flow-emoji { font-size: 1.3rem; flex-shrink: 0; width: 36px; text-align: center; }
-    .loop-flow-text { font-size: 0.88rem; font-weight: 500; }
-    .loop-panel-stop .loop-flow-text { color: var(--gray-mid); }
-    .loop-panel-go .loop-flow-text { color: var(--text); }
-    .loop-flow-arrow {
-      text-align: center; font-size: 0.9rem; padding: 2px 0;
-      color: rgba(62,42,20,.2);
-    }
-    .loop-panel-go .loop-flow-arrow { color: var(--accent); }
-    .loop-flow-result {
-      margin-top: 8px; padding: 10px 16px;
-      border-radius: var(--radius-xs); text-align: center;
-      font-size: 0.85rem; font-weight: 600;
-    }
-    .loop-panel-stop .loop-flow-result {
-      background: rgba(120,120,120,.06); color: var(--gray-mid);
-    }
-    .loop-panel-go .loop-flow-result {
-      background: rgba(184,112,74,.08); color: var(--accent);
-    }
-
-    .dual-loop-divider {
+    .ring-panel {
+      padding: 12px 0; overflow: visible;
       display: flex; flex-direction: column; align-items: center;
-      justify-content: center; padding: 0 16px;
     }
-    .dual-loop-vs {
+    .ring-panel-title {
+      font-size: 1.05rem; font-weight: 700;
+      text-align: center; margin-bottom: 4px;
+    }
+    .ring-stop .ring-panel-title { color: rgba(100,90,80,0.6); }
+    .ring-go .ring-panel-title { color: var(--accent); }
+
+    .ring-chart {
+      position: relative; width: 440px; height: 440px; margin: 0 auto;
+    }
+    .ring-svg {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%); width: 260px; height: 260px;
+    }
+    .ring-step {
+      position: absolute;
+      left: calc(50% + var(--r, 170px) * sin(var(--a)));
+      top: calc(50% - var(--r, 170px) * cos(var(--a)));
+      display: flex; align-items: center; gap: 10px;
+      font-size: 0.92rem; font-weight: 600; white-space: nowrap;
+    }
+    .ring-emoji {
+      font-size: 1.3rem; width: 36px; height: 36px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 50%; flex-shrink: 0;
+    }
+    .ring-stop .ring-step { color: rgba(100,90,80,0.55); }
+    .ring-stop .ring-emoji { background: rgba(120,120,120,0.1); }
+    .ring-go .ring-step { color: var(--text); }
+    .ring-go .ring-emoji { background: rgba(184,112,74,0.1); }
+
+    /* Position-based alignment for labels around ring */
+    .ring-pos-top { transform: translate(-50%, -110%); justify-content: center; }
+    .ring-pos-right { transform: translate(10%, -50%); }
+    .ring-pos-bottom { transform: translate(-50%, 10%); justify-content: center; }
+    .ring-pos-left { transform: translate(-110%, -50%); flex-direction: row-reverse; }
+    .ring-pos-tr { transform: translate(10%, -90%); }
+    .ring-pos-br { transform: translate(10%, -10%); }
+    .ring-pos-bl { transform: translate(-110%, -10%); flex-direction: row-reverse; }
+    .ring-pos-tl { transform: translate(-110%, -90%); flex-direction: row-reverse; }
+
+    .ring-center {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center; font-size: 1.05rem; font-weight: 700;
+      padding: 14px 24px; border-radius: 100px; white-space: nowrap;
+    }
+    .ring-stop .ring-center {
+      color: rgba(100,90,80,0.6); background: rgba(120,110,100,0.08);
+    }
+    .ring-go .ring-center {
+      color: var(--accent); background: rgba(184,112,74,0.08);
+    }
+
+    .ring-divider {
+      display: flex; align-items: center; justify-content: center;
+      min-width: 140px; padding: 0;
+    }
+    .ring-vs {
       font-size: 0.8rem; font-weight: 700; color: var(--gray-mid);
       background: var(--surface-strong); border: 1px solid var(--border);
       width: 40px; height: 40px; border-radius: 50%;
@@ -482,10 +483,10 @@
     }
 
     @media (max-width: 768px) {
-      .dual-loop-grid { grid-template-columns: 1fr; gap: 24px; }
-      .dual-loop-divider {
-        flex-direction: row; padding: 0;
-      }
+      .ring-grid { grid-template-columns: 1fr; gap: 16px; }
+      .ring-divider { min-width: auto; padding: 0; }
+      .ring-chart { width: 400px; height: 400px; }
+      .ring-panel { overflow: visible; padding: 12px 0; }
       .dual-loop-section { padding: 56px 24px; }
       .recognition-section { padding: 56px 24px; }
       .funnel-step { padding: 14px 20px; }
@@ -498,8 +499,10 @@
     }
     @media (max-width: 480px) {
       .dual-loop-section { padding: 48px 16px; }
-      .loop-panel { padding: 24px 16px; }
-      .loop-flow-text { font-size: 0.82rem; }
+      .ring-chart { width: 320px; height: 320px; }
+      .ring-step { --r: 130px !important; font-size: 0.8rem; }
+      .ring-svg { width: 200px !important; height: 200px !important; }
+      .ring-emoji { width: 30px; height: 30px; font-size: 1.05rem; }
       .recognition-section { padding: 48px 16px; }
       .growth-dashboard { grid-template-columns: 1fr !important; gap: 16px !important; }
       .growth-arrow { display: none !important; }
@@ -596,7 +599,7 @@
   <section class="hero">
     <div class="container">
       <p class="hero-tagline">SNS投稿、止まっていませんか？</p>
-      <h1>写真を送るだけで<br><em class="hero-keyword">投稿ネタ</em>が見つかる。</h1>
+      <h1>写真を送るだけで<br><em class="hero-keyword">投稿が続く。</em></h1>
       <p class="hero-sub">投稿文・ハッシュタグ・次の撮影アイデアまで<br><em>30秒</em>で揃います。</p>
       <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:40px;font-weight:400;">個人店のための <em style="font-style:normal;font-weight:600;color:var(--text);">投稿ネタ発見AI</em></p>
       <a href="https://lin.ee/OWTIvhZ" class="btn btn-large">無料で試す</a>
@@ -638,70 +641,62 @@
         <h2 class="title">SNSが止まる<em>本当の理由</em></h2>
       </div>
 
-      <div class="dual-loop-grid">
-        <!-- 左: 止まるループ -->
-        <div class="loop-panel loop-panel-stop">
-          <p class="loop-panel-title">止まるループ</p>
-          <div class="loop-flow">
-            <div class="loop-flow-item">
-              <span class="loop-flow-emoji">📸</span>
-              <span class="loop-flow-text">写真を撮る</span>
-            </div>
-            <div class="loop-flow-arrow">↓</div>
-            <div class="loop-flow-item">
-              <span class="loop-flow-emoji">🤔</span>
-              <span class="loop-flow-text">何を書けばいい…？</span>
-            </div>
-            <div class="loop-flow-arrow">↓</div>
-            <div class="loop-flow-item">
-              <span class="loop-flow-emoji">⏰</span>
-              <span class="loop-flow-text">後でやろう</span>
-            </div>
-            <div class="loop-flow-arrow">↓</div>
-            <div class="loop-flow-item">
-              <span class="loop-flow-emoji">📅</span>
-              <span class="loop-flow-text">結局、投稿しない</span>
-            </div>
-            <div class="loop-flow-arrow">↓</div>
-            <div class="loop-flow-result">😓 SNS停止</div>
+      <div class="ring-grid">
+        <!-- 左: 止まるループ (切れたリング) -->
+        <div class="ring-panel ring-stop">
+          <p class="ring-panel-title">止まるループ</p>
+          <div class="ring-chart">
+            <svg viewBox="0 0 200 200" class="ring-svg" aria-hidden="true">
+              <!-- 薄いゴースト円（本来つながるはずだった部分） -->
+              <circle cx="100" cy="100" r="80" fill="none" stroke="rgba(120,120,120,0.08)" stroke-width="14"/>
+              <!-- 切れたリング（75%表示、上左に隙間） -->
+              <circle cx="100" cy="100" r="80" fill="none" stroke="rgba(120,110,100,0.22)" stroke-width="14"
+                      stroke-dasharray="377 126" stroke-linecap="round"
+                      transform="rotate(-90 100 100)"/>
+              <!-- ステップドット -->
+              <circle cx="100" cy="20" r="8" fill="rgba(120,110,100,0.35)"/>
+              <circle cx="180" cy="100" r="8" fill="rgba(120,110,100,0.35)"/>
+              <circle cx="100" cy="180" r="8" fill="rgba(120,110,100,0.35)"/>
+              <circle cx="20" cy="100" r="8" fill="rgba(120,110,100,0.35)"/>
+              <!-- 切断マーク（✕） -->
+              <g transform="translate(43, 43)">
+                <line x1="-10" y1="-10" x2="10" y2="10" stroke="rgba(200,80,80,0.55)" stroke-width="4" stroke-linecap="round"/>
+                <line x1="10" y1="-10" x2="-10" y2="10" stroke="rgba(200,80,80,0.55)" stroke-width="4" stroke-linecap="round"/>
+              </g>
+            </svg>
+            <div class="ring-step ring-pos-top" style="--a:0deg"><span class="ring-emoji">📸</span><span>写真を撮る</span></div>
+            <div class="ring-step ring-pos-right" style="--a:90deg"><span class="ring-emoji">🤔</span><span>何を書けばいい…？</span></div>
+            <div class="ring-step ring-pos-bottom" style="--a:180deg"><span class="ring-emoji">⏰</span><span>後でやろう</span></div>
+            <div class="ring-step ring-pos-left" style="--a:270deg"><span class="ring-emoji">📅</span><span>投稿しない</span></div>
+            <div class="ring-center">😓 SNS停止</div>
           </div>
         </div>
 
         <!-- 中央: VS -->
-        <div class="dual-loop-divider">
-          <div class="dual-loop-vs">VS</div>
+        <div class="ring-divider">
+          <div class="ring-vs">VS</div>
         </div>
 
-        <!-- 右: 続くループ -->
-        <div class="loop-panel loop-panel-go">
-          <p class="loop-panel-title">続くループ</p>
-          <div class="loop-flow">
-            <div class="loop-flow-item">
-              <span class="loop-flow-emoji">📸</span>
-              <span class="loop-flow-text">写真を撮る</span>
-            </div>
-            <div class="loop-flow-arrow">↓</div>
-            <div class="loop-flow-item">
-              <span class="loop-flow-emoji">🧠</span>
-              <span class="loop-flow-text">AIがネタを発見</span>
-            </div>
-            <div class="loop-flow-arrow">↓</div>
-            <div class="loop-flow-item">
-              <span class="loop-flow-emoji">✍</span>
-              <span class="loop-flow-text">投稿案を3つ生成</span>
-            </div>
-            <div class="loop-flow-arrow">↓</div>
-            <div class="loop-flow-item">
-              <span class="loop-flow-emoji">📱</span>
-              <span class="loop-flow-text">選んで投稿</span>
-            </div>
-            <div class="loop-flow-arrow">↓</div>
-            <div class="loop-flow-item">
-              <span class="loop-flow-emoji">💡</span>
-              <span class="loop-flow-text">次の撮影を提案</span>
-            </div>
-            <div class="loop-flow-arrow">🔄</div>
-            <div class="loop-flow-result">✨ SNSが続く</div>
+        <!-- 右: 続くループ (完全なリング) -->
+        <div class="ring-panel ring-go">
+          <p class="ring-panel-title">続くループ</p>
+          <div class="ring-chart">
+            <svg viewBox="0 0 200 200" class="ring-svg" aria-hidden="true">
+              <!-- 完全なリング -->
+              <circle cx="100" cy="100" r="80" fill="none" stroke="rgba(184,112,74,0.2)" stroke-width="14"/>
+              <!-- ステップドット -->
+              <circle cx="100" cy="20" r="8" fill="rgba(184,112,74,0.45)"/>
+              <circle cx="176" cy="75" r="8" fill="rgba(184,112,74,0.45)"/>
+              <circle cx="147" cy="165" r="8" fill="rgba(184,112,74,0.45)"/>
+              <circle cx="53" cy="165" r="8" fill="rgba(184,112,74,0.45)"/>
+              <circle cx="24" cy="75" r="8" fill="rgba(184,112,74,0.45)"/>
+            </svg>
+            <div class="ring-step ring-pos-top" style="--a:0deg"><span class="ring-emoji">📸</span><span>写真を撮る</span></div>
+            <div class="ring-step ring-pos-tr" style="--a:72deg"><span class="ring-emoji">🧠</span><span>AIがネタを発見</span></div>
+            <div class="ring-step ring-pos-br" style="--a:144deg"><span class="ring-emoji">✍️</span><span>投稿案を3つ生成</span></div>
+            <div class="ring-step ring-pos-bl" style="--a:216deg"><span class="ring-emoji">📱</span><span>選んで投稿</span></div>
+            <div class="ring-step ring-pos-tl" style="--a:288deg"><span class="ring-emoji">💡</span><span>次の撮影を提案</span></div>
+            <div class="ring-center">✨ SNSが続く</div>
           </div>
         </div>
       </div>
