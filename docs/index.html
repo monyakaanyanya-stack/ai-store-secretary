@@ -177,6 +177,14 @@
       line-height: 1.35; letter-spacing: -0.03em; margin-bottom: 24px;
     }
     .hero h1 em { font-style: normal; color: var(--accent); }
+    .hero-keyword {
+      font-style: normal;
+      color: var(--accent);
+      font-size: 1.15em;
+      font-weight: 800;
+      background: linear-gradient(transparent 60%, rgba(184,112,74,0.15) 60%);
+      padding: 0 4px;
+    }
     .hero-sub {
       font-size: 1.05rem; color: var(--text-muted); max-width: 520px;
       margin: 0 auto 12px; font-weight: 400; line-height: 1.9;
@@ -482,6 +490,11 @@
       .recognition-section { padding: 56px 24px; }
       .funnel-step { padding: 14px 20px; }
       .results-grid { grid-template-columns: 1fr !important; gap: 20px !important; }
+      .results-cards { grid-template-columns: 1fr !important; gap: 16px !important; }
+      .solution-flow { flex-direction: column !important; align-items: center !important; }
+      .solution-flow > div[style*="flex:2.5"] { width: 100%; }
+      .solution-flow > div[style*="flex:1"] { width: 80%; max-width: 280px; }
+      .solution-arrow { transform: rotate(90deg); padding: 8px 0 !important; }
     }
     @media (max-width: 480px) {
       .dual-loop-section { padding: 48px 16px; }
@@ -491,6 +504,7 @@
       .growth-dashboard { grid-template-columns: 1fr !important; gap: 16px !important; }
       .growth-arrow { display: none !important; }
       .results-grid { grid-template-columns: 1fr !important; gap: 16px !important; }
+      .results-cards { grid-template-columns: 1fr !important; gap: 12px !important; }
     }
 
     /* ─── CTA Final ─── */
@@ -582,7 +596,7 @@
   <section class="hero">
     <div class="container">
       <p class="hero-tagline">SNS投稿、止まっていませんか？</p>
-      <h1>写真を送るだけで<br><em>投稿ネタ</em>が見つかる。</h1>
+      <h1>写真を送るだけで<br><em class="hero-keyword">投稿ネタ</em>が見つかる。</h1>
       <p class="hero-sub">投稿文と次の撮影アイデアまで<br><em>AIが30秒</em>で作ります。</p>
       <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:40px;font-weight:400;">個人店のための <em style="font-style:normal;font-weight:600;color:var(--text);">SNS担当AI</em></p>
       <a href="https://lin.ee/OWTIvhZ" class="btn btn-large">無料で試す</a>
@@ -698,52 +712,67 @@
     </div>
   </section>
 
-  <!-- ═══ 3. 解決方法 ═══ -->
+  <!-- ═══ 3. 解決方法（人→AI→人フロー） ═══ -->
   <section class="section section-alt section-center fade-in">
     <div class="container">
       <p class="label">Solution</p>
-      <h2 class="title">写真を送るだけで、<br>AIが<em>全部やります</em>。</h2>
+      <h2 class="title">あなたがやることは<br><em>LINEで写真を送るだけ</em>です。</h2>
 
-      <!-- あなたがやること（大きく強調） -->
-      <div style="margin-top:56px;margin-bottom:12px;">
-        <div style="display:inline-block;font-size:0.72rem;font-weight:700;letter-spacing:0.15em;color:var(--accent);background:var(--accent-soft);padding:6px 20px;border-radius:100px;border:1px solid rgba(184,112,74,.15);margin-bottom:20px;">あなたがやること</div>
-        <div style="background:var(--surface-strong);border:2px solid var(--accent);border-radius:var(--radius);padding:40px 32px;box-shadow:0 8px 32px rgba(184,112,74,.12);max-width:480px;margin:0 auto;position:relative;">
-          <div style="font-size:3rem;margin-bottom:12px;">📸</div>
-          <div style="font-size:clamp(1.3rem,3vw,1.6rem);font-weight:700;color:var(--text);line-height:1.4;">LINEで写真を送る</div>
-          <div style="font-size:0.88rem;color:var(--text-muted);margin-top:8px;">これだけ。本当にこれだけです。</div>
+      <!-- 人→AI→人 フロー -->
+      <div class="solution-flow" style="max-width:800px;margin:56px auto 0;display:flex;align-items:stretch;gap:0;">
+
+        <!-- あなた：写真送信 -->
+        <div style="flex:1;text-align:center;padding:32px 16px;">
+          <div style="display:inline-block;font-size:0.68rem;font-weight:700;letter-spacing:0.15em;color:var(--accent);background:var(--accent-soft);padding:4px 16px;border-radius:100px;border:1px solid rgba(184,112,74,.15);margin-bottom:20px;">あなた</div>
+          <div style="background:var(--surface-strong);border:2px solid var(--accent);border-radius:var(--radius);padding:32px 20px;box-shadow:0 8px 32px rgba(184,112,74,.12);">
+            <div style="font-size:2.8rem;margin-bottom:10px;">📸</div>
+            <div style="font-size:clamp(1rem,2.2vw,1.2rem);font-weight:700;color:var(--text);line-height:1.4;">LINEで写真を送る</div>
+          </div>
+        </div>
+
+        <!-- 矢印 -->
+        <div class="solution-arrow" style="display:flex;align-items:center;font-size:clamp(1.4rem,3vw,2rem);color:var(--accent);padding:0 4px;">▶</div>
+
+        <!-- AI：3つの処理 -->
+        <div style="flex:2.5;text-align:center;padding:32px 16px;">
+          <div style="display:inline-block;font-size:0.68rem;font-weight:700;letter-spacing:0.15em;color:var(--green);background:var(--green-soft);padding:4px 16px;border-radius:100px;border:1px solid rgba(123,158,107,.15);margin-bottom:20px;">AI</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
+            <div style="background:var(--surface-strong);border:1px solid var(--border);border-radius:var(--radius-sm);padding:24px 12px;box-shadow:var(--shadow-sm);">
+              <div style="font-size:1.6rem;margin-bottom:8px;">🧠</div>
+              <div style="font-size:0.82rem;font-weight:700;color:var(--text);">投稿ネタ発見</div>
+              <div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">3つの切り口</div>
+            </div>
+            <div style="background:var(--surface-strong);border:1px solid var(--border);border-radius:var(--radius-sm);padding:24px 12px;box-shadow:var(--shadow-sm);">
+              <div style="font-size:1.6rem;margin-bottom:8px;">✍️</div>
+              <div style="font-size:0.82rem;font-weight:700;color:var(--text);">投稿文生成</div>
+              <div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">ハッシュタグ付き</div>
+            </div>
+            <div style="background:var(--surface-strong);border:1px solid var(--border);border-radius:var(--radius-sm);padding:24px 12px;box-shadow:var(--shadow-sm);">
+              <div style="font-size:1.6rem;margin-bottom:8px;">💡</div>
+              <div style="font-size:0.82rem;font-weight:700;color:var(--text);">次の撮影提案</div>
+              <div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">明日のネタも</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 矢印 -->
+        <div class="solution-arrow" style="display:flex;align-items:center;font-size:clamp(1.4rem,3vw,2rem);color:var(--accent);padding:0 4px;">▶</div>
+
+        <!-- あなた：投稿 -->
+        <div style="flex:1;text-align:center;padding:32px 16px;">
+          <div style="display:inline-block;font-size:0.68rem;font-weight:700;letter-spacing:0.15em;color:var(--accent);background:var(--accent-soft);padding:4px 16px;border-radius:100px;border:1px solid rgba(184,112,74,.15);margin-bottom:20px;">あなた</div>
+          <div style="background:var(--surface-strong);border:2px solid var(--accent);border-radius:var(--radius);padding:32px 20px;box-shadow:0 8px 32px rgba(184,112,74,.12);">
+            <div style="font-size:2.8rem;margin-bottom:10px;">📱</div>
+            <div style="font-size:clamp(1rem,2.2vw,1.2rem);font-weight:700;color:var(--text);line-height:1.4;">投稿ボタンを押すだけ</div>
+          </div>
         </div>
       </div>
 
-      <!-- 矢印 -->
-      <div style="font-size:1.6rem;color:var(--accent);margin:20px 0;">▼</div>
-
-      <!-- AIがやること -->
-      <div>
-        <div style="display:inline-block;font-size:0.72rem;font-weight:700;letter-spacing:0.15em;color:var(--green);background:var(--green-soft);padding:6px 20px;border-radius:100px;border:1px solid rgba(123,158,107,.15);margin-bottom:20px;">あとは全部AIがやります</div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:720px;margin:0 auto;">
-          <div style="background:var(--surface-strong);border:1px solid var(--border);border-radius:var(--radius-sm);padding:28px 16px;box-shadow:var(--shadow-sm);">
-            <div style="font-size:1.4rem;margin-bottom:8px;">🧠</div>
-            <div style="font-size:0.88rem;font-weight:600;">投稿ネタを発見</div>
-            <div style="font-size:0.78rem;color:var(--text-muted);margin-top:4px;">写真から3つの切り口を見つける</div>
-          </div>
-          <div style="background:var(--surface-strong);border:1px solid var(--border);border-radius:var(--radius-sm);padding:28px 16px;box-shadow:var(--shadow-sm);">
-            <div style="font-size:1.4rem;margin-bottom:8px;">✍️</div>
-            <div style="font-size:0.88rem;font-weight:600;">投稿文を3案作成</div>
-            <div style="font-size:0.78rem;color:var(--text-muted);margin-top:4px;">ハッシュタグまで全部セット</div>
-          </div>
-          <div style="background:var(--surface-strong);border:1px solid var(--border);border-radius:var(--radius-sm);padding:28px 16px;box-shadow:var(--shadow-sm);">
-            <div style="font-size:1.4rem;margin-bottom:8px;">💡</div>
-            <div style="font-size:0.88rem;font-weight:600;">次の撮影を提案</div>
-            <div style="font-size:0.78rem;color:var(--text-muted);margin-top:4px;">「明日はこれを撮ってみて」</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 投稿作成時間の比較 -->
-      <div style="margin-top:40px;display:inline-flex;align-items:center;gap:24px;padding:20px 40px;background:var(--surface-strong);border:1px solid var(--border);border-radius:100px;box-shadow:var(--shadow-sm);">
-        <span style="font-size:0.9rem;color:var(--gray-mid);text-decoration:line-through;">通常：30分</span>
+      <!-- 時間比較 -->
+      <div style="margin-top:36px;display:inline-flex;align-items:center;gap:24px;padding:16px 36px;background:var(--surface-strong);border:1px solid var(--border);border-radius:100px;box-shadow:var(--shadow-sm);">
+        <span style="font-size:0.88rem;color:var(--gray-mid);text-decoration:line-through;">通常：30分</span>
         <span style="font-size:1.2rem;color:var(--accent);">→</span>
-        <span style="font-size:1.1rem;font-weight:700;color:var(--accent);">AI：30秒</span>
+        <span style="font-size:1.05rem;font-weight:700;color:var(--accent);">AI：30秒</span>
       </div>
     </div>
   </section>
@@ -788,84 +817,48 @@
   <section class="section section-dark section-center fade-in">
     <div class="container">
       <p class="label">Results</p>
-      <h2 class="title">投稿頻度を変えただけで<br><em>リーチはここまで変わる</em></h2>
+      <h2 class="title">投稿頻度を変えただけで<br><em>リーチは16倍</em>になりました</h2>
       <p class="desc">同じアカウント・同じフォロワー数。変えたのは投稿頻度だけ。</p>
 
-      <!-- 投稿頻度の変化（大きな矢印） -->
-      <div style="display:flex;align-items:center;justify-content:center;gap:clamp(16px,4vw,40px);margin:48px auto 0;max-width:600px;">
-        <div style="text-align:center;">
-          <div style="font-size:0.72rem;color:rgba(255,255,255,0.4);margin-bottom:6px;">1月</div>
-          <div style="font-size:clamp(1rem,2.5vw,1.3rem);font-weight:700;color:rgba(255,255,255,0.5);">月2〜3回</div>
-          <div style="font-size:0.7rem;color:rgba(255,255,255,0.3);">投稿</div>
+      <!-- 数字カードUI -->
+      <div class="results-cards" style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:780px;margin:48px auto 0;">
+
+        <!-- 投稿頻度カード -->
+        <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius);padding:28px 20px;text-align:center;">
+          <div style="font-size:0.72rem;color:rgba(255,255,255,0.4);letter-spacing:0.06em;margin-bottom:20px;">投稿頻度</div>
+          <div style="font-size:0.78rem;color:rgba(255,255,255,0.4);margin-bottom:4px;">1月</div>
+          <div style="font-size:clamp(1.1rem,2.5vw,1.4rem);font-weight:700;color:rgba(255,255,255,0.5);margin-bottom:16px;">月2〜3回</div>
+          <div style="font-size:clamp(1.8rem,4vw,2.4rem);color:var(--accent);line-height:1;margin-bottom:16px;">↓</div>
+          <div style="font-size:0.78rem;color:rgba(255,255,255,0.4);margin-bottom:4px;">2月</div>
+          <div style="font-size:clamp(1.1rem,2.5vw,1.4rem);font-weight:700;color:var(--white);">週3〜4回</div>
         </div>
-        <div style="font-size:clamp(2rem,5vw,3rem);color:var(--accent);line-height:1;">▶</div>
-        <div style="text-align:center;">
-          <div style="font-size:0.72rem;color:rgba(255,255,255,0.4);margin-bottom:6px;">2月</div>
-          <div style="font-size:clamp(1rem,2.5vw,1.3rem);font-weight:700;color:var(--white);">週3〜4回</div>
-          <div style="font-size:0.7rem;color:rgba(255,255,255,0.3);">投稿</div>
+
+        <!-- 閲覧数カード -->
+        <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius);padding:28px 20px;text-align:center;">
+          <div style="font-size:0.72rem;color:rgba(255,255,255,0.4);letter-spacing:0.06em;margin-bottom:20px;">閲覧数</div>
+          <div style="font-size:clamp(1.6rem,3.5vw,2.2rem);font-weight:700;color:rgba(255,255,255,0.45);margin-bottom:12px;">216</div>
+          <div style="font-size:clamp(1.8rem,4vw,2.4rem);color:var(--accent);line-height:1;margin-bottom:12px;">↓</div>
+          <div style="font-size:clamp(2rem,4.5vw,2.8rem);font-weight:800;color:var(--white);line-height:1;margin-bottom:8px;">710</div>
+          <div style="display:inline-block;background:rgba(194,149,68,0.15);border:1px solid rgba(194,149,68,0.3);border-radius:100px;padding:4px 16px;font-size:0.82rem;font-weight:700;color:var(--warm-gold);">3.6倍</div>
+          <div style="font-size:0.65rem;color:rgba(255,255,255,0.3);margin-top:6px;">日割り換算</div>
+        </div>
+
+        <!-- リーチカード -->
+        <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(184,112,74,0.3);border-radius:var(--radius);padding:28px 20px;text-align:center;box-shadow:0 4px 24px rgba(184,112,74,.08);">
+          <div style="font-size:0.72rem;color:rgba(255,255,255,0.4);letter-spacing:0.06em;margin-bottom:20px;">リーチ</div>
+          <div style="font-size:clamp(1.6rem,3.5vw,2.2rem);font-weight:700;color:rgba(255,255,255,0.45);margin-bottom:12px;">20</div>
+          <div style="font-size:clamp(1.8rem,4vw,2.4rem);color:var(--accent);line-height:1;margin-bottom:12px;">↓</div>
+          <div style="font-size:clamp(2rem,4.5vw,2.8rem);font-weight:800;color:var(--white);line-height:1;margin-bottom:8px;">314</div>
+          <div style="display:inline-block;background:rgba(194,149,68,0.15);border:1px solid rgba(194,149,68,0.3);border-radius:100px;padding:4px 16px;font-size:0.82rem;font-weight:700;color:var(--warm-gold);">+1,470%</div>
         </div>
       </div>
 
-      <!-- 数字の比較（グラフ風） -->
-      <div style="max-width:680px;margin:40px auto 0;display:flex;flex-direction:column;gap:28px;">
-
-        <!-- 閲覧数 -->
-        <div style="background:rgba(255,255,255,0.03);border-radius:var(--radius);padding:28px 24px;">
-          <div style="font-size:0.72rem;color:rgba(255,255,255,0.4);margin-bottom:16px;letter-spacing:0.06em;">閲覧数</div>
-          <div style="display:flex;align-items:center;gap:clamp(12px,3vw,24px);">
-            <div style="flex:1;">
-              <div style="background:rgba(255,255,255,0.08);border-radius:8px;height:36px;width:30%;display:flex;align-items:center;padding-left:12px;">
-                <span style="font-size:clamp(1rem,2vw,1.2rem);font-weight:700;color:rgba(255,255,255,0.5);">216</span>
-              </div>
-            </div>
-            <div style="font-size:1.5rem;color:var(--accent);flex-shrink:0;">→</div>
-            <div style="flex:1;">
-              <div style="background:linear-gradient(90deg,rgba(184,112,74,0.25),rgba(184,112,74,0.08));border:1px solid rgba(184,112,74,0.3);border-radius:8px;height:36px;width:100%;display:flex;align-items:center;padding-left:12px;">
-                <span style="font-size:clamp(1rem,2vw,1.2rem);font-weight:700;color:var(--white);">710</span>
-              </div>
-            </div>
-            <div style="flex-shrink:0;text-align:center;">
-              <div style="font-size:clamp(1.3rem,3vw,1.8rem);font-weight:800;color:var(--warm-gold);line-height:1;">3.6<span style="font-size:0.7em;">倍</span></div>
-              <div style="font-size:0.65rem;color:rgba(255,255,255,0.35);">日割り換算</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- リーチ -->
-        <div style="background:rgba(255,255,255,0.03);border-radius:var(--radius);padding:28px 24px;">
-          <div style="font-size:0.72rem;color:rgba(255,255,255,0.4);margin-bottom:16px;letter-spacing:0.06em;">リーチしたアカウント</div>
-          <div style="display:flex;align-items:center;gap:clamp(12px,3vw,24px);">
-            <div style="flex:1;">
-              <div style="background:rgba(255,255,255,0.08);border-radius:8px;height:36px;width:8%;min-width:48px;display:flex;align-items:center;padding-left:12px;">
-                <span style="font-size:clamp(1rem,2vw,1.2rem);font-weight:700;color:rgba(255,255,255,0.5);">20</span>
-              </div>
-            </div>
-            <div style="font-size:1.5rem;color:var(--accent);flex-shrink:0;">→</div>
-            <div style="flex:1;">
-              <div style="background:linear-gradient(90deg,rgba(184,112,74,0.25),rgba(184,112,74,0.08));border:1px solid rgba(184,112,74,0.3);border-radius:8px;height:36px;width:100%;display:flex;align-items:center;padding-left:12px;">
-                <span style="font-size:clamp(1rem,2vw,1.2rem);font-weight:700;color:var(--white);">314</span>
-              </div>
-            </div>
-            <div style="flex-shrink:0;text-align:center;">
-              <div style="font-size:clamp(1.1rem,2.5vw,1.5rem);font-weight:800;color:var(--warm-gold);line-height:1;">+1,470<span style="font-size:0.7em;">%</span></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- フォロワー外 -->
-        <div style="display:flex;justify-content:center;gap:clamp(24px,6vw,60px);padding:8px 0;">
-          <div style="text-align:center;">
-            <div style="font-size:0.7rem;color:rgba(255,255,255,0.35);margin-bottom:6px;">フォロワー外リーチ率</div>
-            <div style="font-size:clamp(1.4rem,3vw,1.8rem);font-weight:700;color:rgba(255,255,255,0.5);">50.9%</div>
-            <div style="font-size:0.68rem;color:rgba(255,255,255,0.3);">1月</div>
-          </div>
-          <div style="font-size:1.5rem;color:var(--accent);display:flex;align-items:center;">→</div>
-          <div style="text-align:center;">
-            <div style="font-size:0.7rem;color:rgba(255,255,255,0.35);margin-bottom:6px;">フォロワー外リーチ率</div>
-            <div style="font-size:clamp(1.4rem,3vw,1.8rem);font-weight:700;color:var(--white);">64.6%</div>
-            <div style="font-size:0.68rem;color:rgba(255,255,255,0.3);">2月</div>
-          </div>
-        </div>
+      <!-- フォロワー外リーチ（補足） -->
+      <div style="display:flex;justify-content:center;align-items:center;gap:clamp(16px,4vw,32px);margin-top:24px;">
+        <span style="font-size:0.78rem;color:rgba(255,255,255,0.35);">フォロワー外リーチ率</span>
+        <span style="font-size:1rem;font-weight:700;color:rgba(255,255,255,0.5);">50.9%</span>
+        <span style="color:var(--accent);">→</span>
+        <span style="font-size:1rem;font-weight:700;color:var(--white);">64.6%</span>
       </div>
 
       <!-- コピー -->
@@ -873,7 +866,7 @@
         <p style="font-size:0.92rem;color:rgba(255,245,230,0.55);">
           文章を考える手間がなくなると、<strong style="color:var(--white);">素材さえあれば投稿できる</strong>ようになります。<br>
           そのハードルの低さが投稿頻度を変え、<br>
-          1ヶ月のテスト運用で<strong style="color:var(--warm-gold);">閲覧数3.6倍・リーチ17倍</strong>の差がつきました。
+          1ヶ月のテスト運用で<strong style="color:var(--warm-gold);">閲覧数3.6倍・リーチ16倍</strong>の差がつきました。
         </p>
         <p style="font-size:0.75rem;color:rgba(255,255,255,0.3);margin-top:8px;">※計測期間の差（31日 vs 28日）を補正した日割り換算</p>
 
@@ -893,8 +886,8 @@
   <section class="section section-center fade-in">
     <div class="container">
       <p class="label">Demo</p>
-      <h2 class="title">実際に、<em>30秒</em>で投稿が完成します</h2>
-      <p class="desc">これだけで1投稿が完成します。</p>
+      <h2 class="title">LINEで写真を送るだけ。<br><em>30秒</em>で投稿が完成します。</h2>
+      <p class="desc">投稿ネタ・投稿文・ハッシュタグまで、すべてAIが作ります。</p>
 
       <div class="demo-phones">
         <div class="demo-item">
@@ -972,14 +965,14 @@
           <p>投稿のたびに「明日はこれを撮ってみて」と被写体・アングル・タイミングまで具体的に提案。ネタ切れになりません。</p>
         </div>
         <div class="card card-center">
+          <div class="card-icon">📅</div>
+          <h3>週間コンテンツ計画</h3>
+          <p>毎週月曜に「今週はこれを撮ろう」をAIが提案。テーマ・撮影指示・投稿タイミングまで、1週間分の計画が届きます。</p>
+        </div>
+        <div class="card card-center">
           <div class="card-icon">🪞</div>
           <h3>使うほど、お店の書き方に</h3>
           <p>投稿の修正や好みをAIが記憶。使うほど、あなたのお店らしい文章になります。</p>
-        </div>
-        <div class="card card-center">
-          <div class="card-icon">📊</div>
-          <h3>同じ業種の成功を活用</h3>
-          <p>同じ業種で反応が良かった投稿の特徴を自動で分析。あなたの投稿にも取り入れます。</p>
         </div>
         <div class="card card-center">
           <div class="card-icon">📈</div>
@@ -1091,39 +1084,40 @@
   <section class="section section-alt section-center fade-in">
     <div class="container">
       <p class="label">Pricing</p>
-      <h2 class="title">SNS代行の<em>1/20以下</em>の価格で</h2>
-      <p class="desc">代行業者に頼む機能を、月額500円から。</p>
+      <h2 class="title">SNS運用の<em>深さ</em>で選ぶ</h2>
+      <p class="desc">投稿を作るだけか、SNS運用まで任せるか。</p>
 
       <div class="plan-grid">
 
         <!-- Free -->
         <div class="plan-card">
           <p class="plan-label">FREE</p>
+          <p style="font-size:0.72rem;font-weight:600;color:var(--accent);margin-bottom:8px;">試す</p>
           <div class="plan-price">¥0<span> / 月</span></div>
-          <p style="font-size:0.75rem;color:var(--accent);font-weight:600;margin-bottom:4px;">ベータテスト中</p>
-          <p class="plan-desc">まずは試してみたい方</p>
+          <p class="plan-desc">まずはAIの投稿を見てみる</p>
           <ul class="plan-features">
-            <li>✓ 月10回 AI生成</li>
+            <li>✓ 月5回 AI生成</li>
             <li>✓ 3案提案</li>
-            <li>✓ 業種別の成功データ</li>
             <li class="disabled">— Instagram投稿</li>
-            <li class="disabled">— 撮影提案ナッジ</li>
-            <li class="disabled">— 分析・自動改善</li>
+            <li class="disabled">— 撮影提案</li>
+            <li class="disabled">— 分析・学習</li>
+            <li class="disabled">— 週間計画</li>
           </ul>
         </div>
 
         <!-- Light -->
         <div class="plan-card">
           <p class="plan-label">LIGHT</p>
+          <p style="font-size:0.72rem;font-weight:600;color:var(--accent);margin-bottom:8px;">投稿を作る</p>
           <div class="plan-price">¥500<span> / 月</span></div>
-          <p class="plan-desc">AIを体験したい方</p>
+          <p class="plan-desc">投稿作成を楽にする</p>
           <ul class="plan-features">
-            <li>✓ 月10回 AI生成</li>
+            <li>✓ 月20回 AI生成</li>
             <li>✓ 3案提案</li>
-            <li>✓ 業種別の成功データ</li>
             <li class="highlight">✓ Instagram投稿</li>
-            <li class="highlight">✓ 撮影提案ナッジ</li>
-            <li class="disabled">— 分析・自動改善</li>
+            <li class="highlight">✓ 撮影提案</li>
+            <li class="disabled">— 分析・学習</li>
+            <li class="disabled">— 週間計画</li>
           </ul>
         </div>
 
@@ -1131,14 +1125,14 @@
         <div class="plan-card plan-featured">
           <span class="plan-badge">おすすめ</span>
           <p class="plan-label">STANDARD</p>
+          <p style="font-size:0.72rem;font-weight:600;color:var(--accent);margin-bottom:8px;">SNSを続ける</p>
           <div class="plan-price">¥2,980<span> / 月</span></div>
-          <p class="plan-desc">本格的に続けたい方</p>
+          <p class="plan-desc">投稿が止まらなくなる</p>
           <ul class="plan-features">
             <li>✓ 月60回 AI生成</li>
             <li>✓ 3案提案</li>
-            <li>✓ 業種別の成功データ</li>
             <li>✓ Instagram投稿</li>
-            <li>✓ 撮影提案ナッジ</li>
+            <li>✓ 撮影提案</li>
             <li class="highlight">✓ 分析・人格学習</li>
             <li class="disabled">— 週間計画</li>
           </ul>
@@ -1147,8 +1141,9 @@
         <!-- Premium -->
         <div class="plan-card">
           <p class="plan-label">PREMIUM</p>
+          <p style="font-size:0.72rem;font-weight:600;color:var(--accent);margin-bottom:8px;">SNS運用を任せる</p>
           <div class="plan-price">¥5,980<span> / 月</span></div>
-          <p class="plan-desc">複数店舗・フル活用</p>
+          <p class="plan-desc">計画から分析まで全部AI</p>
           <ul class="plan-features">
             <li>✓ 月200回 AI生成</li>
             <li style="font-weight:600;">✓ 店舗5つまで</li>
