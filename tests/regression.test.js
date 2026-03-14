@@ -3143,7 +3143,7 @@ describe('Scenario 51: 予約投稿', async () => {
       new URL('../src/services/scheduler.js', import.meta.url), 'utf-8'
     );
     assert.ok(content.includes('processScheduledPosts'), 'processScheduledPostsのインポート');
-    assert.ok(content.includes('*/10 * * * *'), '10分ごとのcronスケジュール');
+    assert.ok(content.includes('*/5 * * * *'), '5分ごとのcronスケジュール');
     assert.ok(content.includes('予約投稿チェック'), 'ジョブ名');
   });
 
@@ -3206,5 +3206,70 @@ describe('Scenario 51: 予約投稿', async () => {
     assert.ok(content.includes('明日'), '明日対応');
     assert.ok(content.includes('明後日'), '明後日対応');
     assert.ok(content.includes('SCHEDULE_INPUT_MESSAGE'), '入力案内メッセージ');
+  });
+});
+
+// ==================== Scenario 52: ストック一括削除 ====================
+describe('Scenario 52: ストック一括削除', async () => {
+  const fs = await import('node:fs');
+
+  it('supabaseService に deleteBatchStockPosts がある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/services/supabaseService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('export async function deleteBatchStockPosts'), 'deleteBatchStockPosts関数');
+    assert.ok(content.includes(".in('id', postIds)"), 'IN句で一括削除');
+    assert.ok(content.includes("['draft', 'scheduled']"), 'draft/scheduledのみ削除可能');
+  });
+
+  it('stockHandler に一括削除ハンドラーがある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/stockHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('export async function handleBatchDeletePrompt'), 'handleBatchDeletePrompt');
+    assert.ok(content.includes('export async function handleBatchDeleteConfirm'), 'handleBatchDeleteConfirm');
+    assert.ok(content.includes('awaiting_stock_batch_delete'), 'pending_command設定');
+    assert.ok(content.includes('deleteBatchStockPosts'), 'deleteBatchStockPosts呼び出し');
+  });
+
+  it('一括削除が「全部」「全て」キーワードに対応している', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/stockHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('全部'), '「全部」キーワード');
+    assert.ok(content.includes('全て'), '「全て」キーワード');
+  });
+
+  it('一括削除がカンマ区切り番号に対応している', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/stockHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('split'), 'カンマ区切りパース');
+    assert.ok(content.includes('parseInt'), '番号パース');
+  });
+
+  it('ストック一覧に「まとめて削除」ボタンがある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/stockHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('まとめて削除'), 'まとめて削除ボタンラベル');
+    assert.ok(content.includes('ストック一括削除'), 'ストック一括削除コマンドテキスト');
+  });
+
+  it('textHandler にストック一括削除のルーティングがある', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/textHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes("'ストック一括削除'"), 'ストック一括削除ルーティング');
+    assert.ok(content.includes('handleBatchDeletePrompt'), 'handleBatchDeletePrompt呼び出し');
+    assert.ok(content.includes('awaiting_stock_batch_delete'), 'pending_command判定');
+    assert.ok(content.includes('handleBatchDeleteConfirm'), 'handleBatchDeleteConfirm呼び出し');
+  });
+
+  it('textHandler の isSystemCommand にストック一括削除が含まれる', () => {
+    const content = fs.readFileSync(
+      new URL('../src/handlers/textHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes("'ストック一括削除'"), 'isSystemCommandにストック一括削除');
   });
 });

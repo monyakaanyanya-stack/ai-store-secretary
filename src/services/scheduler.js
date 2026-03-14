@@ -99,8 +99,8 @@ export function startScheduler() {
     timezone: 'UTC'
   });
 
-  // 予約投稿チェック: 10分ごと
-  cron.schedule('*/10 * * * *', () => {
+  // 予約投稿チェック: 5分ごと
+  cron.schedule('*/5 * * * *', () => {
     runWithLock('予約投稿チェック', processScheduledPosts);
   }, {
     timezone: 'UTC'
@@ -113,5 +113,5 @@ export function startScheduler() {
   console.log('  - カテゴリー昇格チェック: 毎週月曜 UTC 0:00 (JST 9:00)');
   console.log('  - 夜間エンゲージメント同期: 毎日 UTC 17:00 (JST 2:00)');
   console.log('  - 週間コンテンツ計画: 毎週月曜 UTC 0:30 (JST 9:30)');
-  console.log('  - 予約投稿チェック: 10分ごと');
+  console.log('  - 予約投稿チェック: 5分ごと');
 }

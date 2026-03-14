@@ -16,6 +16,7 @@ import {
   getStockPosts,
   getStockPostById,
   deleteStockPost,
+  deleteBatchStockPosts,
   getDueScheduledPosts,
   getStockCount,
   savePendingImageContext,
@@ -123,11 +124,17 @@ export async function handleStockList(user, replyToken) {
 
     const text = `📦 投稿ストック\n\n${lines.join('\n')}\n\n番号を選んでください👇`;
 
-    // クイックリプライボタン（最大13個だが、ストック上限10なので問題なし）
+    // クイックリプライボタン（最大13個だが、ストック上限10+1なので問題なし）
     const quickReplies = stocks.map((_, i) => ({
       type: 'action',
       action: { type: 'message', label: `${i + 1}`, text: `ストック:${i + 1}` },
     }));
+
+    // まとめて削除ボタン追加
+    quickReplies.push({
+      type: 'action',
+      action: { type: 'message', label: '🗑 まとめて削除', text: 'ストック一括削除' },
+    });
 
     return await replyWithQuickReply(replyToken, text, quickReplies);
   } catch (err) {
@@ -254,6 +261,83 @@ export async function handleStockDelete(user, replyToken) {
   }
 }
 
+// ==================== ストック一括削除 ====================
+
+/**
+ * 一括削除の番号入力案内を表示
+ */
+export async function handleBatchDeletePrompt(user, replyToken) {
+  try {
+    if (!user.current_store_id) {
+      return await replyText(replyToken, '店舗が選択されていません。');
+    }
+
+    const stocks = await getStockPosts(user.current_store_id);
+    if (stocks.length === 0) {
+      return await replyText(replyToken, '📦 ストックはありません。');
+    }
+
+    await setPendingCommand(user.id, 'awaiting_stock_batch_delete');
+
+    return await replyText(replyToken, `🗑 削除する番号を入力してください\n\n例: 1,3  → 1番と3番を削除\n例: 全部  → すべて削除（${stocks.length}件）`);
+  } catch (err) {
+    console.error('[Stock] 一括削除プロンプトエラー:', err);
+    return await replyText(replyToken, '❌ エラーが発生しました。');
+  }
+}
+
+/**
+ * 一括削除の番号入力を処理
+ */
+export async function handleBatchDeleteConfirm(user, input, replyToken) {
+  try {
+    const stocks = await getStockPosts(user.current_store_id);
+    if (stocks.length === 0) {
+      return await replyText(replyToken, '📦 ストックはありません。');
+    }
+
+    let targetIds;
+
+    if (/^(全部|全て|ぜんぶ|all)$/i.test(input.trim())) {
+      // 全件削除
+      targetIds = stocks.map(s => s.id);
+    } else {
+      // カンマ区切り番号パース
+      const nums = input.split(/[,、\s]+/).map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
+      if (nums.length === 0) {
+        return await replyText(replyToken, '⚠️ 番号を読み取れませんでした。\n\n例: 1,3 または 全部');
+      }
+
+      // 有効な番号のみ（1-indexed → 0-indexed）
+      targetIds = nums
+        .filter(n => n >= 1 && n <= stocks.length)
+        .map(n => stocks[n - 1].id);
+
+      if (targetIds.length === 0) {
+        return await replyText(replyToken, `⚠️ 有効な番号がありません。1〜${stocks.length} で指定してください。`);
+      }
+    }
+
+    const deleted = await deleteBatchStockPosts(targetIds);
+
+    // pending_image_context もクリア（選択中のストックがあれば）
+    if (user.pending_image_context?.stock_mode) {
+      await clearPendingImageContext(user.id);
+    }
+
+    return await replyWithQuickReply(
+      replyToken,
+      `🗑 ${deleted}件のストックを削除しました。`,
+      [
+        { type: 'action', action: { type: 'message', label: '📦 ストック一覧', text: 'ストック' } },
+      ]
+    );
+  } catch (err) {
+    console.error('[Stock] 一括削除エラー:', err);
+    return await replyText(replyToken, '❌ 削除に失敗しました。');
+  }
+}
+
 // ==================== 予約投稿: 直接予約（A/B/C選択後） ====================
 
 /**
@@ -333,7 +417,8 @@ const SCHEDULE_INPUT_MESSAGE = `⏰ いつ投稿しますか？
 ・明日 18:00
 ・明後日 12:00
 
-※ 日本時間（JST）で指定してください`;
+※ 日本時間（JST）で指定
+※ 5分単位でチェックされます（例: 18:00指定 → 18:00〜18:05に投稿）`;
 
 /**
  * ストック一覧から予約投稿の日時入力画面を表示

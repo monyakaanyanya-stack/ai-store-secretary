@@ -291,6 +291,22 @@ export async function deleteStockPost(postId) {
 }
 
 /**
+ * ストック投稿を一括削除
+ */
+export async function deleteBatchStockPosts(postIds) {
+  if (!postIds.length) return 0;
+  const { data, error } = await supabase
+    .from('post_history')
+    .delete()
+    .in('id', postIds)
+    .in('post_status', ['draft', 'scheduled'])
+    .select('id');
+
+  if (error) throw new Error(`ストック一括削除失敗: ${error.message}`);
+  return data?.length || 0;
+}
+
+/**
  * 予約投稿の期限が来たものを取得
  */
 export async function getDueScheduledPosts() {
