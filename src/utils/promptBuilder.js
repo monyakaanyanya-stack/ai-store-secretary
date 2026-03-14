@@ -196,7 +196,8 @@ export const POST_LENGTH_MAP = {
 
 // L5: import文は本来先頭に置くべきだが、ESMがhoistするため実害はない
 // 次回リファクタ時にファイル先頭に移動すること
-import { getHashtagsForCategory, getCategoryGroup } from '../config/categoryDictionary.js';
+import { getHashtagsForCategory, getCategoryGroup, findCategoryByLabel } from '../config/categoryDictionary.js';
+import { getTemplatesForGroup } from '../config/nudgeTemplates.js';
 
 function getToneName(tone) {
   const toneData = TONE_MAP[tone] || TONE_MAP.casual;
@@ -209,6 +210,34 @@ function getToneData(tone) {
 
 function getPostLengthInfo(length = 'medium') {
   return POST_LENGTH_MAP[length] || POST_LENGTH_MAP.medium;
+}
+
+/**
+ * 業種別の撮影候補を3件ランダムに返す（季節フィルタ付き）
+ * Photo Adviceの「💡次はこんなのも撮ってみない？」セクションで使用
+ * @param {string} category - 店舗カテゴリ名
+ * @returns {string} 候補テキスト（空文字=候補なし）
+ */
+function buildNextSubjectHints(category) {
+  if (!category) return '';
+  const catInfo = findCategoryByLabel(category);
+  if (!catInfo) return '';
+
+  const templates = getTemplatesForGroup(catInfo.groupId);
+  if (!templates || templates.length === 0) return '';
+
+  // 季節フィルタ
+  const month = new Date().getMonth() + 1;
+  const season = (month <= 2 || month === 12) ? '冬'
+    : month <= 5 ? '春'
+    : month <= 8 ? '夏' : '秋';
+  const filtered = templates.filter(t => !t.season || t.season === season);
+
+  // ランダムに3件選択（毎回違う候補を返す）
+  const shuffled = [...filtered].sort(() => Math.random() - 0.5);
+  const picked = shuffled.slice(0, 3);
+
+  return picked.map(t => `・${t.subject}（${t.description}）`).join('\n');
 }
 
 /**
