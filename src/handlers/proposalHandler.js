@@ -1,6 +1,6 @@
 /**
- * 案選択ハンドラー（Ver.17.0）
- * 3案（時間の肖像/誠実の肖像/光の肖像）から選択 → 確定 → スタイル学習
+ * 案選択ハンドラー（Ver.18.0）
+ * 1案ドン表示（Phase 1）: 内部3案 → A案をメイン表示 → 「別の案を見る」で B/C 表示
  */
 import { replyText, replyWithQuickReply } from '../services/lineService.js';
 import { updatePostContent, supabase } from '../services/supabaseService.js';
@@ -235,5 +235,78 @@ async function addBeliefFromSelection(storeId, selection) {
     }
   } catch (err) {
     console.warn('[Proposal] 思想ログ追加エラー（続行）:', err.message);
+  }
+}
+
+/**
+ * 「別の案を見る」ハンドラー — 案B/Cを表示
+ * @param {Object} user - ユーザー情報
+ * @param {Object} store - 店舗情報
+ * @param {Object} latestPost - 直近の投稿（3案を含む）
+ * @param {string} replyToken - LINE replyToken
+ */
+export async function handleShowAlternatives(user, store, latestPost, replyToken) {
+  try {
+    const proposalB = extractSelectedProposal(latestPost.content, 'B');
+    const proposalC = extractSelectedProposal(latestPost.content, 'C');
+
+    if (!proposalB && !proposalC) {
+      return await replyText(replyToken, '別の案が見つかりませんでした。もう一度写真を送ってみてください');
+    }
+
+    // 「別案を見る」回数を記録（将来の分析用）
+    await incrementAlternativesViewed(store.id);
+
+    // 案B/Cを表示
+    // Photo Advice は案Aで既に表示済みなので除外
+    const stripAdvice = (text) => text ? text.replace(/\n\n━{5,}[\s\S]*━{5,}/, '').trim() : '';
+    const parts = [];
+    if (proposalB) parts.push(`[ 案B ]\n${stripAdvice(proposalB)}`);
+    if (proposalC) parts.push(`[ 案C ]\n${stripAdvice(proposalC)}`);
+
+    const formattedReply = `別の案はこちらです👇
+━━━━━━━━━━━
+${parts.join('\n\n')}
+━━━━━━━━━━━
+
+気に入った案があれば選んでください`;
+
+    const quickReplies = [
+      { type: 'action', action: { type: 'message', label: '✅ やっぱりA案', text: 'A' } },
+    ];
+    if (proposalB) quickReplies.push({ type: 'action', action: { type: 'message', label: '✅ B案', text: 'B' } });
+    if (proposalC) quickReplies.push({ type: 'action', action: { type: 'message', label: '✅ C案', text: 'C' } });
+    quickReplies.push({ type: 'action', action: { type: 'message', label: '✏️ 直し', text: '直し:' } });
+
+    console.log(`[Proposal] 別案表示: store=${store.name}`);
+    return await replyWithQuickReply(replyToken, formattedReply, quickReplies);
+  } catch (err) {
+    console.error(`[Proposal] 別案表示エラー: store=${store.name}`, err);
+    return await replyText(replyToken, 'うまくいきませんでした...もう一度画像を送ってみてください');
+  }
+}
+
+/**
+ * 「別案を見る」の回数を記録（将来の分析用）
+ */
+async function incrementAlternativesViewed(storeId) {
+  try {
+    const { data: profile } = await supabase
+      .from('learning_profiles')
+      .select('profile_data')
+      .eq('store_id', storeId)
+      .single();
+
+    if (!profile) return;
+
+    const profileData = profile.profile_data || {};
+    profileData.alternatives_viewed_count = (profileData.alternatives_viewed_count || 0) + 1;
+
+    await supabase
+      .from('learning_profiles')
+      .update({ profile_data: profileData })
+      .eq('store_id', storeId);
+  } catch {
+    // 分析用データなので失敗しても無視
   }
 }

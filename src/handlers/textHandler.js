@@ -612,6 +612,28 @@ ${contactEmail}
     }
   }
 
+  // 🔄 別案を見る（1案ドン表示からの別案リクエスト）
+  if (trimmed === '別案' || trimmed === '別の案' || trimmed === '別案を見る') {
+    if (user.current_store_id) {
+      const store = await getStore(user.current_store_id);
+      if (store) {
+        const { data: latestPost } = await supabase
+          .from('post_history')
+          .select('*')
+          .eq('store_id', store.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        if (latestPost?.content && /\[\s*案B[：:]/.test(latestPost.content)) {
+          const { handleShowAlternatives } = await import('./proposalHandler.js');
+          return await handleShowAlternatives(user, store, latestPost, replyToken);
+        } else {
+          return await replyText(replyToken, '別の案が見つかりません。もう一度写真を送ってみてください');
+        }
+      }
+    }
+  }
+
   // 👍 良い評価
   if (trimmed === '👍') {
     return await handlePositiveFeedback(user, replyToken);

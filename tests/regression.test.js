@@ -3508,3 +3508,130 @@ describe('Scenario 56: エンゲージメント学習の構造カテゴリ制限
     assert.ok(content.includes('説明量'), '説明量パターンの例がある');
   });
 });
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Scenario 57: 1案ドン表示（Phase 1）
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+describe('Scenario 57: 1案ドン表示（Phase 1）', () => {
+  const SAMPLE_3_PROPOSALS = `[ 案A：視覚で伝える ]
+朝の光が差し込むカウンター。
+焼きたてのクロワッサンが並ぶ。
+
+#パン屋 #朝の光 #焼きたて
+
+[ 案B：ストーリーを添える ]
+今朝は5時起き。
+生地の発酵がちょうどよくて、嬉しくなった。
+
+#パン屋 #5時起き #手作り
+
+[ 案C：店主のひとりごと ]
+まだ誰もいない店内。
+この静けさが好きだったりする。
+
+#パン屋 #早朝 #ひとりごと
+
+━━━━━━━━━━━
+📸 この写真の別の撮り方
+横から撮ると断面が見えて美味しそうに映ります
+━━━━━━━━━━━`;
+
+  it('extractSelectedProposal のロジックが正しい（案Aマーカーから次の案マーカーまで抽出）', async () => {
+    // proposalHandler.js のインポートは supabase 初期化が必要なため、ロジックをインラインでテスト
+    const markerPattern = /\[\s*案([ABC])[：:][^\]]*\]/g;
+    const markers = [...SAMPLE_3_PROPOSALS.matchAll(markerPattern)];
+    assert.strictEqual(markers.length, 3, '3つの案マーカーが検出される');
+    assert.strictEqual(markers[0][1], 'A', '1番目は案A');
+    assert.strictEqual(markers[1][1], 'B', '2番目は案B');
+    assert.strictEqual(markers[2][1], 'C', '3番目は案C');
+
+    // 案A抽出: マーカー0の終了位置 〜 マーカー1の開始位置
+    const startA = markers[0].index + markers[0][0].length;
+    const endA = markers[1].index;
+    const proposalA = SAMPLE_3_PROPOSALS.slice(startA, endA).trim();
+    assert.ok(proposalA.includes('朝の光が差し込むカウンター'), '案Aの本文が含まれる');
+    assert.ok(!proposalA.includes('5時起き'), '案Bの内容は含まれない');
+  });
+
+  it('案B/Cマーカーも正しく検出できる', () => {
+    const markerPattern = /\[\s*案([ABC])[：:][^\]]*\]/g;
+    const markers = [...SAMPLE_3_PROPOSALS.matchAll(markerPattern)];
+    // 案B抽出
+    const startB = markers[1].index + markers[1][0].length;
+    const endB = markers[2].index;
+    const proposalB = SAMPLE_3_PROPOSALS.slice(startB, endB).trim();
+    assert.ok(proposalB.includes('5時起き'), '案Bの本文が含まれる');
+    // 案C抽出
+    const startC = markers[2].index + markers[2][0].length;
+    const dividerMatch = SAMPLE_3_PROPOSALS.slice(startC).match(/\n━{5,}/);
+    const endC = dividerMatch ? startC + dividerMatch.index : SAMPLE_3_PROPOSALS.length;
+    const proposalC = SAMPLE_3_PROPOSALS.slice(startC, endC).trim();
+    assert.ok(proposalC.includes('まだ誰もいない店内'), '案Cの本文が含まれる');
+  });
+
+  it('imageHandler.js が extractSelectedProposal をインポートしている', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes("import { extractSelectedProposal } from './proposalHandler.js'"),
+      'proposalHandler から extractSelectedProposal をインポート');
+  });
+
+  it('imageHandler.js のPush通知が1案ドン表示に変更されている', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('まずはおすすめの案です'), '1案ドン表示のメッセージがある');
+    assert.ok(content.includes('これで決定'), '「これで決定」ボタンがある');
+    assert.ok(content.includes('別の案を見る'), '「別の案を見る」ボタンがある');
+  });
+
+  it('textHandler.js に「別案」ルーティングがある', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/textHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes("'別案'"), '「別案」テキストのルーティングがある');
+    assert.ok(content.includes('handleShowAlternatives'), 'handleShowAlternatives への呼び出しがある');
+  });
+
+  it('proposalHandler.js に handleShowAlternatives 関数がexportされている', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/proposalHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('export async function handleShowAlternatives'),
+      'handleShowAlternatives がexportされている');
+  });
+
+  it('proposalHandler.js に alternatives_viewed_count 記録ロジックがある', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/proposalHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('alternatives_viewed_count'), '別案閲覧回数の記録がある');
+  });
+
+  it('DBには3案全文が保存される（表示は1案でもDB完全性を担保）', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
+    );
+    // savePostHistory は rawContent（3案全文）を保存している
+    assert.ok(content.includes('savePostHistory(userId, store.id, rawContent'),
+      'savePostHistory に rawContent（3案全文）を渡している');
+    // extractSelectedProposal は保存後に表示用として呼ばれている
+    assert.ok(content.includes("extractSelectedProposal(rawContent, 'A')"),
+      '表示用に案Aを抽出している');
+  });
+
+  it('案A抽出失敗時は3案全文フォールバック表示する', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('proposalA || rawContent'), '案A抽出失敗時のフォールバックがある');
+  });
+});

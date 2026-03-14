@@ -13,6 +13,7 @@ import { isDevTestStore } from './adminHandler.js';
 import { buildImagePostPrompt, buildStrategicAdvice } from '../utils/promptBuilder.js';
 import { getGlobalPromptRules } from '../services/promptTuningService.js';
 import { getRevisionExample } from '../utils/categoryExamples.js';
+import { extractSelectedProposal } from './proposalHandler.js';
 
 
 /**
@@ -203,31 +204,51 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
     const totalElapsed = ((Date.now() - startMs) / 1000).toFixed(1);
     console.log(`[Image] 分析+生成完了: store=${store.name} (${totalElapsed}s)`);
 
-    // ── Push通知で3案を送信 ──
+    // ── Push通知で1案ドン表示（内部3案からA案を抽出） ──
     const genLimit = await checkGenerationLimit(userId);
     const revisionExample = getRevisionExample(store.category);
     const learningNote = hasLearning ? '\n🧠 これまでの学習を反映しています' : '';
     const remaining = Number.isFinite(genLimit.limit) ? genLimit.limit - (genLimit.used + 1) : null;
     const remainingNote = remaining !== null && remaining <= 3 ? `\n📊 今月の残り: ${remaining}回` : '';
-    const formattedReply = `3つの投稿案ができました！どの案が理想に近いですか？👇${learningNote}
+
+    // 案Aを抽出して1案だけ表示（DB には3案全文を保存済み）
+    const proposalA = extractSelectedProposal(rawContent, 'A');
+    const displayContent = proposalA || rawContent; // 抽出失敗時は全文フォールバック
+    const isOneProposal = !!proposalA;
+
+    const formattedReply = isOneProposal
+      ? `まずはおすすめの案です！${learningNote}
+━━━━━━━━━━━
+${displayContent}
+━━━━━━━━━━━
+
+このまま投稿できます。「直し: ${revisionExample}」で微調整も◎${remainingNote}`
+      : `3つの投稿案ができました！どの案が理想に近いですか？👇${learningNote}
 ━━━━━━━━━━━
 ${rawContent}
 ━━━━━━━━━━━
 
 A・B・C を選んだあと「直し: ${revisionExample}」で微調整もできます${remainingNote}`;
 
-    await pushMessage(lineUserId, [{
-      type: 'text',
-      text: formattedReply,
-      quickReply: {
-        items: [
+    const quickReplyItems = isOneProposal
+      ? [
+          { type: 'action', action: { type: 'message', label: '✅ これで決定', text: 'A' } },
+          { type: 'action', action: { type: 'message', label: '🔄 別の案を見る', text: '別案' } },
+          { type: 'action', action: { type: 'message', label: '✏️ 直し', text: '直し:' } },
+          { type: 'action', action: { type: 'message', label: '📝 学習', text: '学習:' } },
+        ]
+      : [
           { type: 'action', action: { type: 'message', label: '✅ A案', text: 'A' } },
           { type: 'action', action: { type: 'message', label: '✅ B案', text: 'B' } },
           { type: 'action', action: { type: 'message', label: '✅ C案', text: 'C' } },
           { type: 'action', action: { type: 'message', label: '✏️ 直し', text: '直し:' } },
           { type: 'action', action: { type: 'message', label: '📝 学習', text: '学習:' } },
-        ],
-      },
+        ];
+
+    await pushMessage(lineUserId, [{
+      type: 'text',
+      text: formattedReply,
+      quickReply: { items: quickReplyItems },
     }]);
 
     // 戦略アドバイス（投稿タイミング等）をTipsとして送信
