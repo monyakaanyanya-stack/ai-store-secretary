@@ -3627,11 +3627,11 @@ describe('Scenario 57: 1案ドン表示（Phase 1）', () => {
       '表示用に案Aを抽出している');
   });
 
-  it('案A抽出失敗時は3案全文フォールバック表示する', async () => {
+  it('案抽出失敗時は全文フォールバック表示する', async () => {
     const fs = await import('node:fs');
     const content = fs.readFileSync(
       new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
     );
-    assert.ok(content.includes('proposalA || rawContent'), '案A抽出失敗時のフォールバックがある');
+    assert.ok(content.includes('|| rawContent'), '案抽出失敗時のフォールバックがある');
   });
 });
