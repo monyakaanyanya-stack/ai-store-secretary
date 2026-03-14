@@ -264,12 +264,17 @@ export async function handleShowAlternatives(user, store, latestPost, replyToken
     await incrementAlternativesViewed(store.id);
 
     // 3案すべてを表示（比較して選べるように）
-    // Photo Advice は案Aで既に表示済みなので除外
+    // Photo Advice は各案から除外して最後に1回だけ追加
     const stripAdvice = (text) => {
       if (!text) return '';
       const stripped = text.replace(/\n\n━{5,}[\s\S]*━{5,}/, '').trim();
       return stripped || text.trim();
     };
+    // Photo Advice を抽出（どの案からでもOK、全案共通）
+    const firstProposal = proposalA || proposalB || proposalC;
+    const adviceMatch = firstProposal ? firstProposal.match(/\n\n(━{5,}[\s\S]*━{5,})/) : null;
+    const photoAdvice = adviceMatch ? '\n\n' + adviceMatch[1] : '';
+
     const parts = [];
     if (proposalA) parts.push(`[ 案A ]\n${stripAdvice(proposalA)}`);
     if (proposalB) parts.push(`[ 案B ]\n${stripAdvice(proposalB)}`);
@@ -280,7 +285,7 @@ export async function handleShowAlternatives(user, store, latestPost, replyToken
 ${parts.join('\n\n')}
 ━━━━━━━━━━━
 
-気に入った案を選んでください`;
+気に入った案を選んでください${photoAdvice}`;
 
     const quickReplies = [];
     if (proposalA) quickReplies.push({ type: 'action', action: { type: 'message', label: '✅ A案', text: 'A' } });
