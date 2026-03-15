@@ -65,23 +65,24 @@ async function getCrossIndustryInsight(storeCategory) {
       categoryStats[row.category].count++;
     }
 
-    // 最も保存強度が高いカテゴリーを選択
-    let bestCategory = null;
-    let bestAvg = 0;
-    for (const [cat, stats] of Object.entries(categoryStats)) {
-      const avg = stats.total / stats.count;
-      if (avg > bestAvg) {
-        bestAvg = avg;
-        bestCategory = cat;
-      }
-    }
+    // 保存強度が高い上位カテゴリーからランダムに選択（毎回同じにならないように）
+    const categoryList = Object.entries(categoryStats).map(([cat, stats]) => ({
+      category: cat,
+      avgSaveIntensity: stats.total / stats.count,
+      topContent: stats.topContent,
+    }));
 
-    if (!bestCategory) return null;
+    if (categoryList.length === 0) return null;
+
+    // 上位3カテゴリーからランダム選択
+    categoryList.sort((a, b) => b.avgSaveIntensity - a.avgSaveIntensity);
+    const topN = categoryList.slice(0, Math.min(3, categoryList.length));
+    const picked = topN[Math.floor(Math.random() * topN.length)];
 
     return {
-      category: bestCategory,
-      avgSaveIntensity: bestAvg.toFixed(2),
-      sampleContent: categoryStats[bestCategory].topContent?.slice(0, 80) || '',
+      category: picked.category,
+      avgSaveIntensity: picked.avgSaveIntensity.toFixed(2),
+      sampleContent: picked.topContent?.slice(0, 80) || '',
     };
   } catch (err) {
     console.error('[WeeklyPlan] 異業種インサイト取得エラー:', err.message);
@@ -428,6 +429,19 @@ export async function sendWeeklyPlansToAllPremium() {
         .single();
 
       if (!store) continue;
+
+      // 今週の計画が既にあればスキップ（毎回上書きしない）
+      const existingPlan = await getLatestWeeklyPlan(store.id);
+      const nowJstCron = getNowJst();
+      const currentSundayCron = getWeekStartSunday(nowJstCron);
+      if (existingPlan && new Date(existingPlan.week_start).getTime() >= currentSundayCron.getTime()) {
+        // 今週の計画が既にある → 送信のみ（再生成しない）
+        const message = formatWeeklyPlanMessage(existingPlan);
+        await pushMessage(user.line_user_id, [{ type: 'text', text: message }]);
+        sentCount++;
+        await sleep(100);
+        continue;
+      }
 
       const planContent = await generateWeeklyPlan(store, user.id);
       if (!planContent) {

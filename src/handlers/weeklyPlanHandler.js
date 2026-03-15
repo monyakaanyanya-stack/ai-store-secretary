@@ -47,11 +47,16 @@ export async function handleWeeklyPlan(user, replyToken) {
     const nowJst = new Date(Date.now() + JST_OFFSET);
     const currentSunday = getWeekStartSunday(nowJst);
 
+    console.log(`[WeeklyPlan] チェック: existing=${existing?.week_start || 'null'}, currentSunday=${currentSunday.toISOString().split('T')[0]}`);
+
     if (existing && new Date(existing.week_start).getTime() >= currentSunday.getTime()) {
       // 今週の計画がある → そのまま表示
+      console.log('[WeeklyPlan] キャッシュヒット → 既存計画を表示');
       const message = formatWeeklyPlanMessage(existing);
       return await replyText(replyToken, message);
     }
+
+    console.log('[WeeklyPlan] キャッシュミス → 新規生成');
 
     // 今週の計画がない → オンデマンド生成
     await replyText(replyToken, '📋 今週の計画を作成中です...（30秒ほどお待ちください）');
