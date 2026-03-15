@@ -93,16 +93,19 @@ async function syncStoreEngagement(account) {
   const igPosts = await fetchLatestMetrics(apiBase, igAccountId, accessToken, 10);
 
   if (igPosts.length === 0) {
+    console.log(`[NightlySync] ${store.name}: APIから投稿0件`);
     return { updated: 0, learned: 0 };
   }
+
+  console.log(`[NightlySync] ${store.name}: APIから${igPosts.length}件取得`);
 
   let updated = 0;
   let learned = 0;
 
   for (const igPost of igPosts) {
     try {
-      // instagram_posts テーブルを最新メトリクスで更新（既存レコード）
-      const wasUpdated = await updateInstagramPostMetrics(igPost);
+      // instagram_posts テーブルを最新メトリクスで更新（なければ新規作成）
+      const wasUpdated = await updateInstagramPostMetrics(account, igPost);
       if (wasUpdated) updated++;
 
       // learning_synced 済みならスキップ
@@ -198,13 +201,15 @@ async function fetchLatestMetrics(apiBase, igAccountId, accessToken, limit) {
 }
 
 /**
- * instagram_posts テーブルの既存レコードをメトリクスで更新
+ * instagram_posts テーブルのメトリクスを更新（なければ新規作成）
+ * Instagramアプリから直接投稿した場合もレコードを自動作成する
  */
-async function updateInstagramPostMetrics(igPost) {
+async function updateInstagramPostMetrics(account, igPost) {
   const engagementRate = igPost.reach > 0
     ? parseFloat(((igPost.likes + igPost.comments + igPost.saves) / igPost.reach * 100).toFixed(2))
     : 0;
 
+  // まず既存レコードをUPDATE
   const { data, error } = await supabase
     .from('instagram_posts')
     .update({
@@ -223,12 +228,43 @@ async function updateInstagramPostMetrics(igPost) {
     return false;
   }
 
-  return data && data.length > 0;
+  // 既存レコードがなければ新規INSERT（Instagramアプリから直接投稿した分）
+  if (!data || data.length === 0) {
+    const { error: insertError } = await supabase
+      .from('instagram_posts')
+      .insert({
+        store_id: account.store_id,
+        instagram_account_id: account.id,
+        media_id: igPost.mediaId,
+        permalink: igPost.permalink,
+        caption: igPost.caption,
+        timestamp: igPost.timestamp,
+        likes_count: igPost.likes,
+        comments_count: igPost.comments,
+        saves_count: igPost.saves,
+        reach: igPost.reach,
+        engagement_rate: engagementRate,
+        published_via: 'sync',
+        synced_at: new Date().toISOString(),
+      });
+
+    if (insertError) {
+      // 重複キー等は無視（別プロセスが同時挿入した場合）
+      if (!insertError.message.includes('duplicate')) {
+        console.warn(`[NightlySync] レコード挿入エラー: ${igPost.mediaId}`, insertError.message);
+      }
+      return false;
+    }
+    console.log(`[NightlySync] 新規レコード作成: ${igPost.mediaId} (Instagramアプリ投稿)`);
+    return true;
+  }
+
+  return true;
 }
 
 /**
  * instagram投稿を post_history とマッチング
- * キャプション先頭100文字の一致で紐づける
+ * キャプション先頭部分の一致で紐づける
  */
 async function matchWithPostHistory(storeId, igPost) {
   if (!igPost.caption) return null;
@@ -242,23 +278,25 @@ async function matchWithPostHistory(storeId, igPost) {
     .select('id, content, store_id')
     .eq('store_id', storeId)
     .order('created_at', { ascending: false })
-    .limit(20);
+    .limit(30);
 
   if (!posts || posts.length === 0) return null;
 
   // post_history の content と Instagram キャプションの先頭部分を比較
+  // 先頭30文字以上が一致すればマッチ（コピー時の微改変を許容）
+  const MATCH_LENGTH = 30;
   for (const post of posts) {
     if (!post.content) continue;
     const postContentStart = post.content.split('#')[0].trim().slice(0, 80);
-    // 先頭50文字以上が一致すればマッチとみなす
-    if (postContentStart.length >= 50 && captionStart.startsWith(postContentStart.slice(0, 50))) {
+    if (postContentStart.length >= MATCH_LENGTH && captionStart.startsWith(postContentStart.slice(0, MATCH_LENGTH))) {
       return post;
     }
-    if (captionStart.length >= 50 && postContentStart.startsWith(captionStart.slice(0, 50))) {
+    if (captionStart.length >= MATCH_LENGTH && postContentStart.startsWith(captionStart.slice(0, MATCH_LENGTH))) {
       return post;
     }
   }
 
+  console.log(`[NightlySync] マッチなし: caption="${captionStart.slice(0, 30)}..." (store=${storeId.slice(0, 8)})`);
   return null;
 }
 
