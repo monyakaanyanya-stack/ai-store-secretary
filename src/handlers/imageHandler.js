@@ -47,6 +47,9 @@ export function parseCharmViewpoints(imageDescription) {
         action_type: parsed.action_type || 'none',
         lighting_type: parsed.lighting_type || 'natural_soft',
         camera_angle: parsed.camera_angle || 'eye_level',
+        color_tone: parsed.color_tone || 'neutral',
+        subject_density: parsed.subject_density || 'single',
+        composition_type: parsed.composition_type || 'center',
       };
 
       return {
@@ -277,7 +280,7 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
     // 構造化パース（JSON形式 or 旧テキスト形式）
     const { cleanDescription, viewpoints, mainSubject, supportingElements, features } = parseCharmViewpoints(imageDescriptionRaw);
     if (features) {
-      console.log(`[Image] 写真特徴: subject=${features.main_subject_tag}, scene=${features.scene_type}, person=${features.has_person}, angle=${features.camera_angle}`);
+      console.log(`[Image] 写真特徴: subject=${features.main_subject_tag}, scene=${features.scene_type}, person=${features.has_person}, angle=${features.camera_angle}, color=${features.color_tone}, density=${features.subject_density}, comp=${features.composition_type}`);
     }
     if (mainSubject) {
       console.log(`[Image] main_subject: "${mainSubject}", supporting: [${supportingElements.join(', ')}]`);

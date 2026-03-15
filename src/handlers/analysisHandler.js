@@ -1,6 +1,6 @@
 import { replyText, pushMessage } from '../services/lineService.js';
 import { askClaude } from '../services/claudeService.js';
-import { getStore, getFeatureAnalysis } from '../services/supabaseService.js';
+import { getStore, getFeatureAnalysis, getRecentPostsWithFeatures } from '../services/supabaseService.js';
 import { getBlendedInsights } from '../services/collectiveIntelligence.js';
 import { isFeatureEnabled } from '../services/subscriptionService.js';
 
@@ -73,6 +73,25 @@ const FEATURE_LABELS = {
   true: 'あり',
   false: 'なし',
   other: 'その他',
+  // color_tone
+  color_tone: '色調',
+  warm: '暖色系',
+  cool: '寒色系',
+  neutral: '中間',
+  monochrome: 'モノトーン',
+  vibrant: '鮮やか',
+  // subject_density
+  subject_density: '被写体の数',
+  single: '1つ',
+  few: '2-3個',
+  many: '多数',
+  // composition_type
+  composition_type: '構図',
+  center: '中央配置',
+  rule_of_thirds: '三分割',
+  symmetry: '対称',
+  frame: 'フレーム',
+  // diagonal already defined above as '斜めから'
 };
 
 function labelOf(val) {
@@ -82,15 +101,7 @@ function labelOf(val) {
 /**
  * 分析プロンプト構築
  */
-function buildAnalysisPrompt(store, grouped, blendedInsights) {
-  // 投稿数の合計（概算）
-  let totalPosts = 0;
-  for (const items of Object.values(grouped)) {
-    for (const item of items) {
-      totalPosts = Math.max(totalPosts, item.count);
-    }
-  }
-
+function buildAnalysisPrompt(store, grouped, blendedInsights, recentPosts) {
   // blendedInsightsからの補足
   let supplementData = '';
   if (blendedInsights?.own) {
@@ -106,54 +117,67 @@ function buildAnalysisPrompt(store, grouped, blendedInsights) {
     }
   }
 
+  // recent_posts セクション
+  const recentPostsSection = recentPosts && recentPosts.length > 0
+    ? `\n\n直近の投稿データ（特徴セット × 保存率）：\n${JSON.stringify(recentPosts, null, 2)}`
+    : '';
+
   return `あなたはInstagram運用の写真分析AIです。
 
 目的：
 このアカウント（${store.name}、業種: ${store.category || '未設定'}）で反応が良い写真パターンを見つけ、
 次に撮るべき写真を具体的に提案してください。
 
-入力データ（写真特徴 × エンゲージメント集計結果）：
+■ 特徴別の集計データ（summary_stats）：
 ${JSON.stringify(grouped, null, 2)}
 ${supplementData}
+${recentPostsSection}
 
 出力フォーマット（このまま出力してください）：
 
 📊 写真分析レポート
 
-【強い写真パターン】
+【強い特徴】
 ・{保存率が高い特徴を日本語で}（保存率 X.X%、N件）
 ・{2番目}
 ・{3番目}
 
+【伸びやすい組み合わせ】
+・{直近投稿データから読み取れる、保存率が高い特徴の組み合わせ}
+・{2番目}
+※ データ不足の場合は「まだ仮説段階です」と注記
+
 【伸びにくい写真】
 ・{保存率が低い特徴を日本語で}
-・{2番目}
 
 🎯 次に撮るべき写真
 1. {具体的な撮影指示: 被写体 + 構図 + 光}
 2. {具体的な撮影指示}
 3. {具体的な撮影指示}
 
-📸 明日撮るならこの1枚
-{最も効果的な組み合わせの具体的な撮影指示。場所・時間帯・構図まで書く}
+📸 まず1枚撮るならこれ
+{最も効果的な組み合わせから導いた具体的な撮影指示。場所・時間帯・構図まで書く。
+これを見て明日すぐ撮れるレベルまで落とし込む}
 
 ルール：
 1. 数値は入力データからそのまま使う（捏造しない）
 2. save_rateは保存÷いいねの比率（0〜1）。パーセント表示する場合は×100
-3. 「次に撮るべき写真」は抽象論ではなく、明日すぐ撮れる具体指示にする
-4. 業種（${store.category || '未設定'}）に合った提案をする
-5. 特徴タグは日本語に変換して出力する
-6. データが少ない（各項目3件程度）場合は「まだデータが少ないため参考値です」と冒頭に注記する
-7. 前置きや説明は不要。フォーマットどおり出力するだけ`;
+3. 「伸びやすい組み合わせ」は直近投稿データの特徴セットを見て、保存率が高い投稿に共通する特徴の組み合わせを見つける
+4. 「次に撮るべき写真」は抽象論ではなく、明日すぐ撮れる具体指示にする
+5. 「まず1枚撮るならこれ」は分析結果をそのまま撮影指示に変換する。読んだ人がスマホを持って立ち上がれるレベルの具体性
+6. 業種（${store.category || '未設定'}）に合った提案をする
+7. 特徴タグは日本語に変換して出力する
+8. データが少ない（各項目3件程度）場合は「まだデータが少ないため参考値です」と冒頭に注記する
+9. 前置きや説明は不要。フォーマットどおり出力するだけ`;
 }
 
 /**
  * AIレポート生成
  */
-async function generateAnalysisReport(store, featureData, blendedInsights) {
+async function generateAnalysisReport(store, featureData, blendedInsights, recentPosts) {
   const grouped = groupFeatureData(featureData);
-  const prompt = buildAnalysisPrompt(store, grouped, blendedInsights);
-  const report = await askClaude(prompt, { max_tokens: 1024 });
+  const prompt = buildAnalysisPrompt(store, grouped, blendedInsights, recentPosts);
+  const report = await askClaude(prompt, { max_tokens: 1500 });
   return report;
 }
 
@@ -182,8 +206,9 @@ export async function handleAnalysis(user, replyToken) {
     }
 
     // 4. データ取得（並列）
-    const [featureData, blendedInsights] = await Promise.all([
+    const [featureData, recentPosts, blendedInsights] = await Promise.all([
       getFeatureAnalysis(store.id, 30),
+      getRecentPostsWithFeatures(store.id, 30),
       getBlendedInsights(store.id, store.category).catch(() => null),
     ]);
 
@@ -196,7 +221,7 @@ export async function handleAnalysis(user, replyToken) {
     // 6. AIレポート生成（時間がかかるのでまず応答）
     await replyText(replyToken, '📊 分析中です...（10秒ほどお待ちください）');
 
-    const report = await generateAnalysisReport(store, featureData, blendedInsights);
+    const report = await generateAnalysisReport(store, featureData, blendedInsights, recentPosts);
 
     // 7. Push で送信
     await pushMessage(user.line_user_id, [{

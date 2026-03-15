@@ -560,7 +560,7 @@ export function buildImagePostPrompt(store, lengthOverride = null, blendedInsigh
     const collectiveTagNote = dbTags && dbTags.length > 0
       ? `\n追加可能な業種タグ（上記の後に1-3個追加してよい）: ${dbTags.join(', ')}`
       : '';
-    hashtagInstruction = `\n【ハッシュタグ（厳守）】${fixedTagNote}\n順番: ${templateHashtags.length > 0 ? '①固定タグ（上記）→ ' : ''}②写真に実際に写っているもの・${categoryHint}に直結するタグ（3-5個）→ ③業種の定番タグ（1-3個）\n絶対NG：写真に写っていないもののタグ、#instagood #japan #photooftheday などの汎用タグ${collectiveTagNote}`;
+    hashtagInstruction = `\n【ハッシュタグ（厳守）】${fixedTagNote}\n順番: ${templateHashtags.length > 0 ? '①固定タグ（上記）→ ' : ''}②写真に実際に写っているもの・${categoryHint}に直結するタグ（3-5個）→ ③業種の定番タグ（1-3個）\n絶対NG：写真に写っていないもののタグ、#instagood #japan #photooftheday などの汎用タグ\n⚠️ 禁止ワード（おすすめ・素敵・魅力的 等）はハッシュタグにも使用禁止${collectiveTagNote}`;
   } else if (!collectiveIntelligenceSection) {
     const fixedTagNote = templateHashtags.length > 0
       ? `\n【固定ハッシュタグ（必ず先頭に含める）】\n${templateHashtags.join(' ')}\n上記の後に関連タグを追加:`
@@ -1494,7 +1494,8 @@ ${toneData.style_rules.map((r, i) => `${i + 1}. ${r}`).join('\n')}`;
     : '';
   const hashtagSection = `【ハッシュタグ】
 ${fixedTagNote}順番: ${templateHashtags.length > 0 ? '①固定タグ → ' : ''}②投稿本文の内容・${categoryHint}に直結するタグ（3-5個）→ ③業種の定番タグ（1-3個）
-絶対NG: 投稿本文に書かれていないもののタグ、#instagood #japan #photooftheday などの汎用タグ${collectiveTagNote}`;
+絶対NG: 投稿本文に書かれていないもののタグ、#instagood #japan #photooftheday などの汎用タグ
+⚠️ 禁止ワード（おすすめ・素敵・魅力的 等）はハッシュタグにも使用禁止${collectiveTagNote}`;
 
   // 出力形式
   const isXshort = postLength === 'xshort' || postLength === '超短文';
@@ -1559,6 +1560,10 @@ ${bodyText}
 ${imageDescription || ''}
 
 ${photoAdviceSection}
+
+【禁止ワード（撮影アドバイスにも適用）】
+幻想的, 素敵, 魅力的, 素晴らしい, 完璧, 最高, 美しい, 美しさ, おすすめ, ぜひ, 大好評, お得, 映える, 光景
+→ これらの言葉は使わない。具体的な撮り方の指示だけを書く。
 
 【出力形式】
 ━━━━━━━━━━━━━━━━━━━━━━━━

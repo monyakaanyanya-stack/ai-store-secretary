@@ -3953,10 +3953,11 @@ describe('Scenario 57: 1案ドン表示（Phase 1）', () => {
       new URL('../src/handlers/analysisHandler.js', import.meta.url), 'utf-8'
     );
     assert.ok(content.includes('写真分析AI'), 'プロンプトに写真分析AIロールがある');
-    assert.ok(content.includes('強い写真パターン'), '出力フォーマットに強い写真パターンがある');
+    assert.ok(content.includes('強い特徴'), '出力フォーマットに強い特徴がある');
+    assert.ok(content.includes('伸びやすい組み合わせ'), '出力フォーマットに組み合わせ仮説がある');
     assert.ok(content.includes('伸びにくい写真'), '出力フォーマットに伸びにくい写真がある');
     assert.ok(content.includes('次に撮るべき写真'), '出力フォーマットに次に撮るべき写真がある');
-    assert.ok(content.includes('明日撮るならこの1枚'), '出力フォーマットに明日撮るならがある');
+    assert.ok(content.includes('まず1枚撮るならこれ'), '出力フォーマットにまず1枚がある');
     assert.ok(content.includes('store.category'), '業種が考慮されている');
   });
 
@@ -3967,5 +3968,26 @@ describe('Scenario 57: 1案ドン表示（Phase 1）', () => {
     );
     assert.ok(content.includes('分析にはもう少しデータが必要です'), 'データ不足メッセージがある');
     assert.ok(content.includes('報告済みの投稿が3件以上'), '目安件数が示されている');
+  });
+
+  it('supabaseService.js にgetRecentPostsWithFeaturesがある', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/supabaseService.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('export async function getRecentPostsWithFeatures'), 'getRecentPostsWithFeaturesがexportされている');
+    assert.ok(content.includes('save_intensity'), '保存率を取得している');
+    assert.ok(content.includes('color_tone'), '新カテゴリcolor_toneを含む');
+    assert.ok(content.includes('composition_type'), '新カテゴリcomposition_typeを含む');
+  });
+
+  it('analysisHandler.js が2ブロック構成でClaude分析を呼び出す', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/analysisHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('getRecentPostsWithFeatures'), 'recent_postsデータを取得している');
+    assert.ok(content.includes('summary_stats'), 'プロンプトにsummary_statsブロックがある');
+    assert.ok(content.includes('recentPosts'), 'プロンプトにrecentPostsを渡している');
   });
 });

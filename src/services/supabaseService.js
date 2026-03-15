@@ -242,6 +242,9 @@ export async function savePostFeatures(storeId, postId, features) {
         action_type: features.action_type || 'none',
         lighting_type: features.lighting_type || 'natural_soft',
         camera_angle: features.camera_angle || 'eye_level',
+        color_tone: features.color_tone || 'neutral',
+        subject_density: features.subject_density || 'single',
+        composition_type: features.composition_type || 'center',
       }, { onConflict: 'post_id' });
 
     if (error) {
@@ -279,6 +282,59 @@ export async function getFeatureAnalysis(storeId, days = 30) {
     return data || [];
   } catch (err) {
     console.error('[PostFeatures] Analysis unexpected error:', err.message);
+    return [];
+  }
+}
+
+/**
+ * 直近N件の投稿を特徴セット丸ごと + 保存率で取得（組み合わせ分析用）
+ */
+export async function getRecentPostsWithFeatures(storeId, limit = 30) {
+  try {
+    const { data: features, error } = await supabase
+      .from('post_features')
+      .select('post_id, main_subject, scene_type, has_person, action_type, lighting_type, camera_angle, color_tone, subject_density, composition_type')
+      .eq('store_id', storeId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error || !features || features.length === 0) return [];
+
+    const postIds = features.map(f => f.post_id).filter(Boolean);
+    const { data: metrics } = await supabase
+      .from('engagement_metrics')
+      .select('post_id, save_intensity, engagement_rate')
+      .in('post_id', postIds)
+      .eq('status', '報告済');
+
+    if (!metrics || metrics.length === 0) return [];
+
+    const metricsMap = new Map(metrics.map(m => [m.post_id, m]));
+    const results = [];
+
+    for (const f of features) {
+      const m = metricsMap.get(f.post_id);
+      if (!m) continue;
+      results.push({
+        save_rate: m.save_intensity || 0,
+        engagement_rate: m.engagement_rate || 0,
+        features: {
+          main_subject: f.main_subject,
+          scene_type: f.scene_type,
+          has_person: f.has_person,
+          action_type: f.action_type,
+          lighting_type: f.lighting_type,
+          camera_angle: f.camera_angle,
+          color_tone: f.color_tone || 'neutral',
+          subject_density: f.subject_density || 'single',
+          composition_type: f.composition_type || 'center',
+        },
+      });
+    }
+
+    return results;
+  } catch (err) {
+    console.error('[PostFeatures] getRecentPostsWithFeatures error:', err.message);
     return [];
   }
 }

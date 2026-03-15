@@ -133,7 +133,10 @@ export async function describeImage(imageBase64, mediaType = 'image/jpeg') {
   "has_person": true または false,
   "action_type": "eating|kneading|holding|drinking|talking|looking_out|arranging|serving|none のいずれか1つ",
   "lighting_type": "natural_soft|warm_indoor|hard_backlight|low_light|bright_daylight のいずれか1つ",
-  "camera_angle": "eye_level|top_down|side|diagonal|close_crop のいずれか1つ"
+  "camera_angle": "eye_level|top_down|side|diagonal|close_crop のいずれか1つ",
+  "color_tone": "warm|cool|neutral|monochrome|vibrant のいずれか1つ",
+  "subject_density": "single|few|many のいずれか1つ",
+  "composition_type": "center|rule_of_thirds|symmetry|frame|diagonal のいずれか1つ"
 }
 
 ルール:
@@ -149,6 +152,9 @@ export async function describeImage(imageBase64, mediaType = 'image/jpeg') {
 - action_type: 写っている人物や手の動作。人物なしならnone
 - lighting_type: 光の種類。必ず指定の選択肢から1つ選ぶ
 - camera_angle: カメラアングル。必ず指定の選択肢から1つ選ぶ
+- color_tone: 写真全体の色調。warm=暖色系, cool=寒色系, neutral=中間, monochrome=モノトーン/白黒寄り, vibrant=鮮やか/カラフル
+- subject_density: 主な被写体の数。single=1つ, few=2-3個, many=4個以上
+- composition_type: 構図タイプ。center=中央配置, rule_of_thirds=三分割, symmetry=対称, frame=フレーム構図, diagonal=斜め/対角線
 - JSONのみ出力。説明や前置きは不要`,
             },
           ],
