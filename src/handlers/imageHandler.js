@@ -392,7 +392,6 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
 
     // ── Push通知: 本文のみ即表示 ──
     const genLimit = await checkGenerationLimit(userId);
-    const revisionExample = getRevisionExample(store.category);
     const learningNote = hasLearning ? '\n🧠 これまでの学習を反映しています' : '';
     const remaining = Number.isFinite(genLimit.limit) ? genLimit.limit - (genLimit.used + 1) : null;
     const remainingNote = remaining !== null && remaining <= 3 ? `\n📊 今月の残り: ${remaining}回` : '';
