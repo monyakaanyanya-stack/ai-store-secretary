@@ -12,7 +12,6 @@ import { checkGenerationLimit, isFeatureEnabled } from '../services/subscription
 import { isDevTestStore } from './adminHandler.js';
 import { buildBodyPrompt, buildSupplementPrompt, buildStrategicAdvice } from '../utils/promptBuilder.js';
 import { getGlobalPromptRules } from '../services/promptTuningService.js';
-import { getRevisionExample } from '../utils/categoryExamples.js';
 import { getInstagramAccount } from '../services/instagramService.js';
 
 
@@ -196,7 +195,6 @@ export async function regenerateBody(user, store, ctx, lineUserId) {
         .catch(e => console.error('[Image] 再生成PostFeatures保存エラー:', e.message));
     }
 
-    const revisionExample = getRevisionExample(store.category);
     const hasLearning = (ctx.personalization || '') !== '';
     const learningNote = hasLearning ? '\n🧠 これまでの学習を反映しています' : '';
 
@@ -204,7 +202,7 @@ export async function regenerateBody(user, store, ctx, lineUserId) {
     const regenQrItems = await buildQuickReplyItems(store.id, hasImageUrl);
     await pushMessage(lineUserId, [{
       type: 'text',
-      text: `別の案です！${learningNote}\n━━━━━━━━━━━\n${bodyText}\n━━━━━━━━━━━\n\n📝「学習: ${revisionExample}」で修正＋今後にも反映`,
+      text: `別の案です！${learningNote}\n━━━━━━━━━━━\n${bodyText}\n━━━━━━━━━━━\n\n📝「学習: 書き直した文章」で文体を学習`,
       quickReply: { items: regenQrItems },
     }]);
 
@@ -402,7 +400,7 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
     const initialQrItems = await buildQuickReplyItems(store.id, !!imageUrl);
     await pushMessage(lineUserId, [{
       type: 'text',
-      text: `投稿ができました！👇${learningNote}\n━━━━━━━━━━━\n${bodyText}\n━━━━━━━━━━━\n\n📝「学習: ${revisionExample}」で修正＋今後にも反映${remainingNote}`,
+      text: `投稿ができました！👇${learningNote}\n━━━━━━━━━━━\n${bodyText}\n━━━━━━━━━━━\n\n📝「学習: 書き直した文章」で文体を学習${remainingNote}`,
       quickReply: { items: initialQrItems },
     }]);
 

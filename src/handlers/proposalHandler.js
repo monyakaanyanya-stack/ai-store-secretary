@@ -168,7 +168,7 @@ export async function handleShowAlternatives(user, store, latestPost, replyToken
       : '';
     const isPremium = await isFeatureEnabled(user.id, 'enhancedPhotoAdvice');
     if (!isPremium && photoAdvice) {
-      photoAdvice = photoAdvice.replace(/\n💡 次はこんなのも[\s\S]*?(?=\n[━─―]|$)/, '').replace(/\n🎯 明日撮るべきもの[\s\S]*?(?=\n[━─―]|$)/, '');
+      photoAdvice = photoAdvice.replace(/\n🎯 明日撮るべきもの[\s\S]*?(?=\n[━─―]|$)/, '');
     }
 
     const parts = [];

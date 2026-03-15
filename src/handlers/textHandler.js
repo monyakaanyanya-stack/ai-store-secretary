@@ -16,7 +16,7 @@ import {
   clearPendingImageContext,
   getLatestPost,
 } from '../services/supabaseService.js';
-import { handleFeedback, handleStyleLearning } from './feedbackHandler.js';
+import { handleStyleLearning } from './feedbackHandler.js';
 import { handleEngagementReport, handlePostSelection, applyEngagementMetrics } from './reportHandler.js';
 import { handleOnboardingStart, handleOnboardingResponse, handleHelpMenu, handleHelpCategory, handleCommandList } from './onboardingHandler.js';
 import { handleDataStats } from './dataStatsHandler.js';
@@ -115,7 +115,7 @@ export async function handleTextMessage(user, text, replyToken) {
     'モード切替', 'モード切り替え', 'AI投稿モード', 'そのまま投稿モード', 'そのまま投稿', 'direct投稿実行', 'direct複数枚投稿',
     'ストック', 'ストック保存', 'ストック投稿', 'ストック予約', 'ストック削除', 'ストック一括削除', '予約投稿', 'これで決定', '別案', 'コピー',
     'instagram投稿', '複数枚投稿', '分析', '写真分析'].includes(trimmed)
-    || trimmed.startsWith('切替:') || trimmed.startsWith('ストック:') || trimmed.startsWith('予約:') || trimmed.startsWith('/') || trimmed.startsWith('学習:') || trimmed.startsWith('学習：') || trimmed.startsWith('直し:') || trimmed.startsWith('直し：');
+    || trimmed.startsWith('切替:') || trimmed.startsWith('ストック:') || trimmed.startsWith('予約:') || trimmed.startsWith('/') || trimmed.startsWith('学習:') || trimmed.startsWith('学習：');
 
   // カルーセルモード中のテキスト処理（通常のpending_image_contextより先に判定）
   if (user.pending_image_context?.carousel_mode && !isSystemCommand) {
@@ -135,42 +135,8 @@ export async function handleTextMessage(user, text, replyToken) {
   if (user.pending_command && !isSystemCommand) {
     const cmd = user.pending_command;
     await clearPendingCommand(user.id);
-    if (cmd === 'revision') {
-      // 3案が未選択の場合はまず案を選ぶよう促す
-      if (user.current_store_id) {
-        const storeForCheck = await getStore(user.current_store_id);
-        if (storeForCheck) {
-          const { data: checkPost } = await supabase
-            .from('post_history')
-            .select('content')
-            .eq('store_id', storeForCheck.id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single();
-          if (checkPost?.content && /\[\s*案A[：:]/.test(checkPost.content)) {
-            return await replyText(replyToken, '先にA / B / C のいずれかを選んでから修正指示を送ってください✉️');
-          }
-        }
-      }
-      return await handleFeedback(user, trimmed, replyToken);
-    }
-    if (cmd === 'style_learning') {
-      // 後方互換: 旧style_learningはrevisionと同じ統合フローへ
-      if (user.current_store_id) {
-        const storeForCheck = await getStore(user.current_store_id);
-        if (storeForCheck) {
-          const { data: checkPost } = await supabase
-            .from('post_history')
-            .select('content')
-            .eq('store_id', storeForCheck.id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single();
-          if (checkPost?.content && !/\[\s*案A[：:]/.test(checkPost.content)) {
-            return await handleFeedback(user, trimmed, replyToken);
-          }
-        }
-      }
+    if (cmd === 'learning' || cmd === 'revision' || cmd === 'style_learning') {
+      // 書き直し→差分学習
       return await handleStyleLearning(user, trimmed, replyToken);
     }
     if (cmd === 'awaiting_schedule_time') {
@@ -248,101 +214,24 @@ export async function handleTextMessage(user, text, replyToken) {
     }
   }
 
-  // フィードバック: 「直し:」で始まる
-  if (trimmed.startsWith('直し:')) {
-    const feedback = trimmed.replace(/^直し[:：]\s*/, '');
-
-    // 内容が空 = 「直し」ボタンが押された → 入力待ちモードへ
-    if (!feedback.trim()) {
-      try {
-        await setPendingCommand(user.id, 'revision');
-      } catch (e) {
-        return await replyText(replyToken, '⚠️ 状態の保存に失敗しました。修正内容を「直し: もっとカジュアルに」の形で送ってください。');
-      }
-      // カテゴリーに応じたクイックリプライ選択肢を取得
-      let revisionCategory = null;
-      if (user.current_store_id) {
-        try {
-          const storeForCategory = await getStore(user.current_store_id);
-          revisionCategory = storeForCategory?.category ?? null;
-        } catch (_) { /* 取得失敗時はデフォルト選択肢を使用 */ }
-      }
-      return await replyWithQuickReply(
-        replyToken,
-        '✏️ どんな修正をしますか？\n\n修正指示を送ってください（自由入力でもOK）',
-        getRevisionQuickReplies(revisionCategory)
-      );
-    }
-
-    // H4: 3案が未選択の場合はまず案を選ぶよう促す
-    if (user.current_store_id) {
-      const storeForCheck = await getStore(user.current_store_id);
-      if (storeForCheck) {
-        const { data: checkPost } = await supabase
-          .from('post_history')
-          .select('content')
-          .eq('store_id', storeForCheck.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
-        if (checkPost?.content && /\[\s*案A[：:]/.test(checkPost.content)) {
-          return await replyText(replyToken, '先にA / B / C のいずれかを選んでから修正指示を送ってください✉️');
-        }
-      }
-    }
-    return await handleFeedback(user, feedback, replyToken);
-  }
-
-  // 統合学習: 「学習:」で始まる（修正指示 or スタイル記憶をAIが自動判定）
+  // 学習: ユーザーが書き直した文章から差分学習
   if (trimmed.startsWith('学習:')) {
-    const instruction = trimmed.replace(/^学習[:：]\s*/, '');
+    const userRewrite = trimmed.replace(/^学習[:：]\s*/, '');
 
     // 内容が空 = 「学習」ボタンが押された → 入力待ちモードへ
-    if (!instruction.trim()) {
+    if (!userRewrite.trim()) {
       try {
-        await setPendingCommand(user.id, 'revision');
+        await setPendingCommand(user.id, 'learning');
       } catch (e) {
-        return await replyText(replyToken, '⚠️ 状態の保存に失敗しました。「学習: もっとカジュアルに」の形で送ってください。');
+        return await replyText(replyToken, '⚠️ 状態の保存に失敗しました。「学習: 書き直した文章」の形で送ってください。');
       }
-      // カテゴリーに応じたクイックリプライ選択肢を取得
-      let revisionCategory = null;
-      if (user.current_store_id) {
-        try {
-          const storeForCategory = await getStore(user.current_store_id);
-          revisionCategory = storeForCategory?.category ?? null;
-        } catch (_) { /* 取得失敗時はデフォルト選択肢を使用 */ }
-      }
-      return await replyWithQuickReply(
+      return await replyText(
         replyToken,
-        '📝 どう変えたいか教えてください\n\n例）もっとカジュアルに、短く、敬語で\n→ 今の投稿を修正＋今後にも反映します',
-        getRevisionQuickReplies(revisionCategory)
+        '📝 投稿をあなたの言葉で書き直してください\n\nAIが生成した投稿と比較して、あなたの文体を学習します'
       );
     }
 
-    // 最新投稿がある → 修正生成＋diff学習（handleFeedback）
-    // 最新投稿がない → スタイル記憶のみ（handleStyleLearning）
-    if (user.current_store_id) {
-      const storeForCheck = await getStore(user.current_store_id);
-      if (storeForCheck) {
-        const { data: checkPost } = await supabase
-          .from('post_history')
-          .select('content')
-          .eq('store_id', storeForCheck.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
-        // 3案が未選択なら先に案を選んでもらう
-        if (checkPost?.content && /\[\s*案A[：:]/.test(checkPost.content)) {
-          return await replyText(replyToken, '先にA / B / C のいずれかを選んでから教えてください✉️');
-        }
-        // 最新投稿がある → 修正＋学習
-        if (checkPost?.content) {
-          return await handleFeedback(user, instruction, replyToken);
-        }
-      }
-    }
-    // 最新投稿がない → スタイル記憶のみ
-    return await handleStyleLearning(user, instruction, replyToken);
+    return await handleStyleLearning(user, userRewrite, replyToken);
   }
 
   // エンゲージメント報告: 「報告:」で始まる
@@ -847,7 +736,7 @@ ${contactEmail}
           if (hasProposals) {
             return await replyText(replyToken, '先にA・B・Cのどれか選んでもらえますか？そのあと修正しますね');
           }
-          return await handleFeedback(user, trimmed, replyToken);
+          return await handleStyleLearning(user, trimmed, replyToken);
         }
 
         if (intent === 'positive') {
@@ -877,7 +766,7 @@ ${contactEmail}
   // ユーザーメッセージを会話履歴に保存
   await saveConversation(user.id, 'user', trimmed);
 
-  // 好み発言を検出して学習（「直し:」以外の自然な発言から）
+  // 好み発言を検出して学習（自然な発言から）
   if (user.current_store_id) {
     const preferenceKeywords = [
       'もっと', 'もう少し', 'もうちょっと', 'もう少々',

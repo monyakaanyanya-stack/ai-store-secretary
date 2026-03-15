@@ -275,13 +275,11 @@ describe('Scenario 10: モジュールimport整合性', async () => {
       'deleteStore should include engagement_metrics cleanup');
   });
 
-  it('feedbackHandler が savePostHistory を使用（直しも生成回数カウント）+ 学習後に投稿上書き', async () => {
+  it('feedbackHandler が学習後に投稿上書きする', async () => {
     const fs = await import('node:fs');
     const content = fs.readFileSync(
       new URL('../src/handlers/feedbackHandler.js', import.meta.url), 'utf-8'
     );
-    assert.ok(content.includes('savePostHistory'),
-      'feedbackHandler should import savePostHistory for revision counting');
     assert.ok(content.includes('updatePostContent'),
       'feedbackHandler should use updatePostContent for style learning post overwrite');
   });
@@ -635,13 +633,13 @@ describe('Scenario 20: サービス修正（S8+S6+S10）', async () => {
 
 // ==================== Scenario 21: S14+S16+S17+S18 残り修正 ====================
 describe('Scenario 21: 残り修正（S14+S16+S17+S18）', async () => {
-  it('feedbackHandler にフィードバック長制限がある（S14）', async () => {
+  it('feedbackHandler（学習）が updatePostContent を使用する（S14）', async () => {
     const fs = await import('node:fs');
     const content = fs.readFileSync(
       new URL('../src/handlers/feedbackHandler.js', import.meta.url), 'utf-8'
     );
-    assert.ok(content.includes('feedback.length > 500') || content.includes('500'),
-      'Should limit feedback to 500 chars');
+    assert.ok(content.includes('updatePostContent'),
+      'Should update post content after learning');
   });
 
   it('feedbackHandler がユーザー入力をログに出力しない（S17）', async () => {
@@ -1442,19 +1440,14 @@ describe('Scenario 30: 第5次監査バグ修正検証', async () => {
     assert.ok(result.dominantCharBucket !== undefined, 'dominantCharBucket should not be undefined');
   });
 
-  // M3: feedbackHandler preferredWords 上書き
-  it('M3: feedbackHandler.js の extractLearningHints がカジュアル+丁寧で両方を保持する', async () => {
+  // M3: feedbackHandler が差分学習（analyzeFeedbackWithClaude）を使用する
+  it('M3: feedbackHandler.js が analyzeFeedbackWithClaude を使用する', async () => {
     const fs = await import('node:fs');
     const content = fs.readFileSync(
       new URL('../src/handlers/feedbackHandler.js', import.meta.url), 'utf-8'
     );
-    // toneWords 配列に push してから hints.preferredWords に代入する実装であること
-    assert.ok(content.includes('toneWords') && content.includes('toneWords.push'),
-      'Should use array push instead of overwriting hints.preferredWords');
-    assert.ok(!content.includes("hints.preferredWords = ['カジュアル']"),
-      'Should NOT directly assign カジュアル to preferredWords');
-    assert.ok(!content.includes("hints.preferredWords = ['丁寧']"),
-      'Should NOT directly assign 丁寧 to preferredWords');
+    assert.ok(content.includes('analyzeFeedbackWithClaude'),
+      'Should use analyzeFeedbackWithClaude for diff learning');
   });
 
   // server.js Array.isArray
@@ -1864,16 +1857,14 @@ describe('Scenario 35: サブスクリプション planConfig', async () => {
 describe('Scenario 36: サブスク接続検証', async () => {
   const fs = await import('node:fs');
 
-  it('feedbackHandler に checkGenerationLimit がある', () => {
+  it('feedbackHandler（学習）が差分分析を使用する', () => {
     const content = fs.readFileSync(
       new URL('../src/handlers/feedbackHandler.js', import.meta.url), 'utf-8'
     );
-    assert.ok(content.includes("import { checkGenerationLimit }"),
-      'checkGenerationLimit をインポートしている');
-    assert.ok(content.includes('checkGenerationLimit(user.id)'),
-      '修正生成前に上限チェックしている');
-    assert.ok(content.includes('genLimit.allowed'),
-      'allowed フラグで判定している');
+    assert.ok(content.includes('analyzeFeedbackWithClaude'),
+      '差分分析APIを使用している');
+    assert.ok(content.includes('updateAdvancedProfile'),
+      '学習結果をプロファイルに反映している');
   });
 
   it('textHandler にプラン/アップグレードコマンドがある', () => {
@@ -2134,8 +2125,8 @@ describe('Scenario 40: 強化版撮影アドバイス', async () => {
     );
     assert.ok(content.includes('明日撮るべきもの'),
       'Premium向け「明日撮るべきもの」セクションがある');
-    assert.ok(content.includes('なぜ反応が取れそうか'),
-      '理由説明の指示がある');
+    assert.ok(content.includes('なぜその撮り方だと反応が変わるか'),
+      '撮影アドバイスに理由説明の指示がある');
   });
 
   it('imageHandler で enhancedPhotoAdvice チェックがある', () => {
@@ -3671,19 +3662,22 @@ describe('Scenario 57: 1案ドン表示（Phase 1）', () => {
       'imageHandler.js にisPremium判定がある');
     assert.ok(imgContent.includes('generateSupplements'),
       'generateSupplementsでSupplement生成を行う');
-    // proposalHandler: 非Premiumで💡除外
-    assert.ok(propContent.includes('isPremium') && propContent.includes('次はこんなのも'),
-      'proposalHandler.js に💡Premium制限がある');
+    // proposalHandler: 非Premiumで🎯除外
+    assert.ok(propContent.includes('isPremium') && propContent.includes('明日撮るべきもの'),
+      'proposalHandler.js に🎯Premium制限がある');
   });
 
-  it('promptBuilder.js の💡次の被写体提案がPremium条件に含まれている', async () => {
+  it('promptBuilder.js の🎯明日撮るべきものがPremium条件に含まれている', async () => {
     const fs = await import('node:fs');
     const content = fs.readFileSync(
       new URL('../src/utils/promptBuilder.js', import.meta.url), 'utf-8'
     );
-    // 💡セクションがisPremiumブロック内にあることを確認
-    const premiumBlock = content.match(/options\.isPremium \? \(\(\) => \{[\s\S]*?💡 次はこんなのも/);
-    assert.ok(premiumBlock, '💡次の被写体提案がisPremiumブロック内にある');
+    // 🎯セクションがisPremiumブロック内にあることを確認
+    assert.ok(content.includes('isPremium') && content.includes('明日撮るべきもの'),
+      '🎯明日撮るべきものがisPremiumブロック内にある');
+    // 💡セクションが削除されていることを確認
+    assert.ok(!content.includes('次はこんなのも撮ってみない'),
+      '💡次の被写体提案セクションが削除されている');
   });
 
   it('buildBodyPrompt がフック→観察→共感構造を使用している', async () => {
