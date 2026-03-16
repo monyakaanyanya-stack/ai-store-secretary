@@ -10,7 +10,7 @@ export async function handleDataResetPrompt(user, replyToken) {
 
   if (!user.current_store_id) {
     console.warn(`[DataReset] 店舗未選択: user=${maskId(user.id)}`);
-    return await replyText(replyToken, '店舗が選択されていません。');
+    return await replyText(replyToken, 'アカウントが選択されていません。');
   }
 
   console.log(`[DataReset] 確認メッセージ送信開始: store=${maskId(user.current_store_id)}`);
@@ -25,7 +25,7 @@ export async function handleDataResetPrompt(user, replyToken) {
 ━━━━━━━━━━━━━━━
 
 【保持されるデータ】
-✅ 店舗情報（店名、業種、こだわり、口調）
+✅ アカウント情報（名前、業種、こだわり、口調）
 ✅ エンゲージメント報告データ（集合知データ）
 
 ⚠️ 削除したデータは復元できません
@@ -44,7 +44,7 @@ export async function handleDataResetPrompt(user, replyToken) {
  */
 export async function handleDataResetExecution(user, replyToken) {
   if (!user.current_store_id) {
-    return await replyText(replyToken, '店舗が選択されていません。');
+    return await replyText(replyToken, 'アカウントが選択されていません。');
   }
 
   try {
@@ -105,20 +105,20 @@ export async function handleStoreDeletePrompt(user, replyToken) {
   const stores = await getStoresByUser(user.id);
 
   if (stores.length === 0) {
-    return await replyText(replyToken, '削除できる店舗がありません。');
+    return await replyText(replyToken, '削除できるアカウントがありません。');
   }
 
   // 選択中の店舗がある場合はそれを削除対象に
   if (user.current_store_id) {
     const store = await getStore(user.current_store_id);
     if (store) {
-      const message = `⚠️ 店舗削除の確認
+      const message = `⚠️ アカウント削除の確認
 
 「${store.name}」を削除します。
 
 以下のデータがすべて削除されます：
 ━━━━━━━━━━━━━━━
-🏪 店舗情報（業種・こだわり・口調）
+📋 アカウント情報（業種・こだわり・口調）
 📝 投稿履歴
 🧠 学習データ・プロファイル
 📊 フォロワー履歴
@@ -127,7 +127,7 @@ export async function handleStoreDeletePrompt(user, replyToken) {
 
 【残るデータ】
 ✅ 集合知データ（業種カテゴリー別の学習データ）
-　→ 他の店舗・将来の登録でも活用されます
+　→ 他のアカウント・将来の登録でも活用されます
 
 ⚠️ この操作は元に戻せません
 
@@ -137,14 +137,14 @@ export async function handleStoreDeletePrompt(user, replyToken) {
     }
   }
 
-  // 選択中の店舗がない場合は一覧を表示して切替を促す
+  // 選択中のアカウントがない場合は一覧を表示して切替を促す
   const list = stores.map((s, i) => `${i + 1}. ${s.name}`).join('\n');
-  return await replyText(replyToken, `店舗を選択してから削除してください。
+  return await replyText(replyToken, `アカウントを選択してから削除してください。
 
-登録済み店舗:
+登録済みアカウント:
 ${list}
 
-切替: 店舗名 → で選択してから
+切替: アカウント名 → で選択してから
 もう一度「店舗削除」と送信してください。`);
 }
 
@@ -153,13 +153,13 @@ ${list}
  */
 export async function handleStoreDeleteExecution(user, replyToken) {
   if (!user.current_store_id) {
-    return await replyText(replyToken, '店舗が選択されていません。');
+    return await replyText(replyToken, 'アカウントが選択されていません。');
   }
 
   try {
     const store = await getStore(user.current_store_id);
     if (!store) {
-      return await replyText(replyToken, '選択中の店舗が見つかりません。');
+      return await replyText(replyToken, '選択中のアカウントが見つかりません。');
     }
 
     const storeName = store.name;
@@ -177,7 +177,7 @@ export async function handleStoreDeleteExecution(user, replyToken) {
       switchMessage = `\n\n「${remaining[0].name}」に切り替えました。`;
     } else {
       await updateCurrentStore(user.id, null);
-      switchMessage = '\n\n店舗がなくなりました。「登録」で新しく登録できます。';
+      switchMessage = '\n\nアカウントがなくなりました。「登録」で新しく登録できます。';
     }
 
     await replyText(replyToken, `✅ 「${storeName}」を削除しました。${switchMessage}`);

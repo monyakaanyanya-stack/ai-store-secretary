@@ -64,7 +64,7 @@ export async function handleUpgradePrompt(user, replyToken) {
       .map(p => {
         const features = [
           `月間${p.monthlyGenerations === Infinity ? '無制限' : p.monthlyGenerations + '回'}生成`,
-          `${p.maxStores === Infinity ? '無制限' : p.maxStores + '店舗'}登録`,
+          `${p.maxStores === Infinity ? '無制限' : p.maxStores + 'アカウント'}登録`,
           p.features.instagramPost          ? 'Instagram投稿 ✅' : '',
           p.features.dailyPhotoNudge        ? '撮影提案ナッジ ✅' : '',
           p.features.seasonalMemory         ? '季節記憶 ✅'       : '',

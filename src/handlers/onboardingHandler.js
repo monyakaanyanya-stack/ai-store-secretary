@@ -78,9 +78,7 @@ export async function handleOnboardingStart(user, replyToken) {
     });
 
   // 大カテゴリー選択メニューをボタン付きで表示
-  const message = `はじめまして！お店の登録をしていきましょう。
-
-まず業種を選んでください👇`;
+  const message = `はじめまして！業種を教えてください👇`;
 
   await replyWithQuickReply(replyToken, message, buildGroupQuickReply());
 }
@@ -165,18 +163,6 @@ export async function handleOnboardingResponse(user, message, replyToken) {
         buildDetailQuickReply(state.selected_group)
       );
     }
-    if (state.step === 'store_info') {
-      // 店舗情報入力 → 詳細カテゴリーに戻る
-      await supabase
-        .from('onboarding_state')
-        .update({ step: 'category_detail', selected_category: null, updated_at: new Date().toISOString() })
-        .eq('user_id', user.id);
-      return await replyWithQuickReply(
-        replyToken,
-        `【${state.selected_group}】どれが一番近いですか？`,
-        buildDetailQuickReply(state.selected_group)
-      );
-    }
     // category_group（最初のステップ）→ そのまま再表示
     return await replyWithQuickReply(replyToken, '業種を選んでください👇', buildGroupQuickReply());
   }
@@ -192,10 +178,6 @@ export async function handleOnboardingResponse(user, message, replyToken) {
 
   if (state.step === 'custom_category') {
     return await handleCustomCategoryInput(user, state, trimmed, replyToken);
-  }
-
-  if (state.step === 'store_info') {
-    return await handleStoreInfoInput(user, state, trimmed, replyToken);
   }
 
   if (state.step === 'influencer_genre') {
@@ -276,29 +258,54 @@ async function handleCustomCategoryInput(user, state, input, replyToken) {
     console.log(`[Onboarding] category_requests 保存スキップ: ${err.message}`);
   }
 
-  // 状態を更新してstore_infoステップへ
-  await supabase
-    .from('onboarding_state')
-    .update({
-      step: 'store_info',
-      selected_category: customCategory,
-      updated_at: new Date().toISOString()
-    })
-    .eq('user_id', user.id);
+  // 即登録
+  try {
+    // 店舗数上限チェック
+    const storeLimit = await checkStoreLimit(user.id);
+    if (!storeLimit.allowed) {
+      await replyText(replyToken, `アカウントの上限（${storeLimit.max}件）に達しています。\n\n現在のプラン: ${storeLimit.planName}（${storeLimit.current}/${storeLimit.max}件）\n\n「アップグレード」でプラン変更できます。`);
+      return true;
+    }
 
-  const storeInfoMessage = `${customCategory}ですね！
+    const store = await createStore(user.id, {
+      name: customCategory,
+      category: customCategory,
+      strength: null,
+      tone: 'casual'
+    });
 
-次は「店名,こだわり,口調」を教えてください
+    await supabase
+      .from('users')
+      .update({
+        current_store_id: store.id,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', user.id);
 
-例: Ai店,天然酵母の手作りパン,フレンドリー
+    // オンボーディング状態を削除
+    await supabase
+      .from('onboarding_state')
+      .delete()
+      .eq('user_id', user.id);
 
-口調はこんな感じで👇
-・フレンドリー（明るい・親しみやすい）
-・カジュアル（タメ口・親しみやすい）
-・丁寧（ビジネス的・プロフェッショナル）`;
+    const successMessage = `登録完了！
 
-  await replyWithQuickReply(replyToken, storeInfoMessage, buildBackOnlyQuickReply());
-  return true;
+業種: ${customCategory}
+
+写真を送るだけでInstagram投稿文が作れます📸
+
+Instagram連携する場合は【インスタ連携】と送ってください。`;
+
+    await replyText(replyToken, successMessage);
+
+    console.log(`[Onboarding] 登録完了: category=${customCategory}`);
+
+    return true;
+  } catch (error) {
+    console.error('[Onboarding] 登録エラー:', error);
+    await replyText(replyToken, 'うまくいきませんでした...「登録」でもう一度やり直してみてください');
+    return true;
+  }
 }
 
 /**
@@ -361,75 +368,22 @@ async function handleCategoryDetailSelection(user, state, input, replyToken) {
     return true;
   }
 
-  // 状態を更新
-  await supabase
-    .from('onboarding_state')
-    .update({
-      step: 'store_info',
-      selected_category: selectedCategory,
-      updated_at: new Date().toISOString()
-    })
-    .eq('user_id', user.id);
-
-  // 店舗情報入力案内を表示
-  const message = `${selectedCategory}ですね！
-
-次は「店名,こだわり,口調」を教えてください
-
-例: Ai店,天然酵母の手作りパン,フレンドリー
-
-口調はこんな感じで👇
-・フレンドリー（明るい・親しみやすい）
-・カジュアル（タメ口・親しみやすい）
-・丁寧（ビジネス的・プロフェッショナル）`;
-
-  await replyWithQuickReply(replyToken, message, buildBackOnlyQuickReply());
-
-  return true;
-}
-
-/**
- * 店舗情報入力処理
- */
-async function handleStoreInfoInput(user, state, input, replyToken) {
-  // 全角コンマ「，」と日本語の読点「、」も区切り文字として許容
-  const parts = input.split(/[,，、]/).map(s => s.trim());
-
-  if (parts.length !== 3) {
-    return await replyWithQuickReply(
-      replyToken,
-      '「店名,こだわり,口調」の3つをカンマで区切って送ってください！\n\n例: Ai店,天然酵母の手作りパン,フレンドリー',
-      buildBackOnlyQuickReply()
-    );
-  }
-
-  const [storeName, strength, tone] = parts;
-
-  if (!storeName || !strength || !tone) {
-    return await replyWithQuickReply(
-      replyToken,
-      '3つとも必要です！「店名,こだわり,口調」で送ってください',
-      buildBackOnlyQuickReply()
-    );
-  }
-
+  // 即登録
   try {
     // 店舗数上限チェック
     const storeLimit = await checkStoreLimit(user.id);
     if (!storeLimit.allowed) {
-      await replyText(replyToken, `店舗数の上限（${storeLimit.max}店舗）に達しています。\n\n現在のプラン: ${storeLimit.planName}（${storeLimit.current}/${storeLimit.max}店舗）\n\n「アップグレード」でプラン変更できます。`);
+      await replyText(replyToken, `アカウントの上限（${storeLimit.max}件）に達しています。\n\n現在のプラン: ${storeLimit.planName}（${storeLimit.current}/${storeLimit.max}件）\n\n「アップグレード」でプラン変更できます。`);
       return true;
     }
 
-    // 店舗を作成
     const store = await createStore(user.id, {
-      name: storeName,
-      category: state.selected_category,
-      strength: strength,
-      tone: tone
+      name: selectedCategory,
+      category: selectedCategory,
+      strength: null,
+      tone: 'casual'
     });
 
-    // ユーザーの current_store_id を更新
     await supabase
       .from('users')
       .update({
@@ -444,26 +398,21 @@ async function handleStoreInfoInput(user, state, input, replyToken) {
       .delete()
       .eq('user_id', user.id);
 
-    const successMessage = `「${storeName}」を登録しました！
+    const successMessage = `登録完了！
 
-業種: ${state.selected_category}
-こだわり: ${strength}
-口調: ${tone}
+業種: ${selectedCategory}
 
-次にInstagram連携を行います。
-連携すると自動投稿と投稿結果の自動分析が使えるようになります。
+写真を送るだけでInstagram投稿文が作れます📸
 
-連携する場合は【インスタ連携】と送ってください。
-
-※連携しなくても利用できますが、投稿データの集計は手動になります。`;
+Instagram連携する場合は【インスタ連携】と送ってください。`;
 
     await replyText(replyToken, successMessage);
 
-    console.log(`[Onboarding] 店舗登録完了: category=${state.selected_category}`);
+    console.log(`[Onboarding] 登録完了: category=${selectedCategory}`);
 
     return true;
   } catch (error) {
-    console.error('[Onboarding] 店舗登録エラー:', error);
+    console.error('[Onboarding] 登録エラー:', error);
     await replyText(replyToken, 'うまくいきませんでした...「登録」でもう一度やり直してみてください');
     return true;
   }
@@ -540,8 +489,8 @@ export async function handleHelpMenu(user, replyToken) {
 
 以下のカテゴリーから選んでください：
 
-1️⃣ 【店舗登録】
-　　店舗の登録・編集・切替方法
+1️⃣ 【アカウント登録】
+　　アカウントの登録・切替方法
 
 2️⃣ 【投稿】
 　　投稿の生成・修正方法
@@ -559,7 +508,7 @@ export async function handleHelpMenu(user, replyToken) {
 💬 「問い合わせ」でサポート連絡先を確認`;
 
   await replyWithQuickReply(replyToken, message, [
-    { type: 'action', action: { type: 'message', label: '店舗登録', text: '店舗登録' } },
+    { type: 'action', action: { type: 'message', label: 'アカウント登録', text: 'アカウント登録' } },
     { type: 'action', action: { type: 'message', label: '投稿', text: '投稿' } },
     { type: 'action', action: { type: 'message', label: '報告', text: '報告' } },
     { type: 'action', action: { type: 'message', label: '設定', text: '設定' } },
@@ -576,12 +525,12 @@ export async function handleCommandList(user, replyToken) {
   const message = `📋 コマンド一覧
 ━━━━━━━━━━━━━━━
 
-🏪 店舗管理
-・登録 → 新しい店舗を登録
-・店舗一覧 → 登録店舗の一覧＋切替
-・切替:店名 → 店舗を切替
-・店舗更新 → 店舗情報を変更
-・店舗削除 → 現在の店舗を削除
+📋 アカウント管理
+・登録 → 新しいアカウントを登録
+・アカウント一覧 → 登録アカウントの一覧＋切替
+・切替:名前 → アカウントを切替
+・店舗更新 → アカウント情報を変更
+・店舗削除 → 現在のアカウントを削除
 
 📝 投稿生成
 ・画像を送信 → 3案生成
@@ -632,22 +581,20 @@ export async function handleCommandList(user, replyToken) {
  * 店舗登録ヘルプ（詳細）
  */
 export async function handleHelpStoreRegistration(user, replyToken) {
-  const message = `🏪 店舗登録ヘルプ
+  const message = `📋 アカウント登録ヘルプ
 
 【新規登録】
-1: 業種,店名,こだわり,口調
+「登録」と送信 → 業種を選ぶだけで完了！
 
-例: 1: カフェ,花,自家焙煎コーヒー,フレンドリー
+【アカウント切替】
+切替: アカウント名
 
-【店舗切替】
-切替: 店舗名
+例: 切替: カフェ
 
-例: 切替: カフェ花
+【アカウント一覧】
+アカウント一覧（または 店舗一覧）
 
-【店舗一覧】
-店舗一覧
-
-【店舗情報の変更】
+【アカウント情報の変更】
 店舗更新
 
 その他のヘルプは「ヘルプ」と送信してください。`;
@@ -771,7 +718,7 @@ export async function handleHelpLearning(user, replyToken) {
 
 【学習の仕組み】
 ・フィードバックを送るほど精度向上
-・店舗ごとにパーソナライズ
+・アカウントごとにパーソナライズ
 ・好みの口調・文章長を自動学習
 
 その他のヘルプは「ヘルプ」と送信してください。`;
@@ -793,6 +740,7 @@ export async function handleHelpCategory(user, category, replyToken) {
     '4': 'settings',
     '5': 'learning',
     '店舗登録': 'store',
+    'アカウント登録': 'store',
     '投稿': 'post',
     '報告': 'report',
     '設定': 'settings',

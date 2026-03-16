@@ -19,7 +19,7 @@ import { getInstagramAccount } from '../services/instagramService.js';
  */
 export async function handleStyleLearning(user, userRewrite, replyToken) {
   if (!user.current_store_id) {
-    return await replyText(replyToken, 'まだ店舗が登録されていないみたいです。「登録」で始められます！');
+    return await replyText(replyToken, 'まだアカウントが登録されていないみたいです。「登録」で始められます！');
   }
 
   if (!userRewrite.trim()) {
@@ -29,7 +29,7 @@ export async function handleStyleLearning(user, userRewrite, replyToken) {
   try {
     const store = await getStore(user.current_store_id);
     if (!store) {
-      return await replyText(replyToken, '店舗が見つかりません。「店舗一覧」で確認してみてください');
+      return await replyText(replyToken, 'アカウントが見つかりません。「アカウント一覧」で確認してみてください');
     }
 
     const latestPost = await getLatestPost(store.id);

@@ -110,7 +110,8 @@ export async function handleTextMessage(user, text, replyToken) {
   // 画像「一言ヒント」待ち状態の処理
   // （システムコマンドはスキップ、それ以外はここで受け取る）
   const isSystemCommand = ['キャンセル', 'cancel', 'リセット', 'データリセット',
-    '店舗一覧', '店舗切り替え', '店舗切替', '店舗削除', 'ヘルプ', 'help', '学習状況', '問い合わせ', '登録',
+    '店舗一覧', '店舗切り替え', '店舗切替', 'アカウント一覧', 'アカウント切替', 'アカウント切り替え',
+    '店舗削除', 'ヘルプ', 'help', '学習状況', '問い合わせ', '登録',
     'プラン', 'アップグレード', '今週の計画', '投稿ネタ', '投稿ネタ教えて', 'ネタ', 'コマンド一覧', 'コマンド',
     'モード切替', 'モード切り替え', 'AI投稿モード', 'そのまま投稿モード', 'そのまま投稿', 'direct投稿実行', 'direct複数枚投稿',
     'ストック', 'ストック保存', 'ストック投稿', 'ストック予約', 'ストック削除', 'ストック一括削除', '予約投稿', 'これで決定', '別案', 'コピー',
@@ -168,7 +169,7 @@ export async function handleTextMessage(user, text, replyToken) {
       await clearPendingImageContext(user.id);
       const store = await getStore(ctx.storeId);
       if (!store) {
-        return await replyText(replyToken, '店舗が見つかりません');
+        return await replyText(replyToken, 'アカウントが見つかりません');
       }
       return await applyEngagementMetrics(user, store, ctx.insightsData, selectedPost, replyToken);
     }
@@ -183,7 +184,8 @@ export async function handleTextMessage(user, text, replyToken) {
   // 重要なコマンドはオンボーディング中でも優先処理
   const priorityCommands = [
     '店舗削除', '店舗削除実行', 'データリセット', 'リセット', 'リセット実行', '学習リセット',
-    'キャンセル', 'cancel', '店舗一覧', '店舗切り替え', '店舗切替', '学習状況', 'ヘルプ', 'help', '問い合わせ'
+    'キャンセル', 'cancel', '店舗一覧', '店舗切り替え', '店舗切替', 'アカウント一覧', 'アカウント切替', 'アカウント切り替え',
+    '学習状況', 'ヘルプ', 'help', '問い合わせ'
   ];
   const isPriorityCommand = priorityCommands.includes(trimmed);
 
@@ -297,8 +299,8 @@ export async function handleTextMessage(user, text, replyToken) {
     return;
   }
 
-  // 店舗一覧 / 店舗切り替え / 店舗切替
-  if (['店舗一覧', '店舗切り替え', '店舗切替'].includes(trimmed)) {
+  // 店舗一覧 / 店舗切り替え / 店舗切替 / アカウント一覧 / アカウント切替 / アカウント切り替え
+  if (['店舗一覧', '店舗切り替え', '店舗切替', 'アカウント一覧', 'アカウント切替', 'アカウント切り替え'].includes(trimmed)) {
     return await handleStoreList(user, replyToken);
   }
 
@@ -368,7 +370,7 @@ export async function handleTextMessage(user, text, replyToken) {
 
 ${contactEmail}
 
-件名に「AI店舗秘書について」と記載いただけると助かります。
+件名に「AI投稿アシスタントについて」と記載いただけると助かります。
 通常2〜3営業日以内にご返信いたします。`);
   }
 
@@ -828,11 +830,11 @@ async function handleStoreRegistration(user, text, replyToken) {
 
     console.log(`[Store] 登録完了: category=${store.category} id=${store.id?.slice(0, 4)}…`);
     await replyText(replyToken,
-      `✅ 店舗「${store.name}」を登録しました！\n\n業種: ${store.category || '未設定'}\nこだわり: ${store.strength}\n口調: ${store.tone}\n\nこの店舗が選択中です。画像やテキストを送ると投稿案を作成します。`
+      `✅ 「${store.name}」を登録しました！\n\n業種: ${store.category || '未設定'}\nこだわり: ${store.strength}\n口調: ${store.tone}\n\nこのアカウントが選択中です。画像やテキストを送ると投稿案を作成します。`
     );
   } catch (err) {
     console.error('[Store] 登録エラー:', err);
-    await replyText(replyToken, '店舗登録中にエラーが発生しました。しばらくしてから再度お試しください。');
+    await replyText(replyToken, '登録中にエラーが発生しました。しばらくしてから再度お試しください。');
   }
 }
 
@@ -843,7 +845,7 @@ async function handleStoreSwitch(user, storeName, replyToken) {
     const stores = await getStoresByUser(user.id);
 
     if (stores.length === 0) {
-      return await replyText(replyToken, '店舗がまだ登録されていません。\n\n1: 業種,店名,こだわり,口調\n\nの形式で登録してください。');
+      return await replyText(replyToken, 'アカウントがまだ登録されていません。\n\n「登録」と送信して始めてください。');
     }
 
     // S13修正: 完全一致を優先し、部分一致はフォールバック（曖昧マッチ防止）
@@ -852,14 +854,14 @@ async function handleStoreSwitch(user, storeName, replyToken) {
 
     if (!target) {
       const list = stores.map((s, i) => `${i + 1}. ${s.name}`).join('\n');
-      return await replyText(replyToken, `「${storeName}」が見つかりません。\n\n登録済み店舗:\n${list}\n\n切替: 店舗名 で切り替えてください。`);
+      return await replyText(replyToken, `「${storeName}」が見つかりません。\n\n登録済みアカウント:\n${list}\n\n切替: アカウント名 で切り替えてください。`);
     }
 
     await updateCurrentStore(user.id, target.id);
     await replyText(replyToken, `「${target.name}」に切り替えました！`);
   } catch (err) {
     console.error('[Store] 切替エラー:', err);
-    await replyText(replyToken, '店舗切替中にエラーが発生しました。しばらくしてから再度お試しください。');
+    await replyText(replyToken, '切替中にエラーが発生しました。しばらくしてから再度お試しください。');
   }
 }
 
@@ -870,7 +872,7 @@ async function handleStoreList(user, replyToken) {
     const stores = await getStoresByUser(user.id);
 
     if (stores.length === 0) {
-      return await replyText(replyToken, '店舗がまだ登録されていません。\n\n1: 業種,店名,こだわり,口調\n\nの形式で登録してください。');
+      return await replyText(replyToken, 'アカウントがまだ登録されていません。\n\n「登録」と送信して始めてください。');
     }
 
     const list = stores.map((s, i) => {
@@ -896,9 +898,9 @@ async function handleStoreList(user, replyToken) {
     }
 
     if (switchButtons.length > 0) {
-      await replyWithQuickReply(replyToken, `登録済みの店舗です👇\n${list}`, switchButtons);
+      await replyWithQuickReply(replyToken, `登録済みのアカウントです👇\n${list}`, switchButtons);
     } else {
-      await replyText(replyToken, `登録済みの店舗です👇\n${list}`);
+      await replyText(replyToken, `登録済みのアカウントです👇\n${list}`);
     }
   } catch (err) {
     console.error('[Store] 一覧エラー:', err.message);
@@ -910,20 +912,20 @@ async function handleStoreList(user, replyToken) {
 
 async function handleStoreUpdatePrompt(user, replyToken) {
   if (!user.current_store_id) {
-    return await replyText(replyToken, '店舗が選択されていません。');
+    return await replyText(replyToken, 'アカウントが選択されていません。');
   }
 
   try {
     const store = await getStore(user.current_store_id);
     if (!store) {
-      return await replyText(replyToken, '選択中の店舗が見つかりません。');
+      return await replyText(replyToken, '選択中のアカウントが見つかりません。');
     }
 
     const isInfluencer = store.category === 'インフルエンサー';
     const settingsDisplay = isInfluencer
       ? `【ジャンル】${store.name}\n【業種】${store.category}`
-      : `【店舗名】${store.name}\n【業種】${store.category || '未設定'}\n【こだわり・強み】${store.strength}\n【口調】${store.tone}`;
-    const message = `📝 現在の店舗設定
+      : `【アカウント名】${store.name}\n【業種】${store.category || '未設定'}\n【こだわり・強み】${store.strength}\n【口調】${store.tone}`;
+    const message = `📝 現在のアカウント設定
 
 ${settingsDisplay}
 
@@ -949,13 +951,13 @@ ${isInfluencer ? '' : '更新: こだわり: 新しいこだわり'}
 
 async function handleStoreUpdate(user, updateData, replyToken) {
   if (!user.current_store_id) {
-    return await replyText(replyToken, '店舗が選択されていません。');
+    return await replyText(replyToken, 'アカウントが選択されていません。');
   }
 
   try {
     const store = await getStore(user.current_store_id);
     if (!store) {
-      return await replyText(replyToken, '選択中の店舗が見つかりません。');
+      return await replyText(replyToken, '選択中のアカウントが見つかりません。');
     }
 
     // Parse: "店名: 新店名, こだわり: 新しいこだわり, 口調: カジュアル"
@@ -1016,7 +1018,7 @@ async function handleStoreUpdate(user, updateData, replyToken) {
 
     // 更新内容を確認
     const summary = [];
-    if (updates.name) summary.push(`店舗名: ${updates.name}`);
+    if (updates.name) summary.push(`アカウント名: ${updates.name}`);
     if (updates.category) summary.push(`業種: ${updates.category}`);
     if (updates.strength) summary.push(`こだわり: ${updates.strength}`);
     if (updates.tone) summary.push(`口調: ${updates.tone}`);
@@ -1033,7 +1035,7 @@ async function handleStoreUpdate(user, updateData, replyToken) {
 
 async function handlePostLength(user, lengthParam, replyToken) {
   if (!user.current_store_id) {
-    return await replyText(replyToken, '店舗が選択されていません。');
+    return await replyText(replyToken, 'アカウントが選択されていません。');
   }
 
   try {
@@ -1102,7 +1104,7 @@ async function handleTemplateHelp(user, replyToken) {
 
 async function handleTemplate(user, templateData, replyToken) {
   if (!user.current_store_id) {
-    return await replyText(replyToken, '店舗が選択されていません。');
+    return await replyText(replyToken, 'アカウントが選択されていません。');
   }
 
   try {
@@ -1191,7 +1193,7 @@ async function handleTemplate(user, templateData, replyToken) {
 
 async function handleShowSettings(user, replyToken) {
   if (!user.current_store_id) {
-    return await replyText(replyToken, '店舗が選択されていません。');
+    return await replyText(replyToken, 'アカウントが選択されていません。');
   }
 
   try {
@@ -1202,7 +1204,7 @@ async function handleShowSettings(user, replyToken) {
     const isInfluencer = store.category === 'インフルエンサー';
     let message = isInfluencer
       ? `📋 現在の設定\n\n【ジャンル】${store.name}\n【業種】${store.category}\n【投稿長】${lengthInfo.description} (${lengthInfo.range})\n`
-      : `📋 現在の設定\n\n【店舗名】${store.name}\n【業種】${store.category || '未設定'}\n【こだわり】${store.strength || '未設定'}\n【口調】${store.tone || '未設定'}\n【投稿長】${lengthInfo.description} (${lengthInfo.range})\n`;
+      : `📋 現在の設定\n\n【アカウント名】${store.name}\n【業種】${store.category || '未設定'}\n【こだわり】${store.strength || '未設定'}\n【口調】${store.tone || '未設定'}\n【投稿長】${lengthInfo.description} (${lengthInfo.range})\n`;
 
     const templates = config.templates || {};
     if (templates.住所 || templates.営業時間 || templates.hashtags?.length > 0 || Object.keys(templates.custom_fields || {}).length > 0) {
@@ -1238,7 +1240,7 @@ async function handleShowSettings(user, replyToken) {
 
 async function handleTextPostGenerationWithLength(user, text, replyToken, lengthOverride) {
   if (!user.current_store_id) {
-    return await replyText(replyToken, '店舗が選択されていません。');
+    return await replyText(replyToken, 'アカウントが選択されていません。');
   }
 
   try {
@@ -1316,7 +1318,7 @@ ${postContent}
 
 async function handleTemplateDeletePrompt(user, replyToken) {
   if (!user.current_store_id) {
-    return await replyText(replyToken, '店舗が選択されていません。');
+    return await replyText(replyToken, 'アカウントが選択されていません。');
   }
 
   try {
@@ -1365,7 +1367,7 @@ ${fields.map((f, i) => `${i + 1}. ${f}`).join('\n')}
 
 async function handleTemplateDelete(user, fieldToDelete, replyToken) {
   if (!user.current_store_id) {
-    return await replyText(replyToken, '店舗が選択されていません。');
+    return await replyText(replyToken, 'アカウントが選択されていません。');
   }
 
   try {
@@ -1438,7 +1440,7 @@ async function handleTemplateDelete(user, fieldToDelete, replyToken) {
 
 async function handleCharacterSettingsPrompt(user, replyToken) {
   if (!user.current_store_id) {
-    return await replyText(replyToken, '店舗が選択されていません。');
+    return await replyText(replyToken, 'アカウントが選択されていません。');
   }
 
   try {
@@ -1478,7 +1480,7 @@ NGワード: ありがとうございます、させていただきます
 
 async function handleCharacterSettingsSave(user, text, replyToken) {
   if (!user.current_store_id) {
-    return await replyText(replyToken, '店舗が選択されていません。');
+    return await replyText(replyToken, 'アカウントが選択されていません。');
   }
 
   try {
@@ -1542,7 +1544,7 @@ async function handleCharacterSettingsSave(user, text, replyToken) {
 
 async function handleSeasonalMemory(user, replyToken) {
   if (!user.current_store_id) {
-    return await replyText(replyToken, '店舗が選択されていません。');
+    return await replyText(replyToken, 'アカウントが選択されていません。');
   }
 
   try {
@@ -1558,7 +1560,7 @@ async function handleSeasonalMemory(user, replyToken) {
 
 async function handleLearningStatus(user, replyToken) {
   if (!user.current_store_id) {
-    return await replyText(replyToken, '店舗が選択されていません。');
+    return await replyText(replyToken, 'アカウントが選択されていません。');
   }
 
   try {
@@ -1577,7 +1579,7 @@ async function handleLearningStatus(user, replyToken) {
 
 async function handlePositiveFeedback(user, replyToken) {
   if (!user.current_store_id) {
-    return await replyText(replyToken, '店舗が選択されていません。');
+    return await replyText(replyToken, 'アカウントが選択されていません。');
   }
 
   try {
@@ -1628,7 +1630,7 @@ async function handlePositiveFeedback(user, replyToken) {
 
 async function handleNegativeFeedback(user, replyToken) {
   if (!user.current_store_id) {
-    return await replyText(replyToken, '店舗が選択されていません。');
+    return await replyText(replyToken, 'アカウントが選択されていません。');
   }
 
   try {
@@ -1709,7 +1711,7 @@ async function handleEnableReminder(user, replyToken) {
 
 async function handlePostModeSwitch(user, replyToken) {
   if (!user.current_store_id) {
-    return await replyText(replyToken, '店舗が選択されていません。');
+    return await replyText(replyToken, 'アカウントが選択されていません。');
   }
 
   const store = await getStore(user.current_store_id);
@@ -1728,7 +1730,7 @@ async function handlePostModeSwitch(user, replyToken) {
 
 async function handlePostModeSet(user, mode, replyToken) {
   if (!user.current_store_id) {
-    return await replyText(replyToken, '店舗が選択されていません。');
+    return await replyText(replyToken, 'アカウントが選択されていません。');
   }
 
   // direct_modeはStandard以上（Instagram連携が前提）
@@ -1765,7 +1767,7 @@ async function handleDirectModeText(user, text, replyToken) {
     const store = await getStore(ctx.storeId);
     if (!store) {
       await clearPendingImageContext(user.id);
-      return await replyText(replyToken, '店舗が見つかりません。');
+      return await replyText(replyToken, 'アカウントが見つかりません。');
     }
 
     // 投稿テキストを組み立て: 冒頭テキスト + テンプレート + ハッシュタグ
@@ -1827,7 +1829,7 @@ async function handleDirectPostExecute(user, replyToken) {
     const store = await getStore(ctx.storeId);
     if (!store) {
       await clearPendingImageContext(user.id);
-      return await replyText(replyToken, '店舗が見つかりません。');
+      return await replyText(replyToken, 'アカウントが見つかりません。');
     }
 
     // post_historyに保存（Instagram投稿の記録として）

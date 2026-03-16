@@ -1033,8 +1033,8 @@ describe('Scenario 28: Ver.4.0 Dual Trigger Model', async () => {
       'Output format should include [ 案A：視覚で伝える ]');
     assert.ok(prompt.includes('[ 案B：ストーリーを添える ]'),
       'Output format should include [ 案B：ストーリーを添える ]');
-    assert.ok(prompt.includes('[ 案C：店主のひとりごと ]'),
-      'Output format should include [ 案C：店主のひとりごと ]');
+    assert.ok(prompt.includes('[ 案C：ひとりごと ]'),
+      'Output format should include [ 案C：ひとりごと ]');
     assert.ok(prompt.includes('3案作成'),
       'Should instruct 3 proposals');
     assert.ok(prompt.includes('この写真の別の撮り方'),

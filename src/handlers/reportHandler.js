@@ -88,7 +88,7 @@ export async function handleEngagementReport(user, text, replyToken) {
   // 店舗が未設定の場合
   if (!user.current_store_id) {
     return await replyText(replyToken,
-      '店舗が選択されていません。\n\nまず店舗を登録してください。'
+      'アカウントが選択されていません。\n\nまずアカウントを登録してください。'
     );
   }
 
@@ -121,7 +121,7 @@ export async function handleEngagementReport(user, text, replyToken) {
     // 店舗情報を取得
     const store = await getStore(user.current_store_id);
     if (!store) {
-      return await replyText(replyToken, '選択中の店舗が見つかりません。');
+      return await replyText(replyToken, '選択中のアカウントが見つかりません。');
     }
 
     // 最新の投稿を取得

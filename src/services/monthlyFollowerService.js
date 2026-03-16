@@ -90,7 +90,7 @@ async function sendFollowerRequestToUser(lineUserId) {
  */
 export async function handleFollowerCountResponse(user, followerCount, replyToken) {
   if (!user.current_store_id) {
-    return await replyText(replyToken, '店舗が選択されていません。先に店舗を登録してください。');
+    return await replyText(replyToken, 'アカウントが選択されていません。先にアカウントを登録してください。');
   }
 
   // フォロワー数のバリデーション
@@ -103,7 +103,7 @@ export async function handleFollowerCountResponse(user, followerCount, replyToke
   try {
     const store = await getStore(user.current_store_id);
     if (!store) {
-      return await replyText(replyToken, '選択中の店舗が見つかりません。');
+      return await replyText(replyToken, '選択中のアカウントが見つかりません。');
     }
 
     // フォロワー数を保存
@@ -126,7 +126,7 @@ export async function handleFollowerCountResponse(user, followerCount, replyToke
     await replyText(replyToken, `✅ フォロワー数を記録しました！
 
 【記録内容】
-店舗: ${store.name}
+アカウント: ${store.name}
 フォロワー数: ${followerCount.toLocaleString()}人
 
 今後のエンゲージメント報告でこの数値を基準に分析します。

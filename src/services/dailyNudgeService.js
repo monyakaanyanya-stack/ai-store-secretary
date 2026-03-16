@@ -281,11 +281,11 @@ function buildPremiumNudgePrompt(store, season, strategicAdvice = null) {
     }
   }
 
-  return `あなたは「写真観察AI」です。${store.name}（${store.category}）の店主をサポートしています。
+  return `あなたは「写真観察AI」です。${store.name}（${store.category}）のあなたをサポートしています。
 今日の夕方に撮れる、Instagramに投稿するための写真のアイデアを1つ提案してください。
 
-【店舗情報】
-- 店名: ${store.name}
+【基本情報】
+- 名前: ${store.name}
 - 業種: ${store.category}
 - こだわり: ${store.strength || '未設定'}
 - 季節: ${season}${dataHintSection}
@@ -299,7 +299,7 @@ function buildPremiumNudgePrompt(store, season, strategicAdvice = null) {
 }
 
 【ルール】
-1. 店主が「あ、撮るか」と思える具体性。抽象指示禁止
+1. あなたが「あ、撮るか」と思える具体性。抽象指示禁止
 2. スマホで撮れるものだけ。機材・レンズ用語禁止
 3. 今の季節・時間帯に自然なもの
 4. 完成品より裏側・途中・手元を優先

@@ -26,7 +26,7 @@ export async function handleWeeklyPlan(user, replyToken) {
 
   if (!user.current_store_id) {
     return await replyText(replyToken,
-      '先に店舗を登録してください。「登録」と送信すると始められます。');
+      '先にアカウントを登録してください。「登録」と送信すると始められます。');
   }
 
   const { data: store } = await supabase
@@ -36,7 +36,7 @@ export async function handleWeeklyPlan(user, replyToken) {
     .single();
 
   if (!store) {
-    return await replyText(replyToken, '店舗情報が見つかりません。');
+    return await replyText(replyToken, 'アカウント情報が見つかりません。');
   }
 
   try {

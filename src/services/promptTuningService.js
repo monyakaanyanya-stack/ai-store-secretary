@@ -150,7 +150,7 @@ export async function getGlobalPromptRules() {
     }
 
     const rulesText = data.rules.map(r => `・${r}`).join('\n');
-    const formatted = `\n【全体の傾向（自動学習）】\n${rulesText}\n※ 上記は多くの店舗オーナーの修正傾向から自動学習したルール。個別の店主の好みが優先される。`;
+    const formatted = `\n【全体の傾向（自動学習）】\n${rulesText}\n※ 上記は多くのユーザーの修正傾向から自動学習したルール。個別のあなたの好みが優先される。`;
 
     _cachedRules = formatted;
     _cacheTimestamp = now;

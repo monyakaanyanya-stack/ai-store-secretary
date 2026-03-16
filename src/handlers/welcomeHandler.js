@@ -11,7 +11,7 @@ const CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN;
 export async function sendWelcomeMessage(lineUserId) {
   const message = {
     type: 'text',
-    text: `✨ AI店舗秘書へようこそ！
+    text: `✨ AI投稿アシスタントへようこそ！
 
 ━━━━━━━━━━━━━━━
 【こんなことができます】
@@ -33,7 +33,7 @@ InstagramやX用の魅力的な投稿文に！
 【使い方はとても簡単】
 ━━━━━━━━━━━━━━━
 
-1️⃣ 「登録」と送信してお店を登録
+1️⃣ 「登録」と送信してアカウントを登録
 2️⃣ 📸 商品の画像を送信
 3️⃣ 投稿文が自動生成される
 4️⃣ 「学習:〜」で修正＋今後にも反映
@@ -41,7 +41,7 @@ InstagramやX用の魅力的な投稿文に！
 ━━━━━━━━━━━━━━━
 
 まずは「登録」と送信して
-お店を登録してみましょう！
+アカウントを登録してみましょう！
 
 分からないことがあれば
 気軽に質問してくださいね😊`

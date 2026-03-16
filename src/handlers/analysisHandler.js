@@ -196,13 +196,13 @@ export async function handleAnalysis(user, replyToken) {
     // 2. 店舗チェック
     if (!user.current_store_id) {
       return await replyText(replyToken,
-        '先に店舗を登録してください。「登録」と送信すると始められます。');
+        '先にアカウントを登録してください。「登録」と送信すると始められます。');
     }
 
     // 3. 店舗取得
     const store = await getStore(user.current_store_id);
     if (!store) {
-      return await replyText(replyToken, '店舗情報が見つかりません。');
+      return await replyText(replyToken, 'アカウント情報が見つかりません。');
     }
 
     // 4. データ取得（並列）

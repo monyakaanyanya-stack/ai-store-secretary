@@ -129,7 +129,7 @@ function buildWeeklyPlanPrompt(store, blendedInsights, crossIndustryData, person
   let winPatternSection = '';
   if (winningPattern) {
     winPatternSection = `
-【この店舗のデータ傾向】
+【あなたのデータ傾向】
 - 保存されやすい書き出し: ${winningPattern.dominantHookType || '未取得'}
 - 保存されやすい文字数帯: ${winningPattern.dominantCharBucket || '未取得'}
 - サンプル数: ${winningPattern.sampleSize || 0}件`;
@@ -162,18 +162,18 @@ function buildWeeklyPlanPrompt(store, blendedInsights, crossIndustryData, person
   }
 
   return `${personalization}
-あなたは「写真観察AI」です。${store.name}（${store.category}）の店主をサポートしています。
+あなたは「写真観察AI」です。${store.name}（${store.category}）のあなたをサポートしています。
 今週（${days[0]}〜${days[4]}）の5日間のInstagramコンテンツ計画を作成してください。
 
-【店舗情報】
+【基本情報】
 - 店名: ${store.name}
 - 業種: ${store.category}
 - こだわり: ${store.strength || '未設定'}
 - 口調: ${store.tone || 'casual'}
 
-【最適投稿時間帯（${ownSampleSize >= 5 ? 'この店舗の実績データ' : '同業種の傾向データ'}に基づく）】
+【最適投稿時間帯（${ownSampleSize >= 5 ? 'あなたの実績データ' : '同業種の傾向データ'}に基づく）】
 ${bestHours.map(h => `${h}:00`).join(', ')}
-※ データソース: ${ownSampleSize >= 5 ? `自店舗${ownSampleSize}件のエンゲージメント分析` : ownSampleSize > 0 ? `自店舗${ownSampleSize}件+同業種データ（5件以上で自店舗優先に切替）` : '同業種の全体傾向'}
+※ データソース: ${ownSampleSize >= 5 ? `あなたの${ownSampleSize}件のエンゲージメント分析` : ownSampleSize > 0 ? `あなたの${ownSampleSize}件+同業種データ（5件以上であなたのデータ優先に切替）` : '同業種の全体傾向'}
 ${winPatternSection}
 ${crossIndustrySection}
 ${buildPastThemesSection(pastThemes)}
@@ -203,16 +203,16 @@ ${buildPastThemesSection(pastThemes)}
 2. 撮影指示は「具体的な被写体・アングル・タイミング」を指定。曖昧指示は禁止
 3. 異業種インサイトがある場合は必ず1日分に組み込む
 4. 各日の投稿時間は bestPostingHours のデータに基づいて選ぶ
-5. テーマは店主が「それ面白いかも」と思える具体性があること
+5. テーマはあなたが「それ面白いかも」と思える具体性があること
 6. crossIndustryInsight がない場合は null にする
 7. 撮影指示には必ず「完璧ではない、生きた事実」を1つ混ぜる。
    完成品や理想の瞬間ではなく、使い込まれた痕跡・作業途中の手元・閉店後の静けさなど「その場にいないと気づかないリアル」を切り取らせる。
    ただし「傷」「汚れ」などの直接的な言葉は使わず、どの業種でも自然に当てはまる表現で指示すること。
    例: ×「道具の傷を撮れ」 → ○「毎日触れているからこそ手に馴染んだ道具を、作業の流れの中で」
-8. 撮影指示にカメラ機材・レンズ・専門用語を使わない。店主はスマホで撮る前提。
+8. 撮影指示にカメラ機材・レンズ・専門用語を使わない。スマホで撮る前提。
    「マクロレンズで」「広角で」ではなく、身体の動作で伝える。
    例: ×「マクロレンズで接写」 → ○「スマホをぐっと近づけて、指先が写り込むくらいの距離で」
-   例: ×「引きの広角で全体を」 → ○「2歩下がって、お店の空気ごと1枚に収める感じで」`;
+   例: ×「引きの広角で全体を」 → ○「2歩下がって、空気ごと1枚に収める感じで」`;
 }
 
 // ── 計画生成・保存 ──────────────────────────────────

@@ -23,7 +23,7 @@ import { supabase, savePendingImageContext, clearPendingImageContext } from '../
  */
 export async function handleInstagramCommand(user, args, replyToken) {
   if (!user.current_store_id) {
-    await replyText(replyToken, '店舗が選択されていません。先に店舗を登録してください。');
+    await replyText(replyToken, 'アカウントが選択されていません。先にアカウントを登録してください。');
     return true;
   }
 
@@ -181,7 +181,7 @@ async function handleInstagramPublish(user, replyToken) {
   try {
     const store = await getStore(user.current_store_id);
     if (!store) {
-      await replyText(replyToken, '店舗が見つかりません。');
+      await replyText(replyToken, 'アカウントが見つかりません。');
       return true;
     }
 
@@ -224,7 +224,7 @@ export async function handleCarouselStart(user, replyToken) {
   try {
     const store = await getStore(user.current_store_id);
     if (!store) {
-      await replyText(replyToken, '店舗が見つかりません。');
+      await replyText(replyToken, 'アカウントが見つかりません。');
       return true;
     }
 
@@ -302,7 +302,7 @@ async function handleCarouselComplete(user, replyToken) {
     const store = await getStore(ctx.storeId);
     if (!store) {
       await clearPendingImageContext(user.id);
-      await replyText(replyToken, '店舗が見つかりません。');
+      await replyText(replyToken, 'アカウントが見つかりません。');
       return true;
     }
 

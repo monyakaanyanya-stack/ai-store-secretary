@@ -56,12 +56,12 @@ function formatJstDate(date) {
 export async function handleStockSave(user, replyToken) {
   try {
     if (!user.current_store_id) {
-      return await replyText(replyToken, '店舗が選択されていません。先に店舗を登録してください。');
+      return await replyText(replyToken, 'アカウントが選択されていません。先にアカウントを登録してください。');
     }
 
     const store = await getStore(user.current_store_id);
     if (!store) {
-      return await replyText(replyToken, '店舗が見つかりません。');
+      return await replyText(replyToken, 'アカウントが見つかりません。');
     }
 
     // ストック上限チェック
@@ -103,7 +103,7 @@ export async function handleStockSave(user, replyToken) {
 export async function handleStockList(user, replyToken) {
   try {
     if (!user.current_store_id) {
-      return await replyText(replyToken, '店舗が選択されていません。先に店舗を登録してください。');
+      return await replyText(replyToken, 'アカウントが選択されていません。先にアカウントを登録してください。');
     }
 
     const stocks = await getStockPosts(user.current_store_id);
@@ -269,7 +269,7 @@ export async function handleStockDelete(user, replyToken) {
 export async function handleBatchDeletePrompt(user, replyToken) {
   try {
     if (!user.current_store_id) {
-      return await replyText(replyToken, '店舗が選択されていません。');
+      return await replyText(replyToken, 'アカウントが選択されていません。');
     }
 
     const stocks = await getStockPosts(user.current_store_id);
@@ -347,7 +347,7 @@ export async function handleBatchDeleteConfirm(user, input, replyToken) {
 export async function handleDirectSchedulePrompt(user, replyToken) {
   try {
     if (!user.current_store_id) {
-      return await replyText(replyToken, '店舗が選択されていません。先に店舗を登録してください。');
+      return await replyText(replyToken, 'アカウントが選択されていません。先にアカウントを登録してください。');
     }
 
     // 予約投稿機能の権限チェック
@@ -358,7 +358,7 @@ export async function handleDirectSchedulePrompt(user, replyToken) {
 
     const store = await getStore(user.current_store_id);
     if (!store) {
-      return await replyText(replyToken, '店舗が見つかりません。');
+      return await replyText(replyToken, 'アカウントが見つかりません。');
     }
 
     // Instagram連携チェック

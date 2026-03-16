@@ -115,7 +115,7 @@ export async function describeImage(imageBase64, mediaType = 'image/jpeg') {
               text: `この写真を分析し、以下のJSON形式で出力してください。
 
 {
-  "main_subject": "写真の主役（1つだけ。料理名・商品名が推測できれば具体的に）",
+  "main_subject": "写真の主役（1つだけ。人物メインなら「人物」と書く。料理・商品なら具体名）",
   "supporting_elements": ["補足要素1", "補足要素2", "補足要素3"],
   "description": "写真全体の簡潔な説明（色味・光・質感・時間帯・季節感を含む。3文以内）",
   "observations": [
@@ -124,9 +124,9 @@ export async function describeImage(imageBase64, mediaType = 'image/jpeg') {
     "視覚的事実3"
   ],
   "viewpoints": [
-    "発見1: 店主も気づいていない魅力（15字以内。モノ系）",
-    "発見2: 店主も気づいていない魅力（15字以内。細部系）",
-    "発見3: 店主も気づいていない魅力（15字以内。場の要素系）"
+    "発見1: あなたも気づいていない魅力（15字以内。モノ系）",
+    "発見2: あなたも気づいていない魅力（15字以内。細部系）",
+    "発見3: あなたも気づいていない魅力（15字以内。場の要素系）"
   ],
   "main_subject_tag": "food|person|hands|workspace|interior|coffee|drink|product|other のいずれか1つ",
   "scene_type": "meal|cooking|cafe_work|portrait|conversation|empty_space|display|other のいずれか1つ",
@@ -141,11 +141,16 @@ export async function describeImage(imageBase64, mediaType = 'image/jpeg') {
 
 ルール:
 - main_subject: 写真で一番目立つもの。1つだけ特定する
+  - 人物がメインの写真 → main_subjectは「人物」。服のパーツ名（ジップ、ボタン等）にしない
+  - 人物写真のsupporting_elementsは「表情の雰囲気」「光」「背景」など場の要素にする
 - supporting_elements: main_subject以外の要素（器・背景・光源など）。3つまで
 - observations: 見えているものだけ。感想・雰囲気・効果は書かない。食レポ禁止（パリッと、ふわふわ等）
+  - 人物写真の場合: 服の部品を1つずつ列挙しない。全体の空気感・光・表情の方向性を観察する
 - viewpoints: 3つは必ず別々の対象（①モノ ②細部 ③場の要素）。感情・比喩・分析語は禁止。「〜がいい」「〜が効いてる」くらいの軽さ
+  - 人物写真の場合: 服のパーツではなく「光の当たり方」「表情の一瞬」「場の空気」から発見する
 - 写真に写っていないものを創作しない
 - 人数を推測しない（皿が2つでも「二人」と書かない。見えているモノだけ記述する）
+- 人物の容姿・体型・年齢への言及は禁止
 - main_subject_tag: main_subjectの英語分類タグ。必ず指定の選択肢から1つ選ぶ
 - scene_type: 写真のシーン分類。必ず指定の選択肢から1つ選ぶ
 - has_person: 人物が写っているかどうか（true/false）

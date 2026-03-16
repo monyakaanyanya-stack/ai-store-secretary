@@ -130,9 +130,9 @@ async function buildQuickReplyItems(storeId, hasImageUrl) {
  * 本文生成後にfire-and-forgetで実行: Photo Advice を生成してDB更新
  * ※ハッシュタグは本文と一緒に生成済み
  */
-async function generateSupplements(postId, bodyText, store, blendedInsights, imageDescription, userId, lineUserId, isPremium, hasImageUrl = false) {
+async function generateSupplements(postId, bodyText, store, blendedInsights, imageDescription, userId, lineUserId, isPremium, hasImageUrl = false, mainSubject = null) {
   try {
-    const prompt = buildSupplementPrompt(bodyText, store, blendedInsights, imageDescription, { isPremium });
+    const prompt = buildSupplementPrompt(bodyText, store, blendedInsights, imageDescription, { isPremium, mainSubject });
     const supplementRaw = await askClaude(prompt, { max_tokens: 512 });
 
     // DB更新: 本文（タグ含む） + Photo Advice
@@ -210,7 +210,7 @@ export async function regenerateBody(user, store, ctx, lineUserId) {
     }]);
 
     // fire-and-forget: Supplement生成
-    generateSupplements(savedPost.id, bodyText, store, ctx.blendedInsights, ctx.imageDescription, user.id, lineUserId, isPremium, hasImageUrl)
+    generateSupplements(savedPost.id, bodyText, store, ctx.blendedInsights, ctx.imageDescription, user.id, lineUserId, isPremium, hasImageUrl, ctx.mainSubject)
       .catch(e => console.error('[Image] 再生成Supplement エラー:', e.message));
 
   } catch (err) {
@@ -407,7 +407,7 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
     }]);
 
     // ── Step 2: ハッシュタグ + Photo Advice（fire-and-forget） ──
-    generateSupplements(savedPost.id, bodyText, store, blendedInsights, cleanDescription, userId, lineUserId, isPremium, !!imageUrl)
+    generateSupplements(savedPost.id, bodyText, store, blendedInsights, cleanDescription, userId, lineUserId, isPremium, !!imageUrl, mainSubject)
       .catch(e => console.error('[Image] Supplement生成エラー:', e.message));
 
     // 戦略アドバイス（投稿タイミング等）をTipsとして送信
@@ -451,7 +451,7 @@ export async function handleImageMessage(user, messageId, replyToken) {
 
   if (!user.current_store_id) {
     return await replyText(replyToken,
-      'まだ店舗が登録されていないみたいです。「登録」で始められます！'
+      'まだアカウントが登録されていないみたいです。「登録」で始められます！'
     );
   }
 
@@ -463,7 +463,7 @@ export async function handleImageMessage(user, messageId, replyToken) {
   try {
     const store = await getStore(user.current_store_id);
     if (!store) {
-      return await replyText(replyToken, '店舗が見つかりません。「店舗一覧」で確認してみてください');
+      return await replyText(replyToken, 'アカウントが見つかりません。「アカウント一覧」で確認してみてください');
     }
 
     // ── direct_mode: AI生成スキップ → テキスト入力待ち ──
