@@ -1515,7 +1515,8 @@ ${toneData.style_rules.map((r, i) => `${i + 1}. ${r}`).join('\n')}`;
     ? `\n参考業種タグ: ${dbTags.join(', ')}`
     : '';
   const hashtagSection = `【ハッシュタグ（3つだけ）】
-写真の内容・${categoryHint}に直結するタグを3つだけ生成する。
+写真に実際に写っているものに直結するタグを3つだけ生成する。
+${categoryHint ? `業種は${categoryHint}だが、写真の被写体が業種と無関係な場合は業種タグを使わず、写真の内容だけでタグを作ること。` : ''}
 ${fixedTagNote ? `${fixedTagNote}順番: ①生成した3つのタグ → ②固定タグ（固定タグは生成タグの後ろに配置）` : '順番: 写真の内容に直結するタグ3つのみ'}
 絶対NG: 投稿本文に書かれていないもののタグ、#instagood #japan #photooftheday などの汎用タグ
 ⚠️ 禁止ワード（おすすめ・素敵・魅力的 等）はハッシュタグにも使用禁止${collectiveTagNote}`;

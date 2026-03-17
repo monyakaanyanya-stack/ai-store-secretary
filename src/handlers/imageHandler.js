@@ -16,6 +16,33 @@ import { getInstagramAccount } from '../services/instagramService.js';
 
 
 /**
+ * bodyText（AI出力）を「写真の魅力」部分と「投稿本文」に分割
+ * AI出力形式: 📷 写真の魅力\n・...\n---\n本文\n#ハッシュタグ
+ * @returns {{ charmSection: string|null, postBody: string }}
+ */
+export function splitCharmAndBody(bodyText) {
+  if (!bodyText) return { charmSection: null, postBody: '' };
+
+  // --- で分割（AI出力の区切り）
+  const separatorIndex = bodyText.indexOf('\n---');
+  if (separatorIndex === -1) {
+    // --- がない場合は全体を投稿本文として扱う
+    return { charmSection: null, postBody: bodyText.trim() };
+  }
+
+  const charmSection = bodyText.slice(0, separatorIndex).trim();
+  const postBody = bodyText.slice(separatorIndex + 4).trim(); // +4 = '\n---'
+
+  // charmSection が「📷 写真の魅力」で始まるか確認
+  if (charmSection.includes('📷')) {
+    return { charmSection, postBody };
+  }
+
+  // 📷がない場合は分割せず全体を本文扱い
+  return { charmSection: null, postBody: bodyText.trim() };
+}
+
+/**
  * describeImage出力（JSON or 旧テキスト）をパースして構造化データを返す
  * @param {string} imageDescription - describeImageの出力テキスト（JSON形式を想定）
  * @returns {{ cleanDescription: string, viewpoints: string[], viewpointLabels: string[], mainSubject: string|null, supportingElements: string[] }}
@@ -201,11 +228,15 @@ export async function regenerateBody(user, store, ctx, lineUserId, replyToken) {
     // Photo Advice 生成（await）
     const advicePart = await generateSupplements(savedPost.id, bodyText, store, ctx.blendedInsights, ctx.imageDescription, isPremium, ctx.mainSubject);
 
+    // bodyText を「写真の魅力」と「投稿本文」に分割
+    const { charmSection, postBody } = splitCharmAndBody(bodyText);
+
     // 返信メッセージ構築
     const messages = [];
+    const charmPart = charmSection ? `\n\n${charmSection}` : '';
     messages.push({
       type: 'text',
-      text: `別の案です！${learningNote}\n━━━━━━━━━━━\n${bodyText}\n━━━━━━━━━━━\n\n📝「学習: 書き直した文章」で文体を学習`,
+      text: `別の案です！${learningNote}${charmPart}\n━━━━━━━━━━━\n${postBody}\n━━━━━━━━━━━\n\n📝「学習: 書き直した文章」で文体を学習`,
     });
 
     if (advicePart) {
@@ -418,10 +449,14 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
 
     const messages = [];
 
-    // メッセージ1: 投稿文
+    // bodyText を「写真の魅力」と「投稿本文」に分割
+    const { charmSection, postBody } = splitCharmAndBody(bodyText);
+
+    // メッセージ1: 投稿文（写真の魅力は区切り線の上、コピー対象の本文は区切り線の間）
+    const charmPart = charmSection ? `\n\n${charmSection}` : '';
     messages.push({
       type: 'text',
-      text: `投稿ができました！👇${learningNote}\n━━━━━━━━━━━\n${bodyText}\n━━━━━━━━━━━\n\n📝「学習: 書き直した文章」で文体を学習${remainingNote}`,
+      text: `投稿ができました！👇${learningNote}${charmPart}\n━━━━━━━━━━━\n${postBody}\n━━━━━━━━━━━\n\n📝「学習: 書き直した文章」で文体を学習${remainingNote}`,
     });
 
     // メッセージ2: Photo Advice（生成成功時のみ）
