@@ -416,3 +416,49 @@ ${sections.join('\n\n')}
 
 💡 「学習: 〜」で修正するほど人格が育ちます`;
 }
+
+/**
+ * 学習精度アップの進捗メモを返す（投稿メッセージ埋め込み用）
+ *
+ * マイルストーン:
+ *   0〜2件 → 人格定義の初回生成まで（3件必要）
+ *   3件〜  → 次の人格更新まで（3件刻み）
+ *
+ * @param {string} storeId - 店舗ID
+ * @returns {Promise<string>} - 例: '\n📈 学習精度アップまであと2回'（進捗なし時は空文字）
+ */
+export async function getLearningProgressNote(storeId) {
+  try {
+    const profile = await getOrCreateLearningProfile(storeId);
+    if (!profile) return '';
+
+    const profileData = profile.profile_data || {};
+    const beliefLogs = profileData.belief_logs || [];
+
+    // feedback ソースのログ数をカウント
+    const feedbackCount = beliefLogs.filter(b => b.source === 'feedback').length;
+
+    // 人格定義が未生成の場合: 3件で初回生成
+    if (!profileData.persona_definition) {
+      const remaining = Math.max(0, 3 - feedbackCount);
+      if (remaining > 0) {
+        return `\n📈 学習精度アップまであと${remaining}回`;
+      }
+      // 3件あるが persona がまだ未生成（次の投稿で生成される予定）
+      return '\n📈 まもなく学習精度がアップします！';
+    }
+
+    // 人格定義が生成済み: 次の精度アップまでの残り
+    // 3件刻みで精度アップ（persona更新のトリガー）
+    const nextMilestone = Math.ceil((feedbackCount + 1) / 3) * 3;
+    const remaining = nextMilestone - feedbackCount;
+    if (remaining > 0 && remaining <= 3) {
+      return `\n📈 次の学習精度アップまであと${remaining}回`;
+    }
+
+    return '';
+  } catch (err) {
+    console.error('[Personalization] 学習進捗取得エラー:', err.message);
+    return '';
+  }
+}

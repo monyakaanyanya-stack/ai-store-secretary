@@ -2,7 +2,7 @@ import { replyText, replyWithQuickReply, replyMessages, getImageAsBase64, pushMe
 import { describeImage, askClaude } from '../services/claudeService.js';
 import { getStore, savePendingImageContext, clearPendingImageContext, uploadImageToStorage, setPendingCommand, clearPendingCommand, savePostHistory, getLatestPost, updatePostContent, savePostFeatures } from '../services/supabaseService.js';
 import { getBlendedInsights, saveEngagementMetrics } from '../services/collectiveIntelligence.js';
-import { getPersonalizationPromptAddition } from '../services/personalizationEngine.js';
+import { getPersonalizationPromptAddition, getLearningProgressNote } from '../services/personalizationEngine.js';
 import { getAdvancedPersonalizationPrompt, autoRegeneratePersonaIfNeeded } from '../services/advancedPersonalization.js';
 import { getSeasonalMemoryPromptAddition } from '../services/seasonalMemoryService.js';
 import { extractInsightsFromScreenshot } from '../services/insightsOCRService.js';
@@ -208,9 +208,10 @@ export async function regenerateBody(user, store, ctx, lineUserId, replyToken) {
     // 返信メッセージ構築
     const messages = [];
     const charmPart = charmSection ? `\n\n${charmSection}` : '';
+    const progressNote = await getLearningProgressNote(store.id);
     messages.push({
       type: 'text',
-      text: `別の案です！${learningNote}${charmPart}\n━━━━━━━━━━━\n${postBody}\n━━━━━━━━━━━\n\n📝「学習: 書き直した文章」で文体を学習`,
+      text: `別の案です！${learningNote}${charmPart}\n━━━━━━━━━━━\n${postBody}\n━━━━━━━━━━━\n\n📝「学習: 書き直した文章」で文体を学習${progressNote}`,
     });
 
     if (advicePart) {
@@ -420,6 +421,7 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
     const learningNote = hasLearning ? '\n🧠 これまでの学習を反映しています' : '';
     const remaining = Number.isFinite(genLimit.limit) ? genLimit.limit - (genLimit.used + 1) : null;
     const remainingNote = remaining !== null && remaining <= 3 ? `\n📊 今月の残り: ${remaining}回` : '';
+    const progressNote = await getLearningProgressNote(store.id);
 
     const messages = [];
 
@@ -430,7 +432,7 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
     const charmPart = charmSection ? `\n\n${charmSection}` : '';
     messages.push({
       type: 'text',
-      text: `投稿ができました！👇${learningNote}${charmPart}\n━━━━━━━━━━━\n${postBody}\n━━━━━━━━━━━\n\n📝「学習: 書き直した文章」で文体を学習${remainingNote}`,
+      text: `投稿ができました！👇${learningNote}${charmPart}\n━━━━━━━━━━━\n${postBody}\n━━━━━━━━━━━\n\n📝「学習: 書き直した文章」で文体を学習${progressNote}${remainingNote}`,
     });
 
     // メッセージ2: Photo Advice（生成成功時のみ）

@@ -3991,3 +3991,51 @@ describe('Scenario 57: 1案ドン表示（Phase 1）', () => {
     assert.ok(content.includes('recentPosts'), 'プロンプトにrecentPostsを渡している');
   });
 });
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Scenario 58: 学習進捗インジケーター
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+describe('Scenario 58: 学習進捗インジケーター', () => {
+  it('personalizationEngine.js に getLearningProgressNote がある', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/services/personalizationEngine.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('export async function getLearningProgressNote'),
+      'getLearningProgressNote が export されている');
+    assert.ok(content.includes('学習精度アップまであと'),
+      '進捗メッセージのテンプレートが含まれる');
+    assert.ok(content.includes('source === \'feedback\''),
+      'feedback ソースのみカウントしている');
+  });
+
+  it('imageHandler.js が getLearningProgressNote をインポートして使用している', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
+    );
+    assert.ok(content.includes('getLearningProgressNote'),
+      'getLearningProgressNote をインポートしている');
+    assert.ok(content.includes('progressNote'),
+      'progressNote 変数を使用している');
+  });
+
+  it('投稿メッセージに progressNote が含まれる（初回生成・別案両方）', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(
+      new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
+    );
+    // 初回生成: 「投稿ができました！」メッセージに progressNote
+    const mainMsg = content.match(/投稿ができました.*?\n/s);
+    assert.ok(mainMsg, '初回生成メッセージがある');
+    assert.ok(content.includes('文体を学習${progressNote}'),
+      '初回生成メッセージに progressNote が含まれる');
+
+    // 別案: 「別の案です！」メッセージに progressNote
+    const regenMsg = content.match(/別の案です.*?\n/s);
+    assert.ok(regenMsg, '別案メッセージがある');
+    const regenSection = content.slice(content.indexOf('別の案です！'));
+    assert.ok(regenSection.includes('progressNote'),
+      '別案メッセージにも progressNote が含まれる');
+  });
+});
