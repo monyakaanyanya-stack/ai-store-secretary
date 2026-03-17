@@ -589,11 +589,9 @@ ${contactEmail}
           return await replyText(replyToken, '写真を送ってからお試しください');
         }
 
-        await replyText(replyToken, '別の案を考えています...');
-
-        // バックグラウンドで再生成
+        // replyTokenを渡して全生成完了後にreplyで返信（push不要）
         const { regenerateBody } = await import('./imageHandler.js');
-        regenerateBody(user, store, ctx, user.line_user_id).catch(e =>
+        regenerateBody(user, store, ctx, user.line_user_id, replyToken).catch(e =>
           console.error('[TextHandler] 別案再生成エラー:', e.message));
         return;
       }

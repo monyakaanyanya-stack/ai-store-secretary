@@ -1,4 +1,4 @@
-import { replyText, replyWithQuickReply, getImageAsBase64, pushMessage } from '../services/lineService.js';
+import { replyText, replyWithQuickReply, replyMessages, getImageAsBase64, pushMessage } from '../services/lineService.js';
 import { describeImage, askClaude } from '../services/claudeService.js';
 import { getStore, savePendingImageContext, clearPendingImageContext, uploadImageToStorage, setPendingCommand, clearPendingCommand, savePostHistory, getLatestPost, updatePostContent, savePostFeatures } from '../services/supabaseService.js';
 import { getBlendedInsights, saveEngagementMetrics } from '../services/collectiveIntelligence.js';
@@ -127,30 +127,25 @@ async function buildQuickReplyItems(storeId, hasImageUrl) {
 }
 
 /**
- * 本文生成後にfire-and-forgetで実行: Photo Advice を生成してDB更新
- * ※ハッシュタグは本文と一緒に生成済み
+ * Photo Advice を生成してDB更新し、advicePartを返す
+ * pushMessageは呼ばない（呼び出し元でreplyに含める）
+ * @returns {string|null} advicePart（生成失敗時はnull）
  */
-async function generateSupplements(postId, bodyText, store, blendedInsights, imageDescription, userId, lineUserId, isPremium, hasImageUrl = false, mainSubject = null) {
+async function generateSupplements(postId, bodyText, store, blendedInsights, imageDescription, isPremium, mainSubject = null) {
   try {
     const prompt = buildSupplementPrompt(bodyText, store, blendedInsights, imageDescription, { isPremium, mainSubject });
     const supplementRaw = await askClaude(prompt, { max_tokens: 512 });
 
-    // DB更新: 本文（タグ含む） + Photo Advice
     const advicePart = supplementRaw.trim();
     if (advicePart) {
+      // DB更新: 本文（タグ含む） + Photo Advice
       await updatePostContent(postId, bodyText + '\n\n' + advicePart);
-
-      // Photo AdviceをLINEにPush通知（本文とは別メッセージ・クイックリプライ付き）
-      const qrItems = await buildQuickReplyItems(store.id, hasImageUrl);
-      await pushMessage(lineUserId, [{
-        type: 'text',
-        text: `━━━━━━━━━━━\n${advicePart}`,
-        quickReply: { items: qrItems },
-      }]);
     }
     console.log(`[Image] Supplement生成完了: postId=${postId}`);
+    return advicePart || null;
   } catch (err) {
     console.error('[Image] Supplement生成エラー（本文は保存済み）:', err.message);
+    return null;
   }
 }
 
@@ -169,7 +164,7 @@ export function isContextValid(ctx) {
 /**
  * 「別案」用: pending_image_context から再生成（variation_mode で差を出す）
  */
-export async function regenerateBody(user, store, ctx, lineUserId) {
+export async function regenerateBody(user, store, ctx, lineUserId, replyToken) {
   try {
     const isPremium = await isFeatureEnabled(user.id, 'enhancedPhotoAdvice');
     const storeForPrompt = ctx.effectiveCategory
@@ -202,31 +197,52 @@ export async function regenerateBody(user, store, ctx, lineUserId) {
     const learningNote = hasLearning ? '\n🧠 これまでの学習を反映しています' : '';
 
     const hasImageUrl = !!(ctx.imageUrl || savedPost.image_url);
-    const regenQrItems = await buildQuickReplyItems(store.id, hasImageUrl);
-    await pushMessage(lineUserId, [{
+
+    // Photo Advice 生成（await）
+    const advicePart = await generateSupplements(savedPost.id, bodyText, store, ctx.blendedInsights, ctx.imageDescription, isPremium, ctx.mainSubject);
+
+    // 返信メッセージ構築
+    const messages = [];
+    messages.push({
       type: 'text',
       text: `別の案です！${learningNote}\n━━━━━━━━━━━\n${bodyText}\n━━━━━━━━━━━\n\n📝「学習: 書き直した文章」で文体を学習`,
-      quickReply: { items: regenQrItems },
-    }]);
+    });
 
-    // fire-and-forget: Supplement生成
-    generateSupplements(savedPost.id, bodyText, store, ctx.blendedInsights, ctx.imageDescription, user.id, lineUserId, isPremium, hasImageUrl, ctx.mainSubject)
-      .catch(e => console.error('[Image] 再生成Supplement エラー:', e.message));
+    if (advicePart) {
+      messages.push({
+        type: 'text',
+        text: `━━━━━━━━━━━\n${advicePart}`,
+      });
+    }
+
+    // QuickReply は最後のメッセージに付ける
+    const regenQrItems = await buildQuickReplyItems(store.id, hasImageUrl);
+    messages[messages.length - 1].quickReply = { items: regenQrItems };
+
+    // replyToken で返信（失敗時は pushMessage フォールバック）
+    try {
+      await replyMessages(replyToken, messages);
+    } catch {
+      await pushMessage(lineUserId, messages);
+    }
 
   } catch (err) {
     console.error('[Image] 再生成エラー:', err.message);
-    await pushMessage(lineUserId, [{
-      type: 'text',
-      text: 'うまくいきませんでした...もう一度お試しください',
-    }]);
+    const errorMsg = 'うまくいきませんでした...もう一度お試しください';
+    try {
+      await replyMessages(replyToken, [{ type: 'text', text: errorMsg }]);
+    } catch {
+      await pushMessage(lineUserId, [{ type: 'text', text: errorMsg }]).catch(() => {});
+    }
   }
 }
 
 /**
- * バックグラウンドで画像分析→本文生成→Push通知、その後タグ+Adviceを非同期生成
- * 2ステップフロー: ①本文のみ即Push ②ハッシュタグ+Adviceは裏で生成
+ * 画像分析→本文生成→Photo Advice生成→1回のreplyでまとめて返信
+ * replyTokenで返信するためpushMessage不要（LINE月間制限にカウントされない）
+ * replyToken失効時はpushMessageにフォールバック
  */
-async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, imageUrl, messageId) {
+async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, imageUrl, messageId, replyToken) {
   try {
     console.log(`[Image] バックグラウンド分析+生成開始: store=${store.name}`);
     const startMs = Date.now();
@@ -270,10 +286,12 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
         imageUrl,
         createdAt: new Date().toISOString(),
       });
-      await pushMessage(lineUserId, [{
-        type: 'text',
-        text: '画像がうまく読み取れませんでした...もう一度送ってみてください',
-      }]);
+      const errorMsg = '画像がうまく読み取れませんでした...もう一度送ってみてください';
+      try {
+        await replyMessages(replyToken, [{ type: 'text', text: errorMsg }]);
+      } catch {
+        await pushMessage(lineUserId, [{ type: 'text', text: errorMsg }]).catch(() => {});
+      }
       return;
     }
 
@@ -389,42 +407,65 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
     const totalElapsed = ((Date.now() - startMs) / 1000).toFixed(1);
     console.log(`[Image] 本文生成完了: store=${store.name} (${totalElapsed}s)`);
 
-    // ── Push通知: 本文のみ即表示 ──
+    // ── Photo Advice 生成（await して結果を reply に含める） ──
+    const advicePart = await generateSupplements(savedPost.id, bodyText, store, blendedInsights, cleanDescription, isPremium, mainSubject);
+
+    // ── 返信メッセージ構築（最大5メッセージ） ──
     const genLimit = await checkGenerationLimit(userId);
     const learningNote = hasLearning ? '\n🧠 これまでの学習を反映しています' : '';
     const remaining = Number.isFinite(genLimit.limit) ? genLimit.limit - (genLimit.used + 1) : null;
     const remainingNote = remaining !== null && remaining <= 3 ? `\n📊 今月の残り: ${remaining}回` : '';
 
-    const initialQrItems = await buildQuickReplyItems(store.id, !!imageUrl);
-    await pushMessage(lineUserId, [{
+    const messages = [];
+
+    // メッセージ1: 投稿文
+    messages.push({
       type: 'text',
       text: `投稿ができました！👇${learningNote}\n━━━━━━━━━━━\n${bodyText}\n━━━━━━━━━━━\n\n📝「学習: 書き直した文章」で文体を学習${remainingNote}`,
-      quickReply: { items: initialQrItems },
-    }]);
+    });
 
-    // ── Step 2: ハッシュタグ + Photo Advice（fire-and-forget） ──
-    generateSupplements(savedPost.id, bodyText, store, blendedInsights, cleanDescription, userId, lineUserId, isPremium, !!imageUrl, mainSubject)
-      .catch(e => console.error('[Image] Supplement生成エラー:', e.message));
+    // メッセージ2: Photo Advice（生成成功時のみ）
+    if (advicePart) {
+      messages.push({
+        type: 'text',
+        text: `━━━━━━━━━━━\n${advicePart}`,
+      });
+    }
 
-    // 戦略アドバイス（投稿タイミング等）をTipsとして送信
+    // メッセージ3: 戦略アドバイス（あれば）
     try {
       const advice = buildStrategicAdvice(blendedInsights, store);
       if (advice?.postingTimeTip) {
-        await pushMessage(lineUserId, [{ type: 'text', text: `💡 ${advice.postingTimeTip}` }]);
+        messages.push({ type: 'text', text: `💡 ${advice.postingTimeTip}` });
       }
     } catch {
-      // 戦略Tips送信失敗は無視
+      // 戦略Tips生成失敗は無視
+    }
+
+    // QuickReply は最後のメッセージに付ける（LINE仕様）
+    const qrItems = await buildQuickReplyItems(store.id, !!imageUrl);
+    messages[messages.length - 1].quickReply = { items: qrItems };
+
+    // ── replyToken で返信（失敗時は pushMessage フォールバック） ──
+    try {
+      await replyMessages(replyToken, messages);
+      console.log(`[Image] reply返信成功: store=${store.name}, messages=${messages.length}`);
+    } catch (replyErr) {
+      console.warn(`[Image] replyToken失効、pushフォールバック: ${replyErr.message}`);
+      await pushMessage(lineUserId, messages);
     }
   } catch (err) {
     console.error(`[Image] バックグラウンド分析+生成エラー (store=${store.name}):`, err.message);
     try {
       await clearPendingImageContext(userId);
-      await pushMessage(lineUserId, [{
-        type: 'text',
-        text: 'うまくいきませんでした...もう一度画像を送ってみてください',
-      }]);
+      const errorMsg = 'うまくいきませんでした...もう一度画像を送ってみてください';
+      try {
+        await replyMessages(replyToken, [{ type: 'text', text: errorMsg }]);
+      } catch {
+        await pushMessage(lineUserId, [{ type: 'text', text: errorMsg }]).catch(() => {});
+      }
     } catch {
-      // Push送信も失敗した場合は諦める
+      // 全送信失敗した場合は諦める
     }
   }
 }
@@ -572,7 +613,7 @@ export async function handleImageMessage(user, messageId, replyToken) {
       );
     }
 
-    // ── Phase 2: 即応答 + バックグラウンドで魅力発見 ──
+    // ── Phase 2: 全生成完了後にreplyで一括返信（push不要） ──
     // 「分析中」状態で pending context を保存
     await savePendingImageContext(user.id, {
       messageId,
@@ -583,11 +624,9 @@ export async function handleImageMessage(user, messageId, replyToken) {
       createdAt: new Date().toISOString(),
     });
 
-    // 即応答 — 秘書トーンで「お任せください」メッセージ
-    await replyText(replyToken, 'お任せください、投稿を考えておきますね！\n他の作業をしていてもらって大丈夫です✨');
-
-    // バックグラウンドで画像分析 + 魅力発見開始（awaitしない = ユーザーの操作と並列実行）
-    analyzeImageInBackground(user.id, user.line_user_id, store, imageBase64, imageUrl, messageId)
+    // replyTokenを渡して全生成完了後に1回のreplyで返信（pushMessage不要）
+    // awaitしない = Webhookレスポンスをブロックしない
+    analyzeImageInBackground(user.id, user.line_user_id, store, imageBase64, imageUrl, messageId, replyToken)
       .catch(err => console.error('[Image] バックグラウンド分析未捕捉エラー:', err));
 
   } catch (err) {

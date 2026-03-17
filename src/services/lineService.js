@@ -54,6 +54,40 @@ export async function pushMessage(lineUserId, messages) {
 }
 
 /**
+ * LINE に複数メッセージを1回のリプライで返信（最大5メッセージ）
+ * pushMessage不要で月間制限にカウントされない
+ * @param {string} replyToken
+ * @param {Array} messages - [{type:'text', text:'...', quickReply?:{items:[...]}}]
+ */
+export async function replyMessages(replyToken, messages) {
+  // 各テキストメッセージの5000文字制限を適用
+  const trimmedMessages = messages.map(msg => {
+    if (msg.type === 'text' && msg.text && msg.text.length > 5000) {
+      return { ...msg, text: msg.text.slice(0, 4990) + '\n...' };
+    }
+    return msg;
+  });
+
+  const res = await fetch(`${LINE_API_BASE}/message/reply`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${CHANNEL_ACCESS_TOKEN}`,
+    },
+    body: JSON.stringify({
+      replyToken,
+      messages: trimmedMessages,
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    console.error(`[LINE] 複数メッセージ返信失敗 status=${res.status} body=${body.slice(0, 200)}`);
+    throw new Error(`LINE複数メッセージ返信失敗: ${res.status}`);
+  }
+}
+
+/**
  * LINE にクイックリプライ付きテキストを返信
  * @param {string} replyToken
  * @param {string} text - 本文

@@ -1494,10 +1494,10 @@ describe('Scenario 31: 画像「一言ヒント」機能', async () => {
     assert.ok(content.includes('savePendingImageContext'), 'savePendingImageContext を呼び出す');
   });
 
-  it('imageHandler が「お任せください」メッセージを送信する', () => {
+  it('imageHandler がreplyMessages（複数メッセージreply）で結果を返す', () => {
     const content = fs.readFileSync('src/handlers/imageHandler.js', 'utf8');
-    assert.ok(content.includes('お任せください'), '即応答に「お任せください」が含まれる');
-    assert.ok(content.includes('他の作業をしていてもらって大丈夫です'), '待機案内が含まれる');
+    assert.ok(content.includes('replyMessages'), 'replyMessagesで一括返信する');
+    assert.ok(content.includes('replyToken'), 'replyTokenを使用する');
   });
 
   it('textHandler に pending_image_context チェックがある', () => {
@@ -2780,14 +2780,14 @@ describe('Scenario 47: 魅力発見AI', async () => {
     assert.ok(content.includes('15字以内'), 'viewpoints should enforce short format rule');
   });
 
-  it('handleImageMessageの即応答に「お任せください」メッセージが含まれる', () => {
+  it('handleImageMessageがreplyTokenを渡してreplyMessagesで一括返信する', () => {
     const content = fs.readFileSync(
       new URL('../src/handlers/imageHandler.js', import.meta.url), 'utf-8'
     );
-    // handleImageMessage内: replyTextで即応答（ボタンなし）
-    assert.ok(content.includes('お任せください'), 'should show "leave it to me" message');
-    // バックグラウンド完了後にPush通知で投稿案を送る
-    assert.ok(content.includes('pushMessage'), 'should use pushMessage for proposals');
+    // replyTokenを渡して全生成完了後にreplyで一括返信（push不要）
+    assert.ok(content.includes('replyMessages'), 'should use replyMessages for proposals');
+    // pushMessageはフォールバックとして残る
+    assert.ok(content.includes('pushMessage'), 'should have pushMessage as fallback');
   });
 
   it('Push通知で1案表示+これで決定/別案ボタンを送信する', () => {
