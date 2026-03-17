@@ -26,6 +26,7 @@ import {
 } from '../services/supabaseService.js';
 import { getInstagramAccount, publishToInstagram } from '../services/instagramService.js';
 import { isFeatureEnabled } from '../services/subscriptionService.js';
+import { extractCaption } from '../utils/postAnalyzer.js';
 
 const MAX_STOCK = 10;
 
@@ -165,8 +166,8 @@ export async function handleStockAction(user, stockIndex, replyToken) {
       storeId: user.current_store_id,
     });
 
-    // プレビュー（撮影アドバイス除外）
-    const preview = selectedPost.content.split(/\n━{3,}/)[0].trim();
+    // プレビュー（撮影アドバイス + 写真の魅力除外）
+    const preview = extractCaption(selectedPost.content);
     const truncated = preview.length > 200 ? preview.slice(0, 200) + '...' : preview;
 
     const quickReplies = [
@@ -216,8 +217,8 @@ export async function handleStockPublish(user, replyToken) {
       return await replyText(replyToken, 'Instagram未連携です。先に「インスタ連携」で連携してください。');
     }
 
-    // 撮影アドバイス除外
-    const caption = post.content.split(/\n━{3,}/)[0].trim();
+    // 撮影アドバイス + 写真の魅力除外
+    const caption = extractCaption(post.content);
 
     const result = await publishToInstagram(post.store_id, post.image_url, caption);
 
@@ -648,8 +649,8 @@ export async function processScheduledPosts() {
         continue;
       }
 
-      // 撮影アドバイス除外してキャプション取得
-      const caption = post.content.split(/\n━{3,}/)[0].trim();
+      // 撮影アドバイス + 写真の魅力除外してキャプション取得
+      const caption = extractCaption(post.content);
 
       // Instagram投稿
       const result = await publishToInstagram(post.store_id, post.image_url, caption);

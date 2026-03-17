@@ -11,6 +11,7 @@ import {
   buildInstagramAuthUrl,
 } from '../services/instagramService.js';
 import { supabase, savePendingImageContext, clearPendingImageContext } from '../services/supabaseService.js';
+import { extractCaption } from '../utils/postAnalyzer.js';
 
 /**
  * Instagram コマンドの振り分け
@@ -198,8 +199,8 @@ async function handleInstagramPublish(user, replyToken) {
       return true;
     }
 
-    // 撮影アドバイス（━━━ 区切り以降）を除外して本文のみ投稿
-    const caption = latestPost.content.split(/\n━{3,}/)[0].trim();
+    // 撮影アドバイス + 写真の魅力セクションを除外して投稿本文のみ
+    const caption = extractCaption(latestPost.content);
 
     const result = await publishToInstagram(store.id, latestPost.image_url, caption);
 
@@ -317,8 +318,8 @@ async function handleCarouselComplete(user, replyToken) {
         await replyText(replyToken, '投稿が見つかりません。');
         return true;
       }
-      // 撮影アドバイス（━━━ 区切り以降）を除外して本文のみ投稿
-      caption = latestPost.content.split(/\n━{3,}/)[0].trim();
+      // 撮影アドバイス + 写真の魅力セクションを除外して投稿本文のみ
+      caption = extractCaption(latestPost.content);
     }
 
     // direct_modeの場合はpost_historyに保存

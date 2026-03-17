@@ -39,6 +39,7 @@ import {
 import { buildStoreParsePrompt, buildTextPostPrompt, POST_LENGTH_MAP, appendTemplateFooter } from '../utils/promptBuilder.js';
 import { getGlobalPromptRules } from '../services/promptTuningService.js';
 import { normalizeInput } from '../utils/inputNormalizer.js';
+import { extractCaption } from '../utils/postAnalyzer.js';
 import { normalizeCategory } from '../config/categoryDictionary.js';
 import { getBlendedInsights, saveEngagementMetrics } from '../services/collectiveIntelligence.js';
 import { getPersonalizationPromptAddition, getLearningStatus } from '../services/personalizationEngine.js';
@@ -642,8 +643,8 @@ ${contactEmail}
       if (store) {
         const latestPost = await getLatestPost(store.id);
         if (latestPost) {
-          // Photo Advice（━━━区切り以降）を除外して本文+ハッシュタグのみ
-          const caption = latestPost.content.split(/\n━{3,}/)[0].trim();
+          // 撮影アドバイス + 写真の魅力セクションを除外して投稿本文のみ
+          const caption = extractCaption(latestPost.content);
           return await replyText(replyToken, `📋 コピーしてお使いください👇\n\n${caption}`);
         }
       }

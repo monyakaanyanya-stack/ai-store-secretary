@@ -11,36 +11,10 @@ import { detectContentCategory } from '../utils/contentCategoryDetector.js';
 import { checkGenerationLimit, isFeatureEnabled } from '../services/subscriptionService.js';
 import { isDevTestStore } from './adminHandler.js';
 import { buildBodyPrompt, buildSupplementPrompt, buildStrategicAdvice } from '../utils/promptBuilder.js';
+import { splitCharmAndBody } from '../utils/postAnalyzer.js';
 import { getGlobalPromptRules } from '../services/promptTuningService.js';
 import { getInstagramAccount } from '../services/instagramService.js';
 
-
-/**
- * bodyText（AI出力）を「写真の魅力」部分と「投稿本文」に分割
- * AI出力形式: 📷 写真の魅力\n・...\n---\n本文\n#ハッシュタグ
- * @returns {{ charmSection: string|null, postBody: string }}
- */
-export function splitCharmAndBody(bodyText) {
-  if (!bodyText) return { charmSection: null, postBody: '' };
-
-  // --- で分割（AI出力の区切り）
-  const separatorIndex = bodyText.indexOf('\n---');
-  if (separatorIndex === -1) {
-    // --- がない場合は全体を投稿本文として扱う
-    return { charmSection: null, postBody: bodyText.trim() };
-  }
-
-  const charmSection = bodyText.slice(0, separatorIndex).trim();
-  const postBody = bodyText.slice(separatorIndex + 4).trim(); // +4 = '\n---'
-
-  // charmSection が「📷 写真の魅力」で始まるか確認
-  if (charmSection.includes('📷')) {
-    return { charmSection, postBody };
-  }
-
-  // 📷がない場合は分割せず全体を本文扱い
-  return { charmSection: null, postBody: bodyText.trim() };
-}
 
 /**
  * describeImage出力（JSON or 旧テキスト）をパースして構造化データを返す
