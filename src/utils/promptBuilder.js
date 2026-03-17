@@ -1392,9 +1392,20 @@ export function buildBodyPrompt(store, personalization, imageDescription, option
 独り言のような話し方。短文・会話口調・少し雑でも自然。
 禁止: 広告っぽい文章・「素敵」「魅力的」「おすすめ」などの宣伝語・長い説明・ポエム調・3行以上の本文
 ${characterSection}${imageDescriptionSection}${detectionSection}${hintSection}
-【出力】
-投稿の本文のみ出力。${isXshort ? '2行以内。' : `${lengthInfo.range}。`}ハッシュタグ・補足・説明は不要。
-独り言＋問いかけの2行で完結させること。`;
+【出力形式（この順番で出力すること）】
+
+📷 写真の魅力
+・（魅力1: 撮影者が無意識にフレームに入れたもの・瞬間・空気感）
+・（魅力2: 別の観察ポイント）
+・（魅力3: さらに別の観察ポイント）
+
+---
+
+（上記3つの魅力を活かした参考文。${isXshort ? '2行以内。' : `${lengthInfo.range}。`}独り言＋問いかけの2行で完結させること。）
+
+（ハッシュタグ3つ）
+
+※ 補足・説明は不要。上記フォーマットのみ出力。`;
   }
 
   // ── 店舗用プロンプト（フック→観察→共感 構造） ──
@@ -1433,7 +1444,8 @@ ${characterSection}${imageDescriptionSection}${detectionSection}${hintSection}
   const structureSection = `【文章構造（この順番で書く）】
 ① フック — 読み手が「お？」と止まる1行。主役に触れる
 ② 写真の観察や魅力 — 1つだけ具体的な観察（色・形・光・質感など）
-③ 軽い締め — 自分だけの気付きや体験で終わる（毎回違う言い回しにすること）`;
+③ 軽い締め — 自分だけの気付きや体験で終わる（毎回違う言い回しにすること）
+※ これは「参考文」パートの構造。「写真の魅力」パートは別途指示あり`;
 
   // 禁止ワード（1行にまとめる）
   const allForbidden = [...new Set([...toneData.forbidden_words, '幻想的', '素敵', '魅力的', '素晴らしい', '完璧', '最高', '美しい', 'まじ', 'まじで', 'やばい', 'やばすぎ', '超', 'めっちゃ', '美味しい', '絶品', 'こだわり', '自慢の', '人気の', '話題の', '光の意志', '質感の物語', '沈黙のデザイン', '肖像', '独白', '映えて', '映える', '光景', '恋しくなる', '恋しい', '二人', '二人で', 'カップル'])];
@@ -1497,21 +1509,36 @@ ${toneData.style_rules.map((r, i) => `${i + 1}. ${r}`).join('\n')}`;
   }
   const categoryHint = (store.category && store.category !== '開発者テスト') ? `業種「${store.category}」` : '';
   const fixedTagNote = templateHashtags.length > 0
-    ? `固定タグ（必ず先頭）: ${templateHashtags.join(' ')}\n`
+    ? `固定タグ: ${templateHashtags.join(' ')}\n`
     : '';
   const collectiveTagNote = dbTags.length > 0
-    ? `\n追加可能な業種タグ（1-3個）: ${dbTags.join(', ')}`
+    ? `\n参考業種タグ: ${dbTags.join(', ')}`
     : '';
-  const hashtagSection = `【ハッシュタグ】
-${fixedTagNote}順番: ${templateHashtags.length > 0 ? '①固定タグ → ' : ''}②投稿本文の内容・${categoryHint}に直結するタグ（3-5個）→ ③業種の定番タグ（1-3個）
+  const hashtagSection = `【ハッシュタグ（3つだけ）】
+写真の内容・${categoryHint}に直結するタグを3つだけ生成する。
+${fixedTagNote ? `${fixedTagNote}順番: ①生成した3つのタグ → ②固定タグ（固定タグは生成タグの後ろに配置）` : '順番: 写真の内容に直結するタグ3つのみ'}
 絶対NG: 投稿本文に書かれていないもののタグ、#instagood #japan #photooftheday などの汎用タグ
 ⚠️ 禁止ワード（おすすめ・素敵・魅力的 等）はハッシュタグにも使用禁止${collectiveTagNote}`;
 
   // 出力形式
   const isXshort = postLength === 'xshort' || postLength === '超短文';
-  const outputSection = isXshort
-    ? `【出力】\n本文（2行以内）の後に改行2つ空けてハッシュタグを付ける。補足・説明は不要。`
-    : `【出力】\n本文（${lengthInfo.range}）の後に改行2つ空けてハッシュタグを付ける。補足・説明は不要。`;
+  const bodyLengthNote = isXshort ? '2行以内' : lengthInfo.range;
+  const outputSection = `【出力形式（この順番で出力すること）】
+
+📷 写真の魅力
+・（魅力1: 撮影者が無意識にフレームに入れたもの・瞬間・空気感）
+・（魅力2: 別の観察ポイント）
+・（魅力3: さらに別の観察ポイント）
+
+---
+
+（上記3つの魅力を活かした参考文。${bodyLengthNote}）
+
+（ハッシュタグ3つ${templateHashtags.length > 0 ? ' + 固定タグ' : ''}）
+
+※ 「📷 写真の魅力」は撮影者本人も無意識に撮っていそうなポイントを言語化する。抽象的な感想ではなく具体的な観察。
+※ 参考文はフック→観察→締めの構造で書く。
+※ 補足・説明・ラベルは不要。上記フォーマットのみ出力。`;
 
   return `${personalization}${globalRulesSection}
 ${roleSection}

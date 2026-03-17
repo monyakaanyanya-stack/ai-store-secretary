@@ -172,12 +172,33 @@ ${recentPostsSection}
 }
 
 /**
- * AIレポート生成
+ * タイムアウト付きPromiseラッパー
+ */
+function withTimeout(promise, ms, label = 'operation') {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} がタイムアウトしました（${ms / 1000}秒）`)), ms)
+    ),
+  ]);
+}
+
+/**
+ * AIレポート生成（60秒タイムアウト付き）
  */
 async function generateAnalysisReport(store, featureData, blendedInsights, recentPosts) {
   const grouped = groupFeatureData(featureData);
   const prompt = buildAnalysisPrompt(store, grouped, blendedInsights, recentPosts);
-  const report = await askClaude(prompt, { max_tokens: 1500 });
+  console.log(`[Analysis] Claude API呼び出し開始: store=${store.name}, promptLength=${prompt.length}`);
+  const report = await withTimeout(
+    askClaude(prompt, { max_tokens: 1500 }),
+    60000,
+    'レポート生成'
+  );
+  if (!report || report.trim().length === 0) {
+    throw new Error('Claude APIから空のレポートが返されました');
+  }
+  console.log(`[Analysis] Claude API完了: reportLength=${report.length}`);
   return report;
 }
 
@@ -205,12 +226,23 @@ export async function handleAnalysis(user, replyToken) {
       return await replyText(replyToken, 'アカウント情報が見つかりません。');
     }
 
-    // 4. データ取得（並列）
+    // 4. データ取得（並列・各クエリ15秒タイムアウト）
+    console.log(`[Analysis] データ取得開始: store=${store.id}`);
     const [featureData, recentPosts, blendedInsights] = await Promise.all([
-      getFeatureAnalysis(store.id, 30),
-      getRecentPostsWithFeatures(store.id, 30),
-      getBlendedInsights(store.id, store.category).catch(() => null),
+      withTimeout(getFeatureAnalysis(store.id, 30), 15000, 'getFeatureAnalysis').catch(e => {
+        console.error('[Analysis] featureData取得エラー:', e.message);
+        return [];
+      }),
+      withTimeout(getRecentPostsWithFeatures(store.id, 30), 15000, 'getRecentPostsWithFeatures').catch(e => {
+        console.error('[Analysis] recentPosts取得エラー:', e.message);
+        return [];
+      }),
+      withTimeout(getBlendedInsights(store.id, store.category), 15000, 'getBlendedInsights').catch(e => {
+        console.error('[Analysis] blendedInsights取得エラー:', e.message);
+        return null;
+      }),
     ]);
+    console.log(`[Analysis] データ取得完了: features=${featureData?.length || 0}, recent=${recentPosts?.length || 0}, insights=${blendedInsights ? 'あり' : 'なし'}`);
 
     // 5. データ不足チェック
     if (!featureData || featureData.length === 0) {
@@ -221,17 +253,48 @@ export async function handleAnalysis(user, replyToken) {
     // 6. AIレポート生成（時間がかかるのでまず応答）
     await replyText(replyToken, '📊 分析中です...（10秒ほどお待ちください）');
 
-    const report = await generateAnalysisReport(store, featureData, blendedInsights, recentPosts);
+    let report;
+    try {
+      report = await generateAnalysisReport(store, featureData, blendedInsights, recentPosts);
+    } catch (genErr) {
+      console.error(`[Analysis] レポート生成失敗: ${genErr.message}`);
+      // レポート生成失敗→ユーザーにエラー通知
+      try {
+        await pushMessage(user.line_user_id, [{
+          type: 'text',
+          text: `📊 分析レポートの生成に失敗しました。\n\nエラー: ${genErr.message.slice(0, 100)}\n\nしばらくしてからお試しください。`,
+        }]);
+      } catch (pushErr) {
+        console.error(`[Analysis] エラー通知pushも失敗: ${pushErr.message}`);
+      }
+      return;
+    }
 
-    // 7. Push で送信
-    await pushMessage(user.line_user_id, [{
-      type: 'text',
-      text: report,
-    }]);
+    // 7. Push で送信（5000文字制限チェック）
+    const truncatedReport = report.length > 4900
+      ? report.slice(0, 4900) + '\n\n（レポートが長いため一部省略）'
+      : report;
 
-    console.log(`[Analysis] レポート生成完了: store=${store.name}`);
+    try {
+      await pushMessage(user.line_user_id, [{
+        type: 'text',
+        text: truncatedReport,
+      }]);
+      console.log(`[Analysis] レポート送信完了: store=${store.name}, length=${truncatedReport.length}`);
+    } catch (pushErr) {
+      console.error(`[Analysis] レポート送信失敗: ${pushErr.message}`);
+      // 短いエラーメッセージで再試行
+      try {
+        await pushMessage(user.line_user_id, [{
+          type: 'text',
+          text: '📊 レポートは生成できましたが、送信に失敗しました。もう一度「分析」と送ってください。',
+        }]);
+      } catch {
+        console.error('[Analysis] エラー通知pushも失敗（最終）');
+      }
+    }
   } catch (err) {
-    console.error('[Analysis] エラー:', err.message);
+    console.error('[Analysis] 予期しないエラー:', err.message, err.stack?.slice(0, 300));
     try {
       await pushMessage(user.line_user_id, [{
         type: 'text',

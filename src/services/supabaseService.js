@@ -231,23 +231,48 @@ export async function getLatestPost(storeId) {
 export async function savePostFeatures(storeId, postId, features) {
   if (!features || !postId) return null;
   try {
+    // 拡張カラム含めてupsert試行
+    const fullRecord = {
+      store_id: storeId,
+      post_id: postId,
+      main_subject: features.main_subject_tag || 'other',
+      scene_type: features.scene_type || 'other',
+      has_person: features.has_person === true,
+      action_type: features.action_type || 'none',
+      lighting_type: features.lighting_type || 'natural_soft',
+      camera_angle: features.camera_angle || 'eye_level',
+      color_tone: features.color_tone || 'neutral',
+      subject_density: features.subject_density || 'single',
+      composition_type: features.composition_type || 'center',
+    };
+
     const { data, error } = await supabase
       .from('post_features')
-      .upsert({
-        store_id: storeId,
-        post_id: postId,
-        main_subject: features.main_subject_tag || 'other',
-        scene_type: features.scene_type || 'other',
-        has_person: features.has_person === true,
-        action_type: features.action_type || 'none',
-        lighting_type: features.lighting_type || 'natural_soft',
-        camera_angle: features.camera_angle || 'eye_level',
-        color_tone: features.color_tone || 'neutral',
-        subject_density: features.subject_density || 'single',
-        composition_type: features.composition_type || 'center',
-      }, { onConflict: 'post_id' });
+      .upsert(fullRecord, { onConflict: 'post_id' });
 
     if (error) {
+      // カラム不在の場合は基本6カラムのみでリトライ
+      if (error.message.includes('column') || error.code === '42703') {
+        console.warn('[PostFeatures] 拡張カラム不在、基本カラムでリトライ');
+        const basicRecord = {
+          store_id: storeId,
+          post_id: postId,
+          main_subject: features.main_subject_tag || 'other',
+          scene_type: features.scene_type || 'other',
+          has_person: features.has_person === true,
+          action_type: features.action_type || 'none',
+          lighting_type: features.lighting_type || 'natural_soft',
+          camera_angle: features.camera_angle || 'eye_level',
+        };
+        const { data: basicData, error: basicError } = await supabase
+          .from('post_features')
+          .upsert(basicRecord, { onConflict: 'post_id' });
+        if (basicError) {
+          console.error('[PostFeatures] 基本カラムでもSave error:', basicError.message);
+          return null;
+        }
+        return basicData;
+      }
       console.error('[PostFeatures] Save error:', error.message);
       return null;
     }
@@ -291,16 +316,34 @@ export async function getFeatureAnalysis(storeId, days = 30) {
  */
 export async function getRecentPostsWithFeatures(storeId, limit = 30) {
   try {
-    const { data: features, error } = await supabase
+    // 拡張カラム含むクエリ（v2マイグレーション実行済みの場合）
+    let features = null;
+    const { data: fullData, error: fullError } = await supabase
       .from('post_features')
       .select('post_id, main_subject, scene_type, has_person, action_type, lighting_type, camera_angle, color_tone, subject_density, composition_type')
       .eq('store_id', storeId)
       .order('created_at', { ascending: false })
       .limit(limit);
 
-    if (error || !features || features.length === 0) return [];
+    if (fullError) {
+      // カラム不在エラーの場合は基本6カラムでフォールバック
+      console.warn('[PostFeatures] 拡張カラムクエリ失敗、基本カラムでリトライ:', fullError.message);
+      const { data: basicData, error: basicError } = await supabase
+        .from('post_features')
+        .select('post_id, main_subject, scene_type, has_person, action_type, lighting_type, camera_angle')
+        .eq('store_id', storeId)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+      if (basicError || !basicData || basicData.length === 0) return [];
+      features = basicData;
+    } else {
+      if (!fullData || fullData.length === 0) return [];
+      features = fullData;
+    }
 
     const postIds = features.map(f => f.post_id).filter(Boolean);
+    if (postIds.length === 0) return [];
+
     const { data: metrics } = await supabase
       .from('engagement_metrics')
       .select('post_id, save_intensity, engagement_rate')

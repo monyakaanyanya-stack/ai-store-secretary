@@ -65,6 +65,7 @@ export async function handleAdminTestData(user, args, replyToken) {
         comments_count: post.comments,
         reach: 0, // 推定値は使わない（実リーチのみ）
         engagement_rate: post.engagementRate,
+        save_intensity: post.likes > 0 ? post.saves / post.likes : 0,
       };
 
       const result = await saveEngagementMetrics(null, category, postData, metricsData);

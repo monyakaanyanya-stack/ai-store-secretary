@@ -172,7 +172,7 @@ export function isContextValid(ctx) {
 export async function regenerateBody(user, store, ctx, lineUserId) {
   try {
     const isPremium = await isFeatureEnabled(user.id, 'enhancedPhotoAdvice');
-    const storeForPrompt = isDevTestStore(store) && ctx.effectiveCategory
+    const storeForPrompt = ctx.effectiveCategory
       ? { ...store, category: ctx.effectiveCategory }
       : store;
 
@@ -291,15 +291,11 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
       console.log('[Image] 観察視点パース失敗（ヒントなしで生成続行）');
     }
 
-    // 被写体カテゴリー検出 → 集合知取得
+    // 被写体カテゴリー検出 → 集合知取得（全ユーザーで写真から自動判定）
     const contentCategory = detectContentCategory(cleanDescription);
-    const effectiveCategory = isDevTestStore(store)
-      ? (contentCategory || store.category)
-      : store.category;
-    if (isDevTestStore(store) && contentCategory) {
-      console.log(`[Image] 開発者テスト: 自動検出カテゴリー → ${contentCategory}`);
-    } else if (contentCategory && contentCategory !== store.category) {
-      console.log(`[Image] 被写体カテゴリー検出: store=${store.category} → content=${contentCategory}`);
+    const effectiveCategory = contentCategory || store.category;
+    if (contentCategory && contentCategory !== store.category) {
+      console.log(`[Image] 被写体カテゴリー自動検出: store=${store.category} → content=${contentCategory}`);
     }
     const blendedInsights = await safeResolve(
       effectiveCategory
@@ -334,7 +330,7 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
 
     // ── Step 1: 本文のみ生成（スリムプロンプト） ──
     const isPremium = await isFeatureEnabled(userId, 'enhancedPhotoAdvice');
-    const storeForPrompt = isDevTestStore(store) && effectiveCategory
+    const storeForPrompt = effectiveCategory
       ? { ...store, category: effectiveCategory }
       : store;
 
@@ -378,10 +374,10 @@ async function analyzeImageInBackground(userId, lineUserId, store, imageBase64, 
     autoRegeneratePersonaIfNeeded(store.id).catch(e =>
       console.error('[AutoPersona] エラー:', e.message));
 
-    // 集合知保存（開発者テスト店舗は除外）
-    if (store.category && !isDevTestStore(store)) {
+    // 集合知保存（開発者テスト店舗は除外、写真から検出したカテゴリーで保存）
+    if (effectiveCategory && !isDevTestStore(store)) {
       try {
-        await saveEngagementMetrics(store.id, store.category, {
+        await saveEngagementMetrics(store.id, effectiveCategory, {
           post_id: savedPost.id,
           content: bodyText,
         });
